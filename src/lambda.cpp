@@ -2661,6 +2661,241 @@ void test_app_reduce_one_step()
     }
 }
 
+void test_var_size()
+{
+    // Test that all variables have size 1
+    {
+        auto l_var = v(0);
+        assert(l_var->size() == 1);
+    }
+
+    {
+        auto l_var = v(5);
+        assert(l_var->size() == 1);
+    }
+
+    {
+        auto l_var = v(100);
+        assert(l_var->size() == 1);
+    }
+
+    {
+        auto l_var = v(999);
+        assert(l_var->size() == 1);
+    }
+}
+
+void test_func_size()
+{
+    // Test that func has size 1 + body size
+
+    // Simple function with var body: λ.0 has size 2
+    {
+        auto l_func = f(v(0));
+        assert(l_func->size() == 2);
+    }
+
+    {
+        auto l_func = f(v(5));
+        assert(l_func->size() == 2);
+    }
+
+    // Nested functions: λ.λ.0 has size 3
+    {
+        auto l_func = f(f(v(0)));
+        assert(l_func->size() == 3);
+    }
+
+    // Triple nested: λ.λ.λ.0 has size 4
+    {
+        auto l_func = f(f(f(v(0))));
+        assert(l_func->size() == 4);
+    }
+
+    // Function with application body: λ.(0 1) has size 4
+    // Body is app: 1 + 1 (var 0) + 1 (var 1) = 3
+    // Total: 1 + 3 = 4
+    {
+        auto l_func = f(a(v(0), v(1)));
+        assert(l_func->size() == 4);
+    }
+
+    // Function with nested application: λ.((0 1) 2) has size 6
+    // Body is app: 1 + (1+1+1) + 1 = 5
+    // Total: 1 + 5 = 6
+    {
+        auto l_func = f(a(a(v(0), v(1)), v(2)));
+        assert(l_func->size() == 6);
+    }
+
+    // Function with function application: λ.((λ.0) 1) has size 5
+    // Body is app: 1 + 2 (λ.0) + 1 (var 1) = 4
+    // Total: 1 + 4 = 5
+    {
+        auto l_func = f(a(f(v(0)), v(1)));
+        assert(l_func->size() == 5);
+    }
+
+    // Complex nested: λ.λ.(0 (1 2)) has size 7
+    // Inner app (1 2): 1 + 1 + 1 = 3
+    // Outer app: 1 + 1 + 3 = 5
+    // Inner func: 1 + 5 = 6
+    // Outer func: 1 + 6 = 7
+    {
+        auto l_func = f(f(a(v(0), a(v(1), v(2)))));
+        assert(l_func->size() == 7);
+    }
+}
+
+void test_app_size()
+{
+    // Test that app has size 1 + lhs size + rhs size
+
+    // Simple application: (0 1) has size 3
+    {
+        auto l_app = a(v(0), v(1));
+        assert(l_app->size() == 3);
+    }
+
+    {
+        auto l_app = a(v(5), v(10));
+        assert(l_app->size() == 3);
+    }
+
+    // Application with function on left: ((λ.0) 1) has size 4
+    // lhs is func: 1 + 1 = 2
+    // rhs is var: 1
+    // Total: 1 + 2 + 1 = 4
+    {
+        auto l_app = a(f(v(0)), v(1));
+        assert(l_app->size() == 4);
+    }
+
+    // Application with function on right: (0 (λ.1)) has size 4
+    {
+        auto l_app = a(v(0), f(v(1)));
+        assert(l_app->size() == 4);
+    }
+
+    // Both sides are functions: ((λ.0) (λ.1)) has size 5
+    {
+        auto l_app = a(f(v(0)), f(v(1)));
+        assert(l_app->size() == 5);
+    }
+
+    // Nested application on left: ((0 1) 2) has size 5
+    // lhs is app: 1 + 1 + 1 = 3
+    // rhs is var: 1
+    // Total: 1 + 3 + 1 = 5
+    {
+        auto l_app = a(a(v(0), v(1)), v(2));
+        assert(l_app->size() == 5);
+    }
+
+    // Nested application on right: (0 (1 2)) has size 5
+    {
+        auto l_app = a(v(0), a(v(1), v(2)));
+        assert(l_app->size() == 5);
+    }
+
+    // Both sides nested applications: ((0 1) (2 3)) has size 7
+    // lhs: 3, rhs: 3, total: 1 + 3 + 3 = 7
+    {
+        auto l_app = a(a(v(0), v(1)), a(v(2), v(3)));
+        assert(l_app->size() == 7);
+    }
+
+    // Complex: ((λ.0) (λ.λ.1)) has size 6
+    // lhs: 2, rhs: 3, total: 1 + 2 + 3 = 6
+    {
+        auto l_app = a(f(v(0)), f(f(v(1))));
+        assert(l_app->size() == 6);
+    }
+
+    // Very complex: ((λ.(0 1)) (λ.(2 3))) has size 9
+    // lhs func body: 1 + 1 + 1 = 3, lhs func: 1 + 3 = 4
+    // rhs func body: 1 + 1 + 1 = 3, rhs func: 1 + 3 = 4
+    // Total: 1 + 4 + 4 = 9
+    {
+        auto l_app = a(f(a(v(0), v(1))), f(a(v(2), v(3))));
+        assert(l_app->size() == 9);
+    }
+
+    // Self-application: ((λ.0) (λ.0)) has size 5
+    {
+        auto l_func = f(v(0));
+        auto l_app = a(l_func->clone(), l_func->clone());
+        assert(l_app->size() == 5);
+    }
+
+    // Omega combinator: (λ.(0 0)) has size 4
+    // body: 1 + 1 + 1 = 3
+    // func: 1 + 3 = 4
+    {
+        auto l_omega_func = f(a(v(0), v(0)));
+        assert(l_omega_func->size() == 4);
+    }
+
+    // Full omega: ((λ.(0 0)) (λ.(0 0))) has size 9
+    {
+        auto l_omega_func = f(a(v(0), v(0)));
+        auto l_omega = a(l_omega_func->clone(), l_omega_func->clone());
+        assert(l_omega->size() == 9);
+    }
+
+    // K combinator: (λ.λ.0) has size 3
+    {
+        auto l_k = f(f(v(0)));
+        assert(l_k->size() == 3);
+    }
+
+    // S combinator: λ.λ.λ.((0 2) (1 2)) has size 10
+    // (1 2): 3
+    // (0 2): 3
+    // ((0 2) (1 2)): 1 + 3 + 3 = 7
+    // λ: 1 + 7 = 8
+    // λ: 1 + 8 = 9
+    // λ: 1 + 9 = 10
+    {
+        auto l_s = f(f(f(a(a(v(0), v(2)), a(v(1), v(2))))));
+        assert(l_s->size() == 10);
+    }
+
+    // Church numeral ZERO: λ.λ.0 has size 3
+    {
+        auto l_zero = f(f(v(0)));
+        assert(l_zero->size() == 3);
+    }
+
+    // Church numeral ONE: λ.λ.(1 0) has size 5
+    // (1 0): 3
+    // λ: 1 + 3 = 4
+    // λ: 1 + 4 = 5
+    {
+        auto l_one = f(f(a(v(1), v(0))));
+        assert(l_one->size() == 5);
+    }
+
+    // Church numeral TWO: λ.λ.(1 (1 0)) has size 7
+    // (1 0): 3
+    // (1 (1 0)): 1 + 1 + 3 = 5
+    // λ: 1 + 5 = 6
+    // λ: 1 + 6 = 7
+    {
+        auto l_two = f(f(a(v(1), a(v(1), v(0)))));
+        assert(l_two->size() == 7);
+    }
+
+    // Test that size remains constant after cloning
+    {
+        auto l_expr = a(f(a(v(0), v(1))), v(2));
+        size_t l_original_size = l_expr->size();
+        auto l_cloned = l_expr->clone();
+        assert(l_cloned->size() == l_original_size);
+        assert(l_cloned->size() == 6);
+    }
+}
+
 std::unique_ptr<expr> construct_program(
     std::list<std::unique_ptr<expr>>::const_iterator a_helpers_begin,
     std::list<std::unique_ptr<expr>>::const_iterator a_helpers_end,
@@ -3057,6 +3292,10 @@ void lambda_test_main()
     TEST(test_var_reduce_one_step);
     TEST(test_func_reduce_one_step);
     TEST(test_app_reduce_one_step);
+
+    TEST(test_var_size);
+    TEST(test_func_size);
+    TEST(test_app_size);
 
     TEST(generic_use_case_test);
 }
