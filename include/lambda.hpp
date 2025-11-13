@@ -24,10 +24,13 @@ struct expr
     std::unique_ptr<expr>
     normalize(size_t* a_step_count = nullptr,
               size_t a_step_limit = std::numeric_limits<size_t>::max()) const;
-    size_t m_size;
+    size_t size() const;
     expr(size_t a_size);
     expr(const expr& other) = delete;
     expr& operator=(const expr& other) = delete;
+
+  private:
+    size_t m_size;
 };
 
 struct var : expr

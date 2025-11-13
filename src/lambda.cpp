@@ -221,6 +221,12 @@ std::unique_ptr<expr> expr::normalize(size_t* a_step_count,
     return l_result;
 }
 
+// SIZE METHOD
+size_t expr::size() const
+{
+    return m_size;
+}
+
 // CONSTRUCTORS
 expr::expr(size_t a_size) : m_size(a_size)
 {
@@ -231,12 +237,12 @@ var::var(size_t a_index) : expr(1), m_index(a_index)
 }
 
 func::func(std::unique_ptr<expr>&& a_body)
-    : expr(1 + a_body->m_size), m_body(std::move(a_body))
+    : expr(1 + a_body->size()), m_body(std::move(a_body))
 {
 }
 
 app::app(std::unique_ptr<expr>&& a_func, std::unique_ptr<expr>&& a_arg)
-    : expr(1 + a_func->m_size + a_arg->m_size), m_func(std::move(a_func)),
+    : expr(1 + a_func->size() + a_arg->size()), m_func(std::move(a_func)),
       m_arg(std::move(a_arg))
 {
 }
