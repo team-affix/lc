@@ -2994,6 +2994,16 @@ void generic_use_case_test()
 
         assert(MULT_FIVE_FIVE_REDUCED->equals(TWENTY_FIVE->clone()));
     }
+
+    // test for fun
+    {
+        // this should never terminate -- omega combinator
+        const auto OMEGA = a(f(a(v(0), v(0))), f(a(v(0), v(0))));
+        size_t l_count = 0;
+        auto l_reduced = OMEGA->normalize(&l_count, 1000);
+        // omega becomes itself forever
+        assert(l_reduced->equals(OMEGA->clone()));
+    }
 }
 
 void lambda_test_main()
