@@ -129,6 +129,8 @@ std::unique_ptr<expr> clone() const;
 
 ## Starter Examples
 
+> Factory functions `v()`, `f()`, `a()` create expressions, and produce `std::unique_ptr<expr>`
+
 ### Basic Construction
 
 ```cpp
@@ -236,7 +238,6 @@ make
 
 This creates:
 - `build/liblc.a` - Static library
-- `build/main` - Test executable (if UNIT_TEST is defined)
 
 ## Testing
 
@@ -249,19 +250,15 @@ The project includes comprehensive unit tests covering:
 - Combinator identities (I, K, S)
 - Church numeral arithmetic
 
-Run tests with:
+Build tests with:
 ```bash
-make
-./build/main
+make debug
 ```
 
-## Implementation Notes
-
-- Expressions are immutable and managed via `std::unique_ptr`
-- `clone()` creates deep copies of expressions
-- Factory functions `v()`, `f()`, `a()` create expressions
-- All operations are capture-avoiding by design
-- Normal order reduction ensures termination when a normal form exists
+Run tests with:
+```bash
+./build/main
+```
 
 ## License
 
