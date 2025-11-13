@@ -1582,6 +1582,43 @@ void test_func_normalize()
         auto l_reduced = l_expr->normalize(nullptr, 0);
         assert(l_reduced->equals(f(a(v(2), v(5)))));
     }
+
+    // Test reduction count with redex inside function body
+    // λ.((λ.0) 5) -> λ.0 (1 reduction inside body)
+    // Note: v(0) at depth 1 refers to outer lambda, so it's not replaced
+    {
+        auto l_expr = f(a(f(v(0)), v(5)));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 1);
+        auto l_expected = f(v(0));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test reduction limit stopping reduction inside function body
+    // λ.((λ.1) 2) with limit 0 -> no reduction
+    {
+        auto l_expr = f(a(f(v(1)), v(2)));
+        auto l_reduced = l_expr->normalize(nullptr, 0);
+        assert(l_reduced->equals(l_expr));
+    }
+
+    // Test nested functions with multiple reductions
+    // λ.λ.((λ.2) ((λ.3) 5)) -> λ.λ.(2 4) (2 reductions)
+    {
+        auto l_expr = f(f(a(f(v(2)), a(f(v(3)), v(5)))));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 2);
+        // v(3) > 1 so decrements to v(2), then v(2) > 1 stays v(2)
+        // Actually: first reduces (λ.3) 5 at depth 2 -> v(3) > 2, decrements to
+        // v(2) Then reduces (λ.2) 2 at depth 2 -> v(2) == 2, so doesn't change
+        // but gets replaced Wait, let me think... at depth 2: (λ.3) 5: v(3) >
+        // var_index(2), so it's free and decrements to v(2) Then (λ.2) 2: v(2)
+        // == var_index(2), so it gets replaced with v(2), no change
+        auto l_expected = f(f(v(2)));
+        assert(l_reduced->equals(l_expected));
+    }
 }
 
 void test_app_normalize()
@@ -1907,6 +1944,136 @@ void test_app_normalize()
         auto l_reduced_full = l_expr->normalize(&l_count);
         assert(l_count == 2);
         assert(l_reduced_full->equals(v(5)));
+    }
+
+    // Test identity combinator: (λ.0) applied to expression
+    // (λ.0) (λ.5) -> λ.5 (1 reduction)
+    {
+        auto l_identity = f(v(0));
+        auto l_arg = f(v(5));
+        auto l_expr = a(l_identity->clone(), l_arg->clone());
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 1);
+        assert(l_reduced->equals(l_arg));
+    }
+
+    // Test normal order with limit - should reduce leftmost-outermost first
+    // ((λ.2) 3) ((λ.4) 5) with limit 1 -> (1 ((λ.4) 5))
+    // Left side reduces: v(2) > 0 decrements to v(1)
+    {
+        auto l_lhs = a(f(v(2)), v(3));
+        auto l_rhs = a(f(v(4)), v(5));
+        auto l_expr = a(l_lhs->clone(), l_rhs->clone());
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 1);
+        assert(l_count == 1);
+        // Left reduces first (normal order)
+        auto l_expected = a(v(1), a(f(v(4)), v(5)));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test normal order continuation - reduce left, then right
+    // ((λ.2) 3) ((λ.4) 5) with limit 2 -> (1 3)
+    {
+        auto l_lhs = a(f(v(2)), v(3));
+        auto l_rhs = a(f(v(4)), v(5));
+        auto l_expr = a(l_lhs->clone(), l_rhs->clone());
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 2);
+        assert(l_count == 2);
+        // Both reduce: v(2)->v(1), v(4)->v(3)
+        auto l_expected = a(v(1), v(3));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test self-application with limit to prevent infinite reduction
+    // (λ.0 0) (λ.0 0) with limit 3 (omega combinator)
+    // This tests that the limit actually stops potentially infinite reductions
+    {
+        auto l_omega = f(a(v(0), v(0)));
+        auto l_expr = a(l_omega->clone(), l_omega->clone());
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 3);
+        assert(l_count == 3);
+        // Should stop after 3 reductions, not continue indefinitely
+    }
+
+    // Test reduction inside nested applications
+    // (1 ((λ.0) 2)) -> (1 2) (1 reduction in rhs)
+    {
+        auto l_expr = a(v(1), a(f(v(0)), v(2)));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 1);
+        auto l_expected = a(v(1), v(2));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test multiple reductions in sequence with precise count
+    // (((λ.0) 1) ((λ.0) 2)) 3 -> (1 2) 3 -> no further reduction (2 reductions)
+    {
+        auto l_expr = a(a(a(f(v(0)), v(1)), a(f(v(0)), v(2))), v(3));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 2);
+        auto l_expected = a(a(v(1), v(2)), v(3));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test function returning function with counting
+    // (λ.λ.1) 5 -> λ.0 (1 reduction, v(1) at depth 1 decrements)
+    {
+        auto l_expr = a(f(f(v(1))), v(5));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 1);
+        auto l_expected = f(v(0));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test limit preventing reduction that would happen in function body
+    // (λ.0) (λ.((λ.1) 2)) with limit 1 -> (λ.((λ.1) 2))
+    // Only outer app reduces, inner redex remains
+    {
+        auto l_inner_redex = a(f(v(1)), v(2));
+        auto l_arg = f(l_inner_redex->clone());
+        auto l_expr = a(f(v(0)), l_arg->clone());
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 1);
+        assert(l_count == 1);
+        // Should return the argument unchanged (no normalization of body)
+        assert(l_reduced->equals(l_arg));
+    }
+
+    // Test complete normalization with nested redexes
+    // (λ.0) (λ.((λ.1) 2)) with no limit -> (λ.2)
+    // Outer reduces, then inner reduces
+    {
+        auto l_inner_redex = a(f(v(1)), v(2));
+        auto l_arg = f(l_inner_redex->clone());
+        auto l_expr = a(f(v(0)), l_arg->clone());
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 2);
+        // After outer reduction: λ.((λ.1) 2)
+        // After inner reduction: λ.2
+        auto l_expected = f(v(2));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test K combinator: (λ.λ.0) applied to two arguments
+    // ((λ.λ.0) 5) 6 -> (λ.6) 6 -> 5 (2 reductions)
+    // Note: v(0) at depth 1 gets replaced by v(5) lifted to v(6)
+    //       Then v(6) > var_index(0) decrements to v(5)
+    {
+        auto l_k = f(f(v(0)));
+        auto l_expr = a(a(l_k->clone(), v(5)), v(6));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 2);
+        auto l_expected = v(5);
+        assert(l_reduced->equals(l_expected));
     }
 }
 
