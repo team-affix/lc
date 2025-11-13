@@ -4,7 +4,8 @@ debug:
 
 release:
 	mkdir -p build
-	g++ -std=c++20 -I"." ./src/*.cpp -o ./build/release.o
+	g++ -std=c++20 -I"." -c ./src/*.cpp -o ./build/release.o
+	ar rcs ./build/liblc.a ./build/release.o
 
 clean:
 	rm -rf ./build
