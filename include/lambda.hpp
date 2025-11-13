@@ -30,7 +30,7 @@ struct expr
     expr& operator=(const expr& other) = delete;
 
   private:
-    size_t m_size;
+    const size_t m_size;
 };
 
 struct var : expr
@@ -44,11 +44,12 @@ struct var : expr
     substitute(size_t a_lift_amount, size_t a_var_index,
                const std::unique_ptr<expr>& a_arg) const override;
     std::unique_ptr<expr> reduce_one_step(size_t a_depth) const override;
-    size_t m_index;
+    size_t index() const;
 
   private:
     var(size_t a_index);
     friend std::unique_ptr<expr> v(size_t a_index);
+    const size_t m_index;
 };
 
 struct func : expr
@@ -62,11 +63,12 @@ struct func : expr
     substitute(size_t a_lift_amount, size_t a_var_index,
                const std::unique_ptr<expr>& a_arg) const override;
     std::unique_ptr<expr> reduce_one_step(size_t a_depth) const override;
-    std::unique_ptr<expr> m_body;
+    const std::unique_ptr<expr>& body() const;
 
   private:
     func(std::unique_ptr<expr>&& a_body);
     friend std::unique_ptr<expr> f(std::unique_ptr<expr>&& a_body);
+    const std::unique_ptr<expr> m_body;
 };
 
 struct app : expr
@@ -80,20 +82,22 @@ struct app : expr
     substitute(size_t a_lift_amount, size_t a_var_index,
                const std::unique_ptr<expr>& a_arg) const override;
     std::unique_ptr<expr> reduce_one_step(size_t a_depth) const override;
-    std::unique_ptr<expr> m_func;
-    std::unique_ptr<expr> m_arg;
+    const std::unique_ptr<expr>& lhs() const;
+    const std::unique_ptr<expr>& rhs() const;
 
   private:
-    app(std::unique_ptr<expr>&& a_func, std::unique_ptr<expr>&& a_arg);
-    friend std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_func,
-                                   std::unique_ptr<expr>&& a_arg);
+    app(std::unique_ptr<expr>&& a_lhs, std::unique_ptr<expr>&& a_rhs);
+    friend std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_lhs,
+                                   std::unique_ptr<expr>&& a_rhs);
+    const std::unique_ptr<expr> m_lhs;
+    const std::unique_ptr<expr> m_rhs;
 };
 
 // factory functions
 std::unique_ptr<expr> v(size_t a_index);
 std::unique_ptr<expr> f(std::unique_ptr<expr>&& a_body);
-std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_func,
-                        std::unique_ptr<expr>&& a_arg);
+std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_lhs,
+                        std::unique_ptr<expr>&& a_rhs);
 
 } // namespace lambda
 
