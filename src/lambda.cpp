@@ -2465,6 +2465,62 @@ void test_app_normalize()
         assert(l_peak == 7); // Original size
         assert(l_reduced->equals(v(5)));
     }
+
+    // Test size limit on expression that GROWS during reduction
+    // (λ.0 0) (λ.0 0 0) - like omega but grows exponentially
+    // Original: 1 + 4 + 6 = 11
+    // Step 1: (λ.0 0 0) (λ.0 0 0) - size 1 + 6 + 6 = 13
+    // Step 2: ((λ.0 0 0) (λ.0 0 0)) (λ.0 0 0) - size 1 + 13 + 6 = 20
+    // Step 3: (((λ.0 0 0) (λ.0 0 0)) (λ.0 0 0)) (λ.0 0 0) - size ≈ 27+
+    {
+        auto l_dup2 = f(a(v(0), v(0)));                    // λ.(0 0), size 4
+        auto l_dup3 = f(a(a(v(0), v(0)), v(0)));           // λ.(0 0 0), size 6
+        auto l_expr = a(l_dup2->clone(), l_dup3->clone()); // size 11
+
+        // Test with step limit to see growth pattern
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced_3steps = l_expr->normalize(
+            &l_count, 3, &l_peak, std::numeric_limits<size_t>::max());
+        assert(l_count == 3);
+        assert(l_peak == 27); // Should grow to 27 after 2 steps
+
+        // Test with size limit that allows some growth but prevents explosion
+        // Limit to 15: allows reductions until size exceeds 15
+        // 11->13 (ok), 13->20 (exceeds), so 2 reductions before exceeding
+        l_count = 999;
+        l_peak = 999;
+        auto l_reduced_limited = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak, 15);
+        assert(l_count == 2); // Two reductions before exceeding limit
+        assert(l_peak == 20); // Peak is the size that exceeded the limit
+        // Result should be: ((λ.0 0 0) (λ.0 0 0)) (λ.0 0 0) with size 20
+        auto l_step1 = a(l_dup3->clone(), l_dup3->clone());
+        auto l_expected = a(l_step1->clone(), l_dup3->clone());
+        assert(l_reduced_limited->equals(l_expected));
+
+        // Test with size limit preventing any reduction
+        // Original size is 11, so limit of 10 prevents all reductions
+        l_count = 999;
+        l_peak = 999;
+        auto l_reduced_blocked = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak, 10);
+        assert(l_count == 0); // No reductions possible
+        assert(l_peak == 11); // Peak is just the original size
+        assert(l_reduced_blocked->equals(l_expr));
+
+        // Test with size limit at exact boundary
+        // Limit exactly at 11 (original size): 11->13 (exceeds)
+        l_count = 999;
+        l_peak = 999;
+        auto l_reduced_boundary = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak, 11);
+        assert(l_count == 1); // One reduction before exceeding
+        assert(l_peak == 13); // Peak is the size that exceeded
+        // Result should be: (λ.0 0 0) (λ.0 0 0) with size 13
+        auto l_expected_boundary = a(l_dup3->clone(), l_dup3->clone());
+        assert(l_reduced_boundary->equals(l_expected_boundary));
+    }
 }
 
 void test_var_reduce_one_step()
