@@ -2077,22 +2077,6 @@ void test_app_normalize()
     }
 }
 
-std::unique_ptr<expr> construct_program(
-    std::list<std::unique_ptr<expr>>::const_iterator a_helpers_begin,
-    std::list<std::unique_ptr<expr>>::const_iterator a_helpers_end,
-    const std::unique_ptr<expr>& a_main_fn)
-{
-    // we will construct a tower of abstractions,
-    // with the main function at the bottom.
-    if(a_helpers_begin == a_helpers_end)
-        return a_main_fn->clone();
-
-    // construct an abstraction and recur
-    return a(f(construct_program(std::next(a_helpers_begin), a_helpers_end,
-                                 a_main_fn)),
-             (*a_helpers_begin)->clone());
-}
-
 void test_var_reduce_one_step()
 {
     // var at index 0 - cannot reduce
@@ -2651,6 +2635,22 @@ void test_app_reduce_one_step()
         auto l_expected = v(1);
         assert(l_reduced->equals(l_expected));
     }
+}
+
+std::unique_ptr<expr> construct_program(
+    std::list<std::unique_ptr<expr>>::const_iterator a_helpers_begin,
+    std::list<std::unique_ptr<expr>>::const_iterator a_helpers_end,
+    const std::unique_ptr<expr>& a_main_fn)
+{
+    // we will construct a tower of abstractions,
+    // with the main function at the bottom.
+    if(a_helpers_begin == a_helpers_end)
+        return a_main_fn->clone();
+
+    // construct an abstraction and recur
+    return a(f(construct_program(std::next(a_helpers_begin), a_helpers_end,
+                                 a_main_fn)),
+             (*a_helpers_begin)->clone());
 }
 
 void generic_use_case_test()
