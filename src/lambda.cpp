@@ -1686,6 +1686,409 @@ std::unique_ptr<expr> construct_program(
            (*a_helpers_begin)->clone());
 }
 
+void test_var_reduce_one_step() {
+  // var at index 0 - cannot reduce
+  {
+    auto l_var = v(0);
+    auto l_reduced = l_var->reduce_one_step(0);
+    assert(l_reduced == nullptr);
+  }
+
+  // var at index 1 - cannot reduce
+  {
+    auto l_var = v(1);
+    auto l_reduced = l_var->reduce_one_step(0);
+    assert(l_reduced == nullptr);
+  }
+
+  // var at index 5 - cannot reduce
+  {
+    auto l_var = v(5);
+    auto l_reduced = l_var->reduce_one_step(0);
+    assert(l_reduced == nullptr);
+  }
+
+  // var at depth 0 - cannot reduce
+  {
+    auto l_var = v(3);
+    auto l_reduced = l_var->reduce_one_step(0);
+    assert(l_reduced == nullptr);
+  }
+
+  // var at depth 5 - cannot reduce
+  {
+    auto l_var = v(3);
+    auto l_reduced = l_var->reduce_one_step(5);
+    assert(l_reduced == nullptr);
+  }
+
+  // var at depth 10 - cannot reduce
+  {
+    auto l_var = v(7);
+    auto l_reduced = l_var->reduce_one_step(10);
+    assert(l_reduced == nullptr);
+  }
+}
+
+void test_func_reduce_one_step() {
+  // func with var body - cannot reduce
+  {
+    auto l_func = f(v(0));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced == nullptr);
+  }
+
+  // func with var body at depth 5 - cannot reduce
+  {
+    auto l_func = f(v(3));
+    auto l_reduced = l_func->reduce_one_step(5);
+    assert(l_reduced == nullptr);
+  }
+
+  // func with app body (both vars) - cannot reduce
+  {
+    auto l_func = f(a(v(0), v(1)));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced == nullptr);
+  }
+
+  // func with beta-redex in body where inner func references outer var
+  // λ.((λ.0) 1) -> λ.0
+  // Note: v(0) inside inner lambda refers to OUTER lambda (De Bruijn levels)
+  {
+    auto l_func = f(a(f(v(0)), v(1)));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(v(0));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with beta-redex in body where inner func uses its own bound var
+  // λ.((λ.1) 2) -> λ.2
+  // Note: v(1) inside inner lambda at depth 1 refers to inner lambda's bound
+  // var
+  {
+    auto l_func = f(a(f(v(1)), v(2)));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(v(2));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with beta-redex in body at depth 3 - inner func refs outer context
+  // λ.((λ.3) 2) -> λ.3
+  // Note: At depth 3, inner lambda is at depth 4, v(3) refs depth 3 (outer
+  // lambda)
+  {
+    auto l_func = f(a(f(v(3)), v(2)));
+    auto l_reduced = l_func->reduce_one_step(3);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(v(3));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with beta-redex where inner func uses its bound var at depth 3
+  // λ.((λ.4) 2) -> λ.2
+  // Note: At depth 3, inner lambda is at depth 4, v(4) is the inner lambda's
+  // bound var
+  {
+    auto l_func = f(a(f(v(4)), v(2)));
+    auto l_reduced = l_func->reduce_one_step(3);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(v(2));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with nested beta-redex where inner functions ref outer lambda
+  // λ.((λ.(λ.0)) 5) -> λ.(λ.0)
+  // Note: v(0) refs outermost lambda, not the one at depth 1 being reduced
+  {
+    auto l_func = f(a(f(f(v(0))), v(5)));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(f(v(0)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with nested beta-redex where inner function uses the bound var being
+  // reduced λ.((λ.(λ.1)) 5) -> λ.(λ.6) Note: v(1) refs the lambda at depth 1,
+  // which gets substituted with v(5) and lifted
+  {
+    auto l_func = f(a(f(f(v(1))), v(5)));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(f(v(6)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with app that can reduce lhs (normal order)
+  // λ.(((λ.0) 1) 2) - inner app lhs reduces first (leftmost-outermost)
+  {
+    auto l_func = f(a(a(f(v(0)), v(1)), v(2)));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // After reducing inner app: v(0) < depth 1, stays v(0), result: λ.(0 2)
+    auto l_expected = f(a(v(0), v(2)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with app where inner function uses its bound var
+  // λ.(((λ.1) 2) 3) - inner app reduces, v(1) gets replaced with v(2)
+  {
+    auto l_func = f(a(a(f(v(1)), v(2)), v(3)));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // After reducing inner app at depth 1: v(1) replaced with v(2), result:
+    // λ.(2 3)
+    auto l_expected = f(a(v(2), v(3)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with nested func containing redex where inner func refs outer context
+  // λ.λ.((λ.0) 1) -> λ.λ.0
+  // Note: At depth 2, v(0) refs depth 0, not being substituted
+  {
+    auto l_func = f(f(a(f(v(0)), v(1))));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(f(v(0)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with nested func where inner function uses innermost bound var
+  // λ.λ.((λ.2) 1) -> λ.λ.1
+  // Note: At depth 2, v(2) refs the innermost lambda, gets replaced with v(1)
+  {
+    auto l_func = f(f(a(f(v(2)), v(1))));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(f(v(1)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // func with body that has reducible app in rhs position
+  // λ.(0 ((λ.1) 2)) -> λ.(0 2)
+  {
+    auto l_func = f(a(v(0), a(f(v(1)), v(2))));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(a(v(0), v(2)));
+    assert(l_reduced->equals(l_expected));
+  }
+}
+
+void test_app_reduce_one_step() {
+  // app of two vars - cannot reduce
+  {
+    auto l_app = a(v(0), v(1));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced == nullptr);
+  }
+
+  // app of two vars at depth 5 - cannot reduce
+  {
+    auto l_app = a(v(3), v(4));
+    auto l_reduced = l_app->reduce_one_step(5);
+    assert(l_reduced == nullptr);
+  }
+
+  // Beta-reduction: (λ.0) 1 -> 1
+  {
+    auto l_app = a(f(v(0)), v(1));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = v(1);
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction at depth 0: (λ.0) (λ.1) -> λ.1
+  {
+    auto l_app = a(f(v(0)), f(v(1)));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(v(1));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction at depth 3: (λ.3) 2 -> 2
+  {
+    auto l_app = a(f(v(3)), v(2));
+    auto l_reduced = l_app->reduce_one_step(3);
+    assert(l_reduced != nullptr);
+    auto l_expected = v(2);
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction with substitution (no lifting at depth 0): (λ.0) (λ.5) ->
+  // λ.5 Note: Applications don't contribute to depth, so lift_amount = 0
+  {
+    auto l_app = a(f(v(0)), f(v(5)));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(v(5));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction with var that needs decrementing: (λ.2) 1 -> 1
+  {
+    auto l_app = a(f(v(2)), v(1));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = v(1);
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction with nested function: (λ.λ.0) 5 -> λ.5 (lifted to λ.6)
+  {
+    auto l_app = a(f(f(v(0))), v(5));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(v(6));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Normal order: reduce lhs before rhs
+  // ((λ.0) 1) 2 -> lhs reduces to 1, result is (1 2)
+  {
+    auto l_app = a(a(f(v(0)), v(1)), v(2));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = a(v(1), v(2));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Normal order: lhs is not a redex, but can reduce
+  // ((λ.2) 3) 4 -> ((1) 4) = (1 4)
+  // Note: v(2) > var_index(0), so it's a free var that gets decremented
+  {
+    auto l_app = a(a(f(v(2)), v(3)), v(4));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // lhs: v(2) decrements to v(1), so result is (1 4)
+    auto l_expected = a(v(1), v(4));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Normal order: lhs cannot reduce, try rhs
+  // (0 ((λ.1) 2)) -> (0 0)
+  // Note: v(1) > var_index(0), so it decrements to v(0)
+  {
+    auto l_app = a(v(0), a(f(v(1)), v(2)));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = a(v(0), v(0));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Normal order: lhs is var (cannot reduce), rhs reduces
+  // (5 ((λ.0) 3)) -> (5 3)
+  {
+    auto l_app = a(v(5), a(f(v(0)), v(3)));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = a(v(5), v(3));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction takes priority over reducing sub-expressions
+  // (λ.((λ.3) 4)) 2 -> beta-reduces outer first, result is ((λ.2) 3)
+  // Note: v(3) and v(4) are free vars that get decremented when outer lambda is
+  // removed
+  {
+    auto l_app = a(f(a(f(v(3)), v(4))), v(2));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = a(f(v(2)), v(3));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Complex beta-reduction: (λ.(0 0)) (λ.5) -> (λ.5 λ.5) without lifting
+  // Note: At depth 0, no lifting occurs (applications don't add depth)
+  {
+    auto l_app = a(f(a(v(0), v(0))), f(v(5)));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // v(0) gets replaced with f(v(5)) with no lifting at depth 0
+    auto l_expected = a(f(v(5)), f(v(5)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction with multiple occurrences: (λ.(0 0 0)) 3 -> (3 3 3)
+  {
+    auto l_app = a(f(a(a(v(0), v(0)), v(0))), v(3));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = a(a(v(3), v(3)), v(3));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction with higher De Bruijn level: (λ.5) 3 -> 4 (5 decrements to
+  // 4)
+  {
+    auto l_app = a(f(v(5)), v(3));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = v(4);
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction with app as argument: (λ.0) (1 2) -> (1 2)
+  {
+    auto l_app = a(f(v(0)), a(v(1), v(2)));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = a(v(1), v(2));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Normal order: nested apps, leftmost-outermost reduction
+  // (((λ.0) 1) ((λ.2) 3)) -> ((1) ((λ.2) 3))
+  {
+    auto l_lhs = a(f(v(0)), v(1));
+    auto l_rhs = a(f(v(2)), v(3));
+    auto l_app = a(l_lhs->clone(), l_rhs->clone());
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // lhs reduces to v(1), rhs stays same
+    auto l_expected = a(v(1), a(f(v(2)), v(3)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Deeply nested beta-reduction at depth 10
+  // (λ.10) 8 at depth 10 -> 8
+  {
+    auto l_app = a(f(v(10)), v(8));
+    auto l_reduced = l_app->reduce_one_step(10);
+    assert(l_reduced != nullptr);
+    auto l_expected = v(8);
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction with free variables
+  // (λ.(1 0)) 5 -> (0 5)
+  // Note: v(0) replaced with v(5), v(1) > var_index(0) so it decrements to v(0)
+  {
+    auto l_app = a(f(a(v(1), v(0))), v(5));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // v(1) decrements to v(0) (free var), v(0) replaced with v(5)
+    auto l_expected = a(v(0), v(5));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Beta-reduction with complex body
+  // (λ.((0 1) (2 0))) 7 -> ((7 0) (1 7))
+  {
+    auto l_body = a(a(v(0), v(1)), a(v(2), v(0)));
+    auto l_app = a(f(l_body->clone()), v(7));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // v(0) -> v(7), v(1) -> v(0), v(2) -> v(1)
+    auto l_expected = a(a(v(7), v(0)), a(v(1), v(7)));
+    assert(l_reduced->equals(l_expected));
+  }
+}
+
 void generic_use_case_test() {
   using namespace lambda;
   std::list<std::unique_ptr<expr>> l_helpers{};
@@ -1932,6 +2335,10 @@ void lambda_test_main() {
   TEST(test_var_normalize);
   TEST(test_func_normalize);
   TEST(test_app_normalize);
+
+  TEST(test_var_reduce_one_step);
+  TEST(test_func_reduce_one_step);
+  TEST(test_app_reduce_one_step);
 
   TEST(generic_use_case_test);
 }
