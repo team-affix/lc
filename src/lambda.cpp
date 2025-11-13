@@ -60,8 +60,9 @@ void var::print(std::ostream& a_ostream) const
 
 void func::print(std::ostream& a_ostream) const
 {
-    a_ostream << "λ.";
+    a_ostream << "λ.(";
     m_body->print(a_ostream);
+    a_ostream << ")";
 }
 
 void app::print(std::ostream& a_ostream) const
@@ -1580,6 +1581,65 @@ void test_var_normalize()
         auto l_reduced = l_expr->normalize(nullptr, 0);
         assert(l_reduced->equals(v(7)));
     }
+
+    // Test size peak tracking on var (size should stay at 1)
+    {
+        auto l_expr = v(10);
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            nullptr, std::numeric_limits<size_t>::max(), &l_peak);
+        assert(l_peak == 1);
+        assert(l_reduced->equals(v(10)));
+    }
+
+    // Test size peak with nullptr (should work without tracking)
+    {
+        auto l_expr = v(5);
+        auto l_reduced = l_expr->normalize(
+            nullptr, std::numeric_limits<size_t>::max(), nullptr);
+        assert(l_reduced->equals(v(5)));
+    }
+
+    // Test size limit on var (no effect since size stays at 1)
+    {
+        auto l_expr = v(3);
+        auto l_reduced = l_expr->normalize(
+            nullptr, std::numeric_limits<size_t>::max(), nullptr, 1);
+        assert(l_reduced->equals(v(3)));
+    }
+
+    // Test size limit smaller than var size (stops immediately)
+    {
+        auto l_expr = v(5);
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), nullptr, 0);
+        assert(l_count == 0);
+        assert(l_reduced->equals(v(5)));
+    }
+
+    // Test both step count and size peak together
+    {
+        auto l_expr = v(8);
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak);
+        assert(l_count == 0);
+        assert(l_peak == 1);
+        assert(l_reduced->equals(v(8)));
+    }
+
+    // Test all parameters together
+    {
+        auto l_expr = v(12);
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 100, &l_peak, 10);
+        assert(l_count == 0);
+        assert(l_peak == 1);
+        assert(l_reduced->equals(v(12)));
+    }
 }
 
 void test_func_normalize()
@@ -1652,6 +1712,88 @@ void test_func_normalize()
         // var_index(2), so it's free and decrements to v(2) Then (λ.2) 2: v(2)
         // == var_index(2), so it gets replaced with v(2), no change
         auto l_expected = f(f(v(2)));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test size peak tracking on func with no reductions
+    // λ.5 has size 2 and stays that way
+    {
+        auto l_expr = f(v(5));
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            nullptr, std::numeric_limits<size_t>::max(), &l_peak);
+        assert(l_peak == 2);
+        assert(l_reduced->equals(f(v(5))));
+    }
+
+    // Test size peak tracking on func with reduction where size decreases
+    // λ.((λ.0) 5) has size 5, reduces to λ.0 with size 2
+    // Peak should be 5 (original size before reduction)
+    {
+        auto l_expr = f(a(f(v(0)), v(5)));
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            nullptr, std::numeric_limits<size_t>::max(), &l_peak);
+        assert(l_peak == 5);
+        auto l_expected = f(v(0));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test size peak with step count on func with reduction
+    {
+        auto l_expr = f(a(f(v(1)), v(2)));
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak);
+        assert(l_count == 1);
+        assert(l_peak == 5); // Original size
+        assert(l_reduced->equals(f(v(2))));
+    }
+
+    // Test size limit preventing reduction
+    // λ.((λ.3) 4) has size 5, set limit to 4 to prevent any reductions
+    {
+        auto l_expr = f(a(f(v(3)), v(4)));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), nullptr, 4);
+        assert(l_count == 0);
+        assert(l_reduced->equals(l_expr));
+    }
+
+    // Test size limit allowing reduction (limit >= original size)
+    // λ.((λ.3) 4) with size limit 5 -> can reduce to λ.2
+    {
+        auto l_expr = f(a(f(v(3)), v(4)));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), nullptr, 5);
+        assert(l_count == 1);
+        assert(l_reduced->equals(f(v(2))));
+    }
+
+    // Test all parameters together on func
+    {
+        auto l_expr = f(a(f(v(1)), v(2)));
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 10, &l_peak, 100);
+        assert(l_count == 1);
+        assert(l_peak == 5);
+        assert(l_reduced->equals(f(v(2))));
+    }
+
+    // Test size limit with step limit both active
+    // λ.((λ.1) ((λ.2) 3)) could do 2 reductions, but set step limit to 1
+    {
+        auto l_expr = f(a(f(v(1)), a(f(v(2)), v(3))));
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 1, &l_peak, 100);
+        assert(l_count == 1);
+        // After 1 reduction: λ.((λ.2) 3)
+        auto l_expected = f(a(f(v(2)), v(3)));
         assert(l_reduced->equals(l_expected));
     }
 }
@@ -2109,6 +2251,219 @@ void test_app_normalize()
         assert(l_count == 2);
         auto l_expected = v(5);
         assert(l_reduced->equals(l_expected));
+    }
+
+    // Test size peak tracking on simple beta-reduction
+    // (λ.0) 5 has size 4, reduces to 5 with size 1
+    // Peak should be 4 (original size)
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            nullptr, std::numeric_limits<size_t>::max(), &l_peak);
+        assert(l_peak == 4);
+        assert(l_reduced->equals(v(5)));
+    }
+
+    // Test size peak tracking on app with no reductions
+    // (3 4) has size 3 and stays that way
+    {
+        auto l_expr = a(v(3), v(4));
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            nullptr, std::numeric_limits<size_t>::max(), &l_peak);
+        assert(l_peak == 3);
+        assert(l_reduced->equals(a(v(3), v(4))));
+    }
+
+    // Test size peak with step count on multiple reductions
+    // ((λ.0) 5) ((λ.1) 6) -> (5 ((λ.1) 6)) -> (5 0)
+    // Sizes: 9 -> 7 -> 3
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak);
+        assert(l_count == 2);
+        assert(l_peak == 9); // Original size is peak
+        auto l_expected = a(v(5), v(0));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test size limit preventing reduction on application
+    // (λ.0) 5 has size 4, set limit to 3 to prevent reduction
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), nullptr, 3);
+        assert(l_count == 0);
+        assert(l_reduced->equals(l_expr));
+    }
+
+    // Test size limit allowing reduction (limit >= original size)
+    // (λ.0) 5 with size limit 4 -> can reduce to 5
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), nullptr, 4);
+        assert(l_count == 1);
+        assert(l_reduced->equals(v(5)));
+    }
+
+    // Test size limit stopping in the middle of multi-step reduction
+    // ((λ.0) 5) ((λ.1) 6) can do 2 reductions, but limit based on intermediate
+    // size Original size: 9, after 1 reduction: 7, after 2: 3 Set limit to 6 to
+    // allow first reduction but stop before the result
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak, 6);
+        // Should stop after first reduction since result size 7 > 6
+        // Wait, the loop condition is `l_result->size() <= a_size_limit`
+        // So it will stop when size exceeds limit
+        // Original: 9, after 1 step: 7, so if limit is 6, it can't do any
+        // reductions Let me reconsider: the check is at loop start, so if
+        // initial size > limit, no reductions If limit is 9, it can start but
+        // after reduction to size 7, it continues If limit is 6, initial size 9
+        // > 6, so loop doesn't execute
+        assert(l_count == 0);
+        assert(l_reduced->equals(l_expr));
+    }
+
+    // Test size limit that allows partial reduction
+    // Set limit high enough to allow reductions
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), nullptr, 9);
+        assert(l_count ==
+               2); // Can do all reductions since result sizes are <= 9
+        auto l_expected = a(v(5), v(0));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test all parameters together on application
+    {
+        auto l_expr = a(f(v(0)), v(8));
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 10, &l_peak, 100);
+        assert(l_count == 1);
+        assert(l_peak == 4);
+        assert(l_reduced->equals(v(8)));
+    }
+
+    // Test size limit with omega combinator to prevent explosion
+    // (λ.0 0) (λ.0 0) with size limit
+    // Original size: 9, each reduction produces same size
+    {
+        auto l_omega = f(a(v(0), v(0)));
+        auto l_expr = a(l_omega->clone(), l_omega->clone());
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        // Set step limit to prevent infinite loop, size limit high
+        auto l_reduced = l_expr->normalize(&l_count, 5, &l_peak, 100);
+        assert(l_count == 5);
+        assert(l_peak == 9);               // Omega combinator stays same size
+        assert(l_reduced->equals(l_expr)); // Returns to itself
+    }
+
+    // Test size peak tracking where size increases during reduction
+    // (λ.λ.(0 1)) 3 -> λ.(3 1)
+    // Original size: 6, result size: 4
+    // But during substitution, might have intermediate sizes
+    {
+        auto l_expr = a(f(f(a(v(0), v(1)))), v(3));
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            nullptr, std::numeric_limits<size_t>::max(), &l_peak);
+        // Peak should be at least the original size
+        assert(l_peak >= 6);
+        auto l_expected = f(a(v(4), v(0)));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test size limit preventing explosion in nested reductions
+    // (λ.0) (λ.((λ.5) 6)) could reduce multiple times
+    // Original: 8, after first: 5, after second: 2
+    {
+        auto l_inner_redex = a(f(v(5)), v(6));
+        auto l_arg = f(l_inner_redex->clone());
+        auto l_expr = a(f(v(0)), l_arg->clone());
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        // Allow all reductions
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak, 100);
+        assert(l_count == 2);
+        assert(l_peak == 8); // Original is peak in this case
+        auto l_expected = f(v(4));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test size limit exactly at boundary
+    // (λ.0) 5 with size limit exactly 4 (original size)
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak, 4);
+        assert(l_count == 1); // Can reduce since 4 <= 4
+        assert(l_peak == 4);
+        assert(l_reduced->equals(v(5)));
+    }
+
+    // Test both step limit and size limit active
+    // Step limit should be hit first
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 1, &l_peak, 100);
+        assert(l_count == 1); // Step limit hit
+        auto l_expected = a(v(5), a(f(v(1)), v(6)));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test size limit hit before step limit
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 100, nullptr, 3);
+        assert(l_count == 0); // Size limit prevents any reduction
+        assert(l_reduced->equals(l_expr));
+    }
+
+    // Test nullptr for size_peak with size_limit active
+    {
+        auto l_expr = a(f(v(0)), v(7));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), nullptr, 10);
+        assert(l_count == 1);
+        assert(l_reduced->equals(v(7)));
+    }
+
+    // Test complex expression with size tracking
+    // ((λ.λ.0) 5) 6 -> (λ.6) 6 -> 5
+    // Sizes: 7 -> 4 -> 1
+    {
+        auto l_k = f(f(v(0)));
+        auto l_expr = a(a(l_k->clone(), v(5)), v(6));
+        size_t l_count = 999;
+        size_t l_peak = 999;
+        auto l_reduced = l_expr->normalize(
+            &l_count, std::numeric_limits<size_t>::max(), &l_peak);
+        assert(l_count == 2);
+        assert(l_peak == 7); // Original size
+        assert(l_reduced->equals(v(5)));
     }
 }
 
