@@ -2087,6 +2087,144 @@ void test_app_reduce_one_step() {
     auto l_expected = a(a(v(7), v(0)), a(v(1), v(7)));
     assert(l_reduced->equals(l_expected));
   }
+
+  // Self-application: (λ.(0 0)) 5 -> (5 5)
+  {
+    auto l_app = a(f(a(v(0), v(0))), v(5));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = a(v(5), v(5));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Triple nested lambdas with substitution at various depths
+  // λ.λ.λ.((λ.3) 5) at depth 0 -> reduces innermost app
+  // v(3) at depth 4 (inside innermost lambda) refers to depth 3 (middle lambda)
+  {
+    auto l_func = f(f(f(a(f(v(3)), v(5)))));
+    auto l_reduced = l_func->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // After reduction: λ.λ.λ.5 (v(3) gets replaced with v(5), v(5) decrements
+    // to v(4))
+    auto l_expected = f(f(f(v(5))));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Normal order with multiple redexes - leftmost outer reduces first
+  // ((λ.3) 1) ((λ.4) 2) -> (2 ((λ.4) 2))
+  {
+    auto l_lhs = a(f(v(3)), v(1));
+    auto l_rhs = a(f(v(4)), v(2));
+    auto l_app = a(l_lhs->clone(), l_rhs->clone());
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // LHS reduces first: v(3) > 0 decrements to v(2)
+    auto l_expected = a(v(2), a(f(v(4)), v(2)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Reduction inside nested application structure
+  // (2 (3 ((λ.5) 4))) -> reduces innermost redex
+  {
+    auto l_inner = a(f(v(5)), v(4));
+    auto l_middle = a(v(3), l_inner->clone());
+    auto l_outer = a(v(2), l_middle->clone());
+    auto l_reduced = l_outer->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // Innermost reduces: v(5) > 0 decrements to v(4)
+    auto l_expected = a(v(2), a(v(3), v(4)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Lambda that returns a lambda with substitution
+  // (λ.(λ.0)) 8 -> λ.9
+  // Note: v(0) refers to the outermost lambda being reduced, gets replaced with
+  // 8 lifted by 1
+  {
+    auto l_app = a(f(f(v(0))), v(8));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(v(9));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Lambda that returns a lambda with free var
+  // (λ.(λ.1)) 8 -> λ.0
+  // Note: v(1) at depth 1 > var_index(0), so it's a free var that decrements
+  {
+    auto l_app = a(f(f(v(1))), v(8));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // v(1) > var_index(0), decrements to v(0)
+    auto l_expected = f(v(0));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Reduction with argument that contains bound variables
+  // (λ.0) (λ.(λ.10)) -> λ.(λ.10)
+  {
+    auto l_app = a(f(v(0)), f(f(v(10))));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    auto l_expected = f(f(v(10)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Multiple substitutions with lifting
+  // (λ.(0 (λ.1))) 7 -> (7 (λ.8))
+  {
+    auto l_app = a(f(a(v(0), f(v(1)))), v(7));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // v(0) -> v(7), v(1) inside lambda at depth 1 > var_index(0) so: decrements
+    // to v(0)
+    auto l_expected = a(v(7), f(v(0)));
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Deep nesting with correct depth tracking at depth 5
+  // At depth 5: (λ.5) 3 -> 3 (v(5) is the bound var at depth 5)
+  {
+    auto l_app = a(f(v(5)), v(3));
+    auto l_reduced = l_app->reduce_one_step(5);
+    assert(l_reduced != nullptr);
+    auto l_expected = v(3);
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Verify that variables below depth are preserved
+  // At depth 5: (λ.3) 10 -> 3 (v(3) < depth 5, preserved as free var)
+  {
+    auto l_app = a(f(v(3)), v(10));
+    auto l_reduced = l_app->reduce_one_step(5);
+    assert(l_reduced != nullptr);
+    auto l_expected = v(3);
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Edge case: var index exactly at depth gets substituted
+  // At depth 7: (λ.7) 12 -> 12
+  {
+    auto l_app = a(f(v(7)), v(12));
+    auto l_reduced = l_app->reduce_one_step(7);
+    assert(l_reduced != nullptr);
+    auto l_expected = v(12);
+    assert(l_reduced->equals(l_expected));
+  }
+
+  // Composition pattern: (λ.λ.(1 (0 2))) 5 -> λ.(0 (6 1))
+  // Tests correct handling of multiple bound vars at different depths
+  {
+    auto l_body = f(a(v(1), a(v(0), v(2))));
+    auto l_app = a(f(l_body->clone()), v(5));
+    auto l_reduced = l_app->reduce_one_step(0);
+    assert(l_reduced != nullptr);
+    // v(1) > var_index(0): decrements to v(0)
+    // v(0) == var_index(0): replaced with v(5) lifted by 1 = v(6)
+    // v(2) > var_index(0): decrements to v(1)
+    auto l_expected = f(a(v(0), a(v(6), v(1))));
+    assert(l_reduced->equals(l_expected));
+  }
 }
 
 void generic_use_case_test() {
