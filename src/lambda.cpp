@@ -1529,6 +1529,22 @@ void test_var_normalize()
         // make sure it has the same index
         assert(l_var->m_index == 1);
     }
+
+    // Test reduction count with no reductions (var cannot reduce)
+    {
+        auto l_expr = v(5);
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 0);
+        assert(l_reduced->equals(v(5)));
+    }
+
+    // Test reduction limit on var (no effect since vars don't reduce)
+    {
+        auto l_expr = v(7);
+        auto l_reduced = l_expr->normalize(nullptr, 0);
+        assert(l_reduced->equals(v(7)));
+    }
 }
 
 void test_func_normalize()
@@ -1549,6 +1565,22 @@ void test_func_normalize()
 
         // make sure body is still same thing
         assert(l_body->m_index == 0);
+    }
+
+    // Test reduction count on func with no redex
+    {
+        auto l_expr = f(v(3));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 0);
+        assert(l_reduced->equals(f(v(3))));
+    }
+
+    // Test reduction limit on func with no redex
+    {
+        auto l_expr = f(a(v(2), v(5)));
+        auto l_reduced = l_expr->normalize(nullptr, 0);
+        assert(l_reduced->equals(f(a(v(2), v(5)))));
     }
 }
 
@@ -1751,6 +1783,130 @@ void test_app_normalize()
         // becomes second arg, without lifting. (lifting occurred but was undone
         // by second arg)
         assert(l_reduced->equals(l_rhs->clone()));
+    }
+
+    // Test reduction count with single reduction
+    // (λ.0) 5 -> 5 (1 reduction)
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 1);
+        assert(l_reduced->equals(v(5)));
+    }
+
+    // Test reduction count with multiple reductions
+    // ((λ.0) 5) ((λ.1) 6) -> (5 ((λ.1) 6)) -> (5 0) (2 reductions)
+    // Note: v(1) is a free variable, so it decrements to v(0)
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        assert(l_count == 2);
+        auto l_expected = a(v(5), v(0));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test reduction count with church numeral reduction
+    // Church numeral 2 applied: many reductions
+    {
+        auto l_two = f(f(a(v(0), a(v(0), v(1)))));
+        auto l_f = f(v(10));
+        auto l_x = v(5);
+        auto l_expr = a(a(l_two->clone(), l_f->clone()), l_x->clone());
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count);
+        // Should have multiple reductions
+        assert(l_count > 0);
+    }
+
+    // Test limit of 0 - no reductions allowed
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        auto l_reduced = l_expr->normalize(nullptr, 0);
+        // Should return original expression unchanged
+        assert(l_reduced->equals(l_expr));
+    }
+
+    // Test limit of 1 - only one reduction allowed
+    // ((λ.0) 5) ((λ.1) 6) -> can do 2 reductions, but limit to 1
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_reduced = l_expr->normalize(nullptr, 1);
+        // After 1 reduction: (5 ((λ.1) 6))
+        auto l_expected = a(v(5), a(f(v(1)), v(6)));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test limit exactly matches needed reductions
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_reduced = l_expr->normalize(nullptr, 2);
+        // After 2 reductions: (5 0) - fully normalized
+        // Note: v(1) is a free variable, so it decrements to v(0)
+        auto l_expected = a(v(5), v(0));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test limit exceeds needed reductions
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        auto l_reduced = l_expr->normalize(nullptr, 100);
+        // Only needs 1 reduction, limit is 100
+        assert(l_reduced->equals(v(5)));
+    }
+
+    // Test both count and limit together
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 1);
+        assert(l_count == 1);
+        auto l_expected = a(v(5), a(f(v(1)), v(6)));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test count with limit that allows full normalization
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 100);
+        assert(l_count == 1);
+        assert(l_reduced->equals(v(5)));
+    }
+
+    // Test count with limit of 0
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 0);
+        assert(l_count == 0);
+        assert(l_reduced->equals(l_expr));
+    }
+
+    // Test complex reduction with limit
+    // ((λ.λ.0) 5) 6 -> (λ.6) 6 -> 5 (2 reductions total)
+    // Note: v(6) in body is a free variable, so it decrements to v(5)
+    {
+        auto l_expr = a(a(f(f(v(0))), v(5)), v(6));
+        size_t l_count = 999;
+
+        // Limit to 1 reduction
+        auto l_reduced1 = l_expr->normalize(&l_count, 1);
+        assert(l_count == 1);
+
+        // Limit to 2 reductions
+        l_count = 999;
+        auto l_reduced2 = l_expr->normalize(&l_count, 2);
+        assert(l_count == 2);
+        auto l_expected2 = v(5);
+        assert(l_reduced2->equals(l_expected2));
+
+        // Full normalization
+        l_count = 999;
+        auto l_reduced_full = l_expr->normalize(&l_count);
+        assert(l_count == 2);
+        assert(l_reduced_full->equals(v(5)));
     }
 }
 
