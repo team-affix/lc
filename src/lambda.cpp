@@ -2879,6 +2879,121 @@ void generic_use_case_test()
                   a(g(0),
                     a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))))))))));
     }
+
+    // define MULT
+    const auto MULT = g(l_helpers.size());
+    l_helpers.emplace_back(f(f(f(f(a(a(l(0), a(l(1), l(2))), l(3)))))));
+
+    // test mult church numerals
+    {
+        // construct 1 - 5
+        const auto ONE = a(SUCC->clone(), ZERO->clone());
+        const auto TWO = a(SUCC->clone(), ONE->clone());
+        const auto THREE = a(SUCC->clone(), TWO->clone());
+        const auto FOUR = a(SUCC->clone(), THREE->clone());
+        const auto FIVE = a(SUCC->clone(), FOUR->clone());
+
+        // construct unreduced main functions
+        const auto MULT_ZERO_ZERO =
+            a(a(MULT->clone(), ZERO->clone()), ZERO->clone());
+        const auto MULT_ZERO_ONE =
+            a(a(MULT->clone(), ZERO->clone()), ONE->clone());
+        const auto MULT_ONE_ONE =
+            a(a(MULT->clone(), ONE->clone()), ONE->clone());
+        const auto MULT_ONE_TWO =
+            a(a(MULT->clone(), ONE->clone()), TWO->clone());
+        const auto MULT_TWO_TWO =
+            a(a(MULT->clone(), TWO->clone()), TWO->clone());
+        const auto MULT_THREE_TWO =
+            a(a(MULT->clone(), THREE->clone()), TWO->clone());
+        const auto MULT_FIVE_FIVE =
+            a(a(MULT->clone(), FIVE->clone()), FIVE->clone());
+
+        // construct programs
+        const auto MULT_ZERO_ZERO_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), MULT_ZERO_ZERO);
+        const auto MULT_ZERO_ONE_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), MULT_ZERO_ONE);
+        const auto MULT_ONE_ONE_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), MULT_ONE_ONE);
+        const auto MULT_ONE_TWO_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), MULT_ONE_TWO);
+        const auto MULT_TWO_TWO_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), MULT_TWO_TWO);
+        const auto MULT_THREE_TWO_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), MULT_THREE_TWO);
+        const auto MULT_FIVE_FIVE_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), MULT_FIVE_FIVE);
+
+        // reduce the programs (with printing in between)
+        const auto MULT_ZERO_ZERO_REDUCED = MULT_ZERO_ZERO_PROGRAM->normalize();
+        std::cout << "mult zero zero: ";
+        MULT_ZERO_ZERO_REDUCED->print(std::cout);
+        std::cout << std::endl;
+        const auto MULT_ZERO_ONE_REDUCED = MULT_ZERO_ONE_PROGRAM->normalize();
+        std::cout << "mult zero one: ";
+        MULT_ZERO_ONE_REDUCED->print(std::cout);
+        std::cout << std::endl;
+        const auto MULT_ONE_ONE_REDUCED = MULT_ONE_ONE_PROGRAM->normalize();
+        std::cout << "mult one one: ";
+        MULT_ONE_ONE_REDUCED->print(std::cout);
+        std::cout << std::endl;
+        const auto MULT_ONE_TWO_REDUCED = MULT_ONE_TWO_PROGRAM->normalize();
+        std::cout << "mult one two: ";
+        MULT_ONE_TWO_REDUCED->print(std::cout);
+        std::cout << std::endl;
+        const auto MULT_TWO_TWO_REDUCED = MULT_TWO_TWO_PROGRAM->normalize();
+        std::cout << "mult two two: ";
+        MULT_TWO_TWO_REDUCED->print(std::cout);
+        std::cout << std::endl;
+        const auto MULT_THREE_TWO_REDUCED = MULT_THREE_TWO_PROGRAM->normalize();
+        std::cout << "mult three two: ";
+        MULT_THREE_TWO_REDUCED->print(std::cout);
+        std::cout << std::endl;
+        const auto MULT_FIVE_FIVE_REDUCED = MULT_FIVE_FIVE_PROGRAM->normalize();
+        std::cout << "mult five five: ";
+        MULT_FIVE_FIVE_REDUCED->print(std::cout);
+        std::cout << std::endl;
+
+        assert(MULT_ZERO_ZERO_REDUCED->equals(f(f(g(1)))));
+        assert(MULT_ZERO_ONE_REDUCED->equals(f(f(g(1)))));
+        assert(MULT_ONE_ONE_REDUCED->equals(f(f(a(g(0), g(1))))));
+        assert(MULT_ONE_TWO_REDUCED->equals(f(f(a(g(0), a(g(0), g(1)))))));
+        assert(MULT_TWO_TWO_REDUCED->equals(
+            f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
+        assert(MULT_THREE_TWO_REDUCED->equals(
+            f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))))));
+
+        const auto TWENTY_FIVE = f(f(a(
+            g(0),
+            a(g(0),
+              a(g(0),
+                a(g(0),
+                  a(g(0),
+                    a(g(0),
+                      a(g(0),
+                        a(g(0),
+                          a(g(0),
+                            a(g(0),
+                              a(g(0),
+                                a(g(0),
+                                  a(g(0),
+                                    a(g(0),
+                                      a(g(0),
+                                        a(g(0),
+                                          a(g(0),
+                                            a(g(0),
+                                              a(g(0),
+                                                a(g(0),
+                                                  a(g(0),
+                                                    a(g(0),
+                                                      a(g(0),
+                                                        a(g(0),
+                                                          a(g(0),
+                                                            g(1))))))))))))))))))))))))))));
+
+        assert(MULT_FIVE_FIVE_REDUCED->equals(TWENTY_FIVE->clone()));
+    }
 }
 
 void lambda_test_main()
