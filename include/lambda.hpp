@@ -23,7 +23,9 @@ struct expr
     std::unique_ptr<expr> clone() const;
     std::unique_ptr<expr>
     normalize(size_t* a_step_count = nullptr,
-              size_t a_step_limit = std::numeric_limits<size_t>::max()) const;
+              size_t a_step_limit = std::numeric_limits<size_t>::max(),
+              size_t* a_size_peak = nullptr,
+              size_t a_size_limit = std::numeric_limits<size_t>::max()) const;
     size_t size() const;
     expr(size_t a_size);
     expr(const expr& other) = delete;
