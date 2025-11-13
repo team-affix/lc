@@ -3685,6 +3685,94 @@ void generic_use_case_test()
         // omega becomes itself forever
         assert(l_reduced->equals(OMEGA->clone()));
     }
+
+    // Test combinator identities (I, K, S)
+    // These are very sensitive to capture/shifting bugs
+    {
+        // Define combinators
+        // I = λx. x
+        const auto I = f(v(0));
+
+        // K = λx. λy. x
+        const auto K = f(f(v(0)));
+
+        // S = λx. λy. λz. x z (y z)
+        const auto S = f(f(f(a(a(v(0), v(2)), a(v(1), v(2))))));
+
+        // Test I a → a
+        {
+            auto a_arg = v(5);
+            auto expr = a(I->clone(), a_arg->clone());
+            auto result = expr->normalize();
+            std::cout << "I a: ";
+            result->print(std::cout);
+            std::cout << std::endl;
+            assert(result->equals(a_arg));
+        }
+
+        // Test K a b → a
+        {
+            auto a_arg = v(7);
+            auto b_arg = v(8);
+            auto expr = a(a(K->clone(), a_arg->clone()), b_arg->clone());
+            auto result = expr->normalize();
+            std::cout << "K a b: ";
+            result->print(std::cout);
+            std::cout << std::endl;
+            assert(result->equals(a_arg));
+        }
+
+        // Test S K K a → a
+        {
+            auto a_arg = v(10);
+            auto expr =
+                a(a(a(S->clone(), K->clone()), K->clone()), a_arg->clone());
+            auto result = expr->normalize();
+            std::cout << "S K K a: ";
+            result->print(std::cout);
+            std::cout << std::endl;
+            assert(result->equals(a_arg));
+        }
+
+        // Test S I I a → a a
+        {
+            auto a_arg = v(12);
+            auto expr =
+                a(a(a(S->clone(), I->clone()), I->clone()), a_arg->clone());
+            auto result = expr->normalize();
+            std::cout << "S I I a: ";
+            result->print(std::cout);
+            std::cout << std::endl;
+            auto expected = a(a_arg->clone(), a_arg->clone());
+            assert(result->equals(expected));
+        }
+
+        // Additional test: Use closed terms instead of free variables
+        // Test K (λ.5) (λ.6) → λ.5
+        {
+            auto a_arg = f(v(5));
+            auto b_arg = f(v(6));
+            auto expr = a(a(K->clone(), a_arg->clone()), b_arg->clone());
+            auto result = expr->normalize();
+            std::cout << "K (λ.5) (λ.6): ";
+            result->print(std::cout);
+            std::cout << std::endl;
+            assert(result->equals(a_arg));
+        }
+
+        // Test S I I (λ.7) → (λ.7) (λ.7) → 6
+        {
+            auto a_arg = f(v(7));
+            auto expr =
+                a(a(a(S->clone(), I->clone()), I->clone()), a_arg->clone());
+            auto result = expr->normalize();
+            std::cout << "S I I (λ.7): ";
+            result->print(std::cout);
+            std::cout << std::endl;
+            auto expected = v(6);
+            assert(result->equals(expected));
+        }
+    }
 }
 
 void lambda_test_main()
