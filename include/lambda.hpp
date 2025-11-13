@@ -21,9 +21,9 @@ struct expr
                const std::unique_ptr<expr>& a_arg) const = 0;
     virtual std::unique_ptr<expr> reduce_one_step(size_t a_depth) const = 0;
     std::unique_ptr<expr> clone() const;
-    std::unique_ptr<expr> normalize(
-        size_t* a_reduction_count = nullptr,
-        size_t a_reduction_limit = std::numeric_limits<size_t>::max()) const;
+    std::unique_ptr<expr>
+    normalize(size_t* a_step_count = nullptr,
+              size_t a_step_limit = std::numeric_limits<size_t>::max()) const;
     expr();
     expr(const expr& other) = delete;
     expr& operator=(const expr& other) = delete;

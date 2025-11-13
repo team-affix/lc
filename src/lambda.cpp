@@ -184,8 +184,8 @@ std::unique_ptr<expr> expr::clone() const
 }
 
 // EXPR NORMALIZE METHOD
-std::unique_ptr<expr> expr::normalize(size_t* a_reduction_count,
-                                      size_t a_reduction_limit) const
+std::unique_ptr<expr> expr::normalize(size_t* a_step_count,
+                                      size_t a_step_limit) const
 {
     // start with the original expression
     std::unique_ptr<expr> l_result = clone();
@@ -197,7 +197,7 @@ std::unique_ptr<expr> expr::normalize(size_t* a_reduction_count,
     size_t i;
 
     // reduce the expression until it cannot reduce anymore
-    for(i = 0; i < a_reduction_limit; ++i)
+    for(i = 0; i < a_step_limit; ++i)
     {
         // try to reduce the expression by one step
         auto l_reduced = l_result->reduce_one_step(0);
@@ -214,8 +214,8 @@ std::unique_ptr<expr> expr::normalize(size_t* a_reduction_count,
     }
 
     // output the reduction count if necessary
-    if(a_reduction_count)
-        *a_reduction_count = i;
+    if(a_step_count)
+        *a_step_count = i;
 
     // return the normalized expression
     return l_result;
