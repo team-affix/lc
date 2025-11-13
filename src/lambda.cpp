@@ -2225,6 +2225,20 @@ void test_app_reduce_one_step() {
     auto l_expected = f(a(v(0), a(v(6), v(1))));
     assert(l_reduced->equals(l_expected));
   }
+
+  // Beta-reduction with bound variable that should NOT be lifted
+  // At depth 2: (λ.2) 1 -> 1
+  // Note: v(1) < depth(2), so it's a bound var from outer scope, no lifting
+  // occurs
+  {
+    auto l_app = a(f(v(2)), v(1));
+    auto l_reduced = l_app->reduce_one_step(2);
+    assert(l_reduced != nullptr);
+    // v(2) at depth 2 gets replaced with v(1), which is < cutoff(2) so NOT
+    // lifted
+    auto l_expected = v(1);
+    assert(l_reduced->equals(l_expected));
+  }
 }
 
 void generic_use_case_test() {
