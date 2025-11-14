@@ -93,14 +93,22 @@ std::unique_ptr<expr> normalize(
    - Prevents exponential explosion during reduction
    - Normalization continues until size **exceeds** the limit
 
-#### Limit Behavior:
+#### Normalization Algorithm:
 
-Both limits use symmetric "exceed" semantics for artificial termination:
+As long as we are within the limits, we attempt to reduce one step. If a reduction takes place (i.e., not in beta-normal form), we increment the step count and update the peak size reached.
 
-**Step Limit:** Normalization continues until step count **exceeds** `a_step_limit`. The returned expression and `count` reflect the state **after** exceeding. Detection: `count > step_limit`.
-- When exceeded, `count` will always equal `step_limit + 1` (goes exactly one beyond the limit)
+**Key Insight:** Limit checks happen *before* attempting each reduction, which is why the final state can exceed limits by one step.
 
-**Size Limit:** Normalization continues until expression size **exceeds** `a_size_limit`. The returned expression and `peak` reflect the state **after** exceeding. Detection: `peak > size_limit`.
+**Step Limit:** 
+- Normalization continues while `step_count <= a_step_limit`
+- If reduction succeeds, `step_count` increments
+- When exceeded, `step_count` will equal `step_limit + 1`
+- Detection: `step_count > step_limit`
+
+**Size Limit:**
+- Normalization continues while `current_size <= a_size_limit`
+- After each reduction, peak size is updated if current size exceeds it
+- Detection: `peak > size_limit` indicates artificial termination due to size
 
 ### Expression Size
 
