@@ -1,116 +1,144 @@
 # lc
 
-A minimal, efficient C++ implementation of lambda calculus with normal order reduction.
+**A minimal, efficient C++ implementation of lambda calculus with normal order reduction.**
 
-## What This Project Implements
+----
 
-This project provides a complete implementation of untyped lambda calculus, supporting:
-- Lambda abstractions (functions)
-- Variables with De Bruijn levels
-- Function applications
-- Beta-reduction with normal order evaluation strategy
-- Expression normalization with customizable constraints
+| [Overview](#overview) - [Design & Implementation](#design--implementation) - [Usage](#usage) - [Integration](#integration) |
+:----------------------------------------------------------: |
+| [Expression Types](#expression-types) - [Features](#features) - [Examples](#examples) - [Building & Testing](#building--testing) - [License](#license) |
 
-## Technical Details
+### Overview
 
-### Reduction Strategy
-- **Normal Order Reduction**: Leftmost-outermost redex is reduced first
+**lc** is a **lightweight, self-contained lambda calculus library for C++**. It provides a complete implementation of untyped lambda calculus with normal order reduction (leftmost-outermost evaluation), making it ideal for:
+
+- Educational purposes: learning and experimenting with lambda calculus
+- Research: prototyping computational models and reduction strategies  
+- Embedding: adding lambda calculus evaluation to existing applications
+- Verification: testing lambda calculus properties with comprehensive constraints
+
+The library is designed to be:
+- **Minimal**: Three expression types (`var`, `func`, `app`), clean API
+- **Safe**: Immutable expressions with `std::unique_ptr` memory management
+- **Controlled**: Configurable step and size limits prevent non-termination
+- **Debuggable**: Tracks reduction steps and peak expression sizes
+- **Fast**: Efficient substitution and reduction with De Bruijn levels
+
+### Design & Implementation
+
+**lc** implements lambda calculus using **De Bruijn levels** for variable representation and **normal order reduction** for evaluation.
+
+#### Reduction Strategy
+- **Normal Order Reduction**: Leftmost-outermost redex is always reduced first
 - **Beta-Reduction Only**: Only β-reductions are performed (no η-reduction)
 - **Call-by-Name**: Arguments are not reduced before substitution
 
-### Variable Representation
-- **De Bruijn Levels** (not indices): Variables reference binders by their level from the outermost scope
-  - `v(0)` refers to the outermost lambda
-  - `v(1)` refers to the next outermost lambda
-  - `v(n)` refers to the nth lambda from outside
-- This differs from De Bruijn indices where counting is from innermost scope
+#### Variable Representation: De Bruijn Levels
+Variables reference lambda binders by their level from the **outermost** scope:
+- `v(0)` refers to the outermost lambda
+- `v(1)` refers to the next outermost lambda  
+- `v(n)` refers to the nth lambda from outside
 
-### Core Operations
+**Important**: This differs from De Bruijn **indices** where counting is from the innermost scope.
+
+#### Core Operations
+The implementation handles three critical operations:
+- **Reduction**: Single-step beta-reduction following normal order
 - **Lifting**: Adjusts variable indices when moving expressions into deeper binding contexts
-- **Substitution**: Replaces bound variables with argument expressions, handling:
+- **Substitution**: Replaces variables with argument expressions, handling:
   - Variable lifting for free variables in arguments
   - Variable decrementation for free variables in the body
-  - Correct handling of capture-avoiding substitution
+  - Capture-avoiding substitution
 
-## Expression Types
+### Usage
+
+After including the library, you can construct and reduce lambda expressions:
+
+```cpp
+using namespace lambda;
+
+// Identity function: (λ.0) 5 → 5
+auto identity = f(v(0));  // λ.0
+auto expr = a(identity->clone(), v(5));
+auto result = expr->normalize();
+// result equals v(5)
+```
+
+The library uses factory functions for construction:
+- `v(index)` creates a variable
+- `f(body)` creates a lambda abstraction
+- `a(lhs, rhs)` creates an application
+
+All functions return `std::unique_ptr<expr>`.
+
+### Expression Types
 
 Lambda calculus expressions are built from three fundamental types:
 
-### `var` - Variable
+#### `var` - Variable
 Represents a variable reference using De Bruijn levels.
-- **Example**: `v(0)` references the outermost lambda binder
+- **Syntax**: `v(0)` references the outermost lambda binder
 - **Semantics**: A variable is bound if it refers to a lambda in scope, or free otherwise
 - **Size**: Always 1
 
-### `func` - Lambda Abstraction
+#### `func` - Lambda Abstraction  
 Represents a function (lambda abstraction) with a single parameter and a body.
-- **Example**: `f(v(0))` is the identity function (returns its argument), assuming it is declared at depth=0
-- **Semantics**: Creates a new binding scope; the bound variable can be referenced in the body using the appropriate De Bruijn level
-- **Size**: 1 + body_size
+- **Syntax**: `f(v(0))` is `λ.0`, the identity function
+- **Semantics**: Creates a new binding scope; the bound variable can be referenced in the body
+- **Size**: `1 + body_size`
 
-### `app` - Application
+#### `app` - Application
 Represents function application (applying a function to an argument).
-- **Example**: `a(f(v(0)), v(5))` applies the identity function to variable 5, (valid ID fxn assuming depth=0)
-- **Semantics**: When lhs is a lambda, performs beta-reduction by substituting the argument into the function body
-- **Size**: 1 + lhs_size + rhs_size
+- **Syntax**: `a(f(v(0)), v(5))` applies identity to variable 5
+- **Semantics**: When lhs is a lambda, performs beta-reduction by substitution
+- **Size**: `1 + lhs_size + rhs_size`
 
-All expressions are:
+**Expression Properties:**
 - **Immutable**: Operations create new expressions rather than modifying existing ones
 - **Polymorphic**: Accessed through the base `expr` interface
 - **Memory-safe**: Managed via `std::unique_ptr`
 
-## Features
+### Features
 
-### Expression Normalization
+#### Expression Normalization
 
-The `normalize()` method reduces expressions to normal form with several optional parameters:
+The `normalize()` method reduces expressions to normal form with configurable constraints:
 
 ```cpp
 std::unique_ptr<expr> normalize(
     size_t* a_step_count = nullptr,           // Output: number of reductions performed
     size_t a_step_limit = SIZE_MAX,           // Input: maximum reductions allowed
-    size_t* a_size_peak = nullptr,            // Output: peak expression size during reduction
+    size_t* a_size_peak = nullptr,            // Output: peak expression size
     size_t a_size_limit = SIZE_MAX            // Input: maximum expression size allowed
 ) const;
 ```
 
-#### Parameters:
+**Parameters:**
 
-1. **`a_step_count`** (output): Pointer to receive the number of beta-reductions performed
+1. **`a_step_count`** (output): Number of beta-reductions performed
    - Returns the count even if a limit was exceeded
-   - Useful for detecting non-termination or limit violations
+   - Useful for detecting non-termination
 
 2. **`a_step_limit`** (input): Maximum number of reduction steps
-   - Prevents infinite loops (e.g., omega combinator)
-   - Normalization continues until step count **exceeds** the limit
-   - Detection: `step_count > step_limit` means the limit was exceeded
+   - Prevents infinite loops (e.g., omega combinator: `(λ.(0 0)) (λ.(0 0))`)
 
-3. **`a_size_peak`** (output): Pointer to receive the peak expression size
-   - Tracks the maximum size reached during normalization
+3. **`a_size_peak`** (output): Peak expression size reached
+   - Tracks maximum size during normalization
    - Useful for detecting exponential growth
 
 4. **`a_size_limit`** (input): Maximum expression size allowed
    - Prevents exponential explosion during reduction
-   - Normalization continues until size **exceeds** the limit
 
-#### Normalization Algorithm:
+**Normalization Algorithm:**
 
 As long as we are within the limits, we attempt to reduce one step. If a reduction takes place (i.e., not in beta-normal form), we increment the step count and update the peak size reached.
 
 **Key Insight:** Limit checks happen *before* attempting each reduction, which is why the final state can exceed limits by one step.
 
-**Step Limit:** 
-- Normalization continues while `step_count <= a_step_limit`
-- If reduction succeeds, `step_count` increments
-- When exceeded, `step_count` will equal `step_limit + 1`
-- Detection: `step_count > step_limit`
+- **Step Limit**: Continues while `step_count <= a_step_limit`. When exceeded, `step_count = step_limit + 1`, and detection is: `step_count > step_limit`.
+- **Size Limit**: Continues while `current_size <= a_size_limit`. Detection: `peak > size_limit`
 
-**Size Limit:**
-- Normalization continues while `current_size <= a_size_limit`
-- After each reduction, peak size is updated if current size exceeds it
-- Detection: `peak > size_limit` indicates artificial termination due to size
-
-### Expression Size
+#### Expression Size
 
 Every expression has a `size()` method that returns its structural size:
 
@@ -125,7 +153,7 @@ size_t size() const;
 
 This allows tracking expression growth during reduction and preventing size explosions.
 
-### Expression Deep Cloning
+#### Expression Deep Cloning
 
 Since expressions are managed by `std::unique_ptr`, the `clone()` method provides deep copying:
 
@@ -134,14 +162,12 @@ std::unique_ptr<expr> clone() const;
 ```
 
 - **Purpose**: Creates an independent deep copy of an expression
-- **Use case**: Required when reusing an expression multiple times, as `std::unique_ptr` enforces single ownership
+- **Use case**: Required when reusing an expression, as `std::unique_ptr` enforces single ownership
 - **Example**: `auto copy = expr->clone();`
 
-## Starter Examples
+### Examples
 
-> Factory functions `v()`, `f()`, `a()` create expressions, and produce `std::unique_ptr<expr>`
-
-### Basic Construction
+#### Basic Construction
 
 ```cpp
 using namespace lambda;
@@ -153,7 +179,7 @@ auto identity = f(v(0));
 auto expr = a(f(v(0)), v(5));
 ```
 
-### Simple Reduction
+#### Simple Reduction
 
 ```cpp
 // Identity function: (λ.0) 5 → 5
@@ -169,7 +195,7 @@ auto result = expr->normalize();
 // result equals v(7)
 ```
 
-### Church Numerals
+#### Church Numerals
 
 ```cpp
 // Church numeral ZERO: λf.λx. x
@@ -185,15 +211,15 @@ auto one = f(f(a(v(0), v(1))));
 auto two = f(f(a(v(0), a(v(0), v(1)))));
 ```
 
-### Reduction with Constraints
+#### Reduction with Constraints
 
 ```cpp
 // Limit reduction steps
 // Omega combinator: (λ.(0 0)) (λ.(0 0))
 auto omega = a(f(a(v(0), v(0))), f(a(v(0), v(0))));
 size_t count = 0;
-auto result = omega->normalize(&count, 100);  // Stop after 100 steps
-// count will be 100, omega reduces to itself indefinitely
+auto result = omega->normalize(&count, 100);  // Stop after exceeding 100 steps
+// count will be 101, omega reduces to itself indefinitely
 
 // Limit expression size
 // Growing combinator: (λ.(0 0)) (λ.(0 0 0))
@@ -202,14 +228,14 @@ size_t peak = 0;
 result = growing->normalize(nullptr, SIZE_MAX, &peak, 20);
 // Stops when expression size exceeds 20
 
-// Track both
+// Track both step count and peak size
 size_t steps = 0;
 size_t peak_size = 0;
 result = expr->normalize(&steps, 1000, &peak_size, 100);
 std::cout << "Steps: " << steps << ", Peak size: " << peak_size << std::endl;
 ```
 
-### Combinator Identities
+#### Combinator Identities
 
 ```cpp
 // I combinator: λ.0
@@ -227,7 +253,7 @@ auto result = expr->normalize();
 // result equals v(10)
 ```
 
-### Measuring Size
+#### Measuring Expression Size
 
 ```cpp
 // Expression: (λ.0) 5
@@ -240,7 +266,17 @@ std::cout << "Size after: " << normalized->size() << std::endl;  // Prints: 1
 // Just v(5) remains
 ```
 
-## Building
+### Integration
+
+**The core of lc is self-contained within a few platform-agnostic files** which you can easily compile into your application. All source files are in the repository:
+- `include/lambda.hpp` - Public interface
+- `src/lambda.cpp` - Implementation
+
+**No specific build process is required**. You can add these files to your existing project.
+
+### Building & Testing
+
+#### Build Library
 
 ```bash
 make
@@ -249,11 +285,11 @@ make
 This creates:
 - `build/liblc.a` - Static library
 
-## Testing
+#### Run Tests
 
 The project includes comprehensive unit tests covering:
 - Expression construction and equality
-- Lifting and substitution
+- Lifting and substitution  
 - Beta-reduction (one-step and normalization)
 - Size calculation
 - Reduction constraints (step and size limits)
@@ -270,6 +306,6 @@ Run tests with:
 ./build/main
 ```
 
-## License
+### License
 
-See LICENSE file for details.
+See [LICENSE](LICENSE) file for details.
