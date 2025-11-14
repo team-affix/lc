@@ -272,7 +272,7 @@ std::cout << "Size after: " << normalized->size() << std::endl;  // Prints: 1
 - `include/lambda.hpp` - Public interface
 - `src/lambda.cpp` - Implementation
 
-**No specific build process is required**. You can add these files to your existing project.
+**Building and linking against the library is required for usage in your project**.
 
 ### Building & Testing
 
