@@ -82,8 +82,8 @@ std::unique_ptr<expr> normalize(
 
 2. **`a_step_limit`** (input): Maximum number of reduction steps
    - Prevents infinite loops (e.g., omega combinator)
-   - Algorithm performs **at most** `a_step_limit` steps (never exceeds)
-   - Detection: `step_count >= step_limit` means the limit was reached
+   - Normalization continues until step count **exceeds** the limit
+   - Detection: `step_count > step_limit` means the limit was exceeded
 
 3. **`a_size_peak`** (output): Pointer to receive the peak expression size
    - Tracks the maximum size reached during normalization
@@ -91,14 +91,16 @@ std::unique_ptr<expr> normalize(
 
 4. **`a_size_limit`** (input): Maximum expression size allowed
    - Prevents exponential explosion during reduction
-   - Normalization continues while `expr->size() <= a_size_limit`
-   - Unlike step limit, reductions continue until size **exceeds** the limit
+   - Normalization continues until size **exceeds** the limit
 
 #### Limit Behavior:
 
-**Step Limit:** Algorithm stops when reaching `a_step_limit` steps. Detection: `count >= step_limit`.
+Both limits use symmetric "exceed" semantics for artificial termination:
 
-**Size Limit:** Algorithm continues until expression size exceeds `a_size_limit`. The returned expression and `peak` reflect the state **after** exceeding. Detection: `peak > size_limit`.
+**Step Limit:** Normalization continues until step count **exceeds** `a_step_limit`. The returned expression and `count` reflect the state **after** exceeding. Detection: `count > step_limit`.
+- When exceeded, `count` will always equal `step_limit + 1` (goes exactly one beyond the limit)
+
+**Size Limit:** Normalization continues until expression size **exceeds** `a_size_limit`. The returned expression and `peak` reflect the state **after** exceeding. Detection: `peak > size_limit`.
 
 ### Expression Size
 

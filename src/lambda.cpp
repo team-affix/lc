@@ -196,25 +196,29 @@ std::unique_ptr<expr> expr::normalize(size_t* a_step_count, size_t a_step_limit,
     LOG_EXPR(l_result);
 
     // track the number of reductions
-    size_t i;
+    size_t l_step_count = 0;
 
     // track the peak size
     size_t l_size_peak = l_result->size();
 
-    // reduce the expression until it cannot reduce anymore
-    for(i = 0; i < a_step_limit && l_result->size() <= a_size_limit; ++i)
+    // as long as we are within the limits, keep reducing
+    while(l_step_count <= a_step_limit && l_size_peak <= a_size_limit)
     {
         // try to reduce the expression by one step
         auto l_reduced = l_result->reduce_one_step(0);
 
-        // if the expression cannot reduce, break
+        // if the expression cannot reduce, break.
         if(!l_reduced)
-            break;
+            break; // make sure not to increment step as
+                   // no reduction occurred
 
-        // set the result to the reduced expression and continue
+        // update the result to the reduced expression
         l_result = std::move(l_reduced);
 
-        // update the peak size if the reduced expression is larger
+        // update the step count
+        ++l_step_count;
+
+        // update the peak size
         l_size_peak = std::max(l_size_peak, l_result->size());
 
         // log the reduction
@@ -223,7 +227,7 @@ std::unique_ptr<expr> expr::normalize(size_t* a_step_count, size_t a_step_limit,
 
     // output the reduction count if necessary
     if(a_step_count)
-        *a_step_count = i;
+        *a_step_count = l_step_count;
 
     // output the peak size if necessary
     if(a_size_peak)
@@ -1691,11 +1695,11 @@ void test_func_normalize()
     }
 
     // Test reduction limit stopping reduction inside function body
-    // λ.((λ.1) 2) with limit 0 -> no reduction
+    // λ.((λ.1) 2) with limit 0 -> one reduction before exceeding limit
     {
         auto l_expr = f(a(f(v(1)), v(2)));
         auto l_reduced = l_expr->normalize(nullptr, 0);
-        assert(l_reduced->equals(l_expr));
+        assert(l_reduced->equals(f(v(2))));
     }
 
     // Test nested functions with multiple reductions
@@ -1784,15 +1788,15 @@ void test_func_normalize()
         assert(l_reduced->equals(f(v(2))));
     }
 
-    // Test size limit with step limit both active
-    // λ.((λ.1) ((λ.2) 3)) could do 2 reductions, but set step limit to 1
+    // Test N-2 scenario for func: needs 2 reductions, limit 0 allows 1
+    // λ.((λ.1) ((λ.2) 3)) needs 2 reductions in body
     {
         auto l_expr = f(a(f(v(1)), a(f(v(2)), v(3))));
         size_t l_count = 999;
         size_t l_peak = 999;
-        auto l_reduced = l_expr->normalize(&l_count, 1, &l_peak, 100);
-        assert(l_count == 1);
-        // After 1 reduction: λ.((λ.2) 3)
+        auto l_reduced = l_expr->normalize(&l_count, 0, &l_peak, 100);
+        assert(l_count == 1); // Only 1 reduction (exceeds limit of 0)
+        // After 1 reduction: λ.((λ.2) 3) - NOT fully normalized
         auto l_expected = f(a(f(v(2)), v(3)));
         assert(l_reduced->equals(l_expected));
     }
@@ -2034,30 +2038,35 @@ void test_app_normalize()
         assert(l_count > 0);
     }
 
-    // Test limit of 0 - no reductions allowed
+    // Test limit of 0 - allows 1 reduction (exceeds limit of 0)
     {
         auto l_expr = a(f(v(0)), v(5));
-        auto l_reduced = l_expr->normalize(nullptr, 0);
-        // Should return original expression unchanged
-        assert(l_reduced->equals(l_expr));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 0);
+        // Does 1 reduction (count=1 exceeds limit of 0)
+        assert(l_count == 1);
+        assert(l_reduced->equals(v(5)));
     }
 
-    // Test limit of 1 - only one reduction allowed
-    // ((λ.0) 5) ((λ.1) 6) -> can do 2 reductions, but limit to 1
+    // Test limit of 1 - allows 2 reductions
+    // ((λ.0) 5) ((λ.1) 6) needs 2 reductions total
     {
         auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
-        auto l_reduced = l_expr->normalize(nullptr, 1);
-        // After 1 reduction: (5 ((λ.1) 6))
-        auto l_expected = a(v(5), a(f(v(1)), v(6)));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 1);
+        // Does 2 reductions (count=2 exceeds limit of 1)
+        assert(l_count == 2);
+        // After 2 reductions: (5 0) - fully normalized
+        auto l_expected = a(v(5), v(0));
         assert(l_reduced->equals(l_expected));
     }
 
-    // Test limit exactly matches needed reductions
+    // Test limit exactly at needed reductions (no artificial stop)
     {
         auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
         auto l_reduced = l_expr->normalize(nullptr, 2);
-        // After 2 reductions: (5 0) - fully normalized
-        // Note: v(1) is a free variable, so it decrements to v(0)
+        // Needs 2 reductions, limit is 2, so reaches normal form
+        // (count=2 does NOT exceed limit of 2)
         auto l_expected = a(v(5), v(0));
         assert(l_reduced->equals(l_expected));
     }
@@ -2070,12 +2079,14 @@ void test_app_normalize()
         assert(l_reduced->equals(v(5)));
     }
 
-    // Test both count and limit together
+    // Test N-2 scenario: expression needs 2 reductions, limit is 0
+    // Should do 1 reduction (exceeds limit), NOT reach normal form
     {
         auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
         size_t l_count = 999;
-        auto l_reduced = l_expr->normalize(&l_count, 1);
-        assert(l_count == 1);
+        auto l_reduced = l_expr->normalize(&l_count, 0);
+        assert(l_count == 1); // Only 1 reduction before exceeding
+        // Partial reduction: (5 ((λ.1) 6))
         auto l_expected = a(v(5), a(f(v(1)), v(6)));
         assert(l_reduced->equals(l_expected));
     }
@@ -2089,15 +2100,6 @@ void test_app_normalize()
         assert(l_reduced->equals(v(5)));
     }
 
-    // Test count with limit of 0
-    {
-        auto l_expr = a(f(v(0)), v(5));
-        size_t l_count = 999;
-        auto l_reduced = l_expr->normalize(&l_count, 0);
-        assert(l_count == 0);
-        assert(l_reduced->equals(l_expr));
-    }
-
     // Test complex reduction with limit
     // ((λ.λ.0) 5) 6 -> (λ.6) 6 -> 5 (2 reductions total)
     // Note: v(6) in body is a free variable, so it decrements to v(5)
@@ -2105,16 +2107,22 @@ void test_app_normalize()
         auto l_expr = a(a(f(f(v(0))), v(5)), v(6));
         size_t l_count = 999;
 
-        // Limit to 1 reduction
-        auto l_reduced1 = l_expr->normalize(&l_count, 1);
+        // Limit to 0: allows 1 reduction (exceeds)
+        auto l_reduced0 = l_expr->normalize(&l_count, 0);
         assert(l_count == 1);
 
-        // Limit to 2 reductions
+        // Limit to 1: allows 2 reductions (exceeds)
+        l_count = 999;
+        auto l_reduced1 = l_expr->normalize(&l_count, 1);
+        assert(l_count == 2);
+        auto l_expected1 = v(5);
+        assert(l_reduced1->equals(l_expected1));
+
+        // Limit to 2: allows 2 reductions (normal form, doesn't exceed)
         l_count = 999;
         auto l_reduced2 = l_expr->normalize(&l_count, 2);
         assert(l_count == 2);
-        auto l_expected2 = v(5);
-        assert(l_reduced2->equals(l_expected2));
+        assert(l_reduced2->equals(v(5)));
 
         // Full normalization
         l_count = 999;
@@ -2136,14 +2144,14 @@ void test_app_normalize()
     }
 
     // Test normal order with limit - should reduce leftmost-outermost first
-    // ((λ.2) 3) ((λ.4) 5) with limit 1 -> (1 ((λ.4) 5))
+    // ((λ.2) 3) ((λ.4) 5) needs 2 reductions, limit 0 allows 1
     // Left side reduces: v(2) > 0 decrements to v(1)
     {
         auto l_lhs = a(f(v(2)), v(3));
         auto l_rhs = a(f(v(4)), v(5));
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
         size_t l_count = 999;
-        auto l_reduced = l_expr->normalize(&l_count, 1);
+        auto l_reduced = l_expr->normalize(&l_count, 0);
         assert(l_count == 1);
         // Left reduces first (normal order)
         auto l_expected = a(v(1), a(f(v(4)), v(5)));
@@ -2151,13 +2159,13 @@ void test_app_normalize()
     }
 
     // Test normal order continuation - reduce left, then right
-    // ((λ.2) 3) ((λ.4) 5) with limit 2 -> (1 3)
+    // ((λ.2) 3) ((λ.4) 5) with limit 1 allows 2 reductions
     {
         auto l_lhs = a(f(v(2)), v(3));
         auto l_rhs = a(f(v(4)), v(5));
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
         size_t l_count = 999;
-        auto l_reduced = l_expr->normalize(&l_count, 2);
+        auto l_reduced = l_expr->normalize(&l_count, 1);
         assert(l_count == 2);
         // Both reduce: v(2)->v(1), v(4)->v(3)
         auto l_expected = a(v(1), v(3));
@@ -2165,14 +2173,14 @@ void test_app_normalize()
     }
 
     // Test self-application with limit to prevent infinite reduction
-    // (λ.0 0) (λ.0 0) with limit 3 (omega combinator)
+    // (λ.0 0) (λ.0 0) with limit 2 (omega combinator)
     // This tests that the limit actually stops potentially infinite reductions
     {
         auto l_omega = f(a(v(0), v(0)));
         auto l_expr = a(l_omega->clone(), l_omega->clone());
         size_t l_count = 999;
-        auto l_reduced = l_expr->normalize(&l_count, 3);
-        assert(l_count == 3);
+        auto l_reduced = l_expr->normalize(&l_count, 2);
+        assert(l_count == 3); // Does 3 reductions (exceeds limit of 2)
         // Should stop after 3 reductions, not continue indefinitely
     }
 
@@ -2209,15 +2217,15 @@ void test_app_normalize()
         assert(l_reduced->equals(l_expected));
     }
 
-    // Test limit preventing reduction that would happen in function body
-    // (λ.0) (λ.((λ.1) 2)) with limit 1 -> (λ.((λ.1) 2))
+    // Test limit preventing full normalization of nested redexes
+    // (λ.0) (λ.((λ.1) 2)) needs 2 reductions, limit 0 allows only 1
     // Only outer app reduces, inner redex remains
     {
         auto l_inner_redex = a(f(v(1)), v(2));
         auto l_arg = f(l_inner_redex->clone());
         auto l_expr = a(f(v(0)), l_arg->clone());
         size_t l_count = 999;
-        auto l_reduced = l_expr->normalize(&l_count, 1);
+        auto l_reduced = l_expr->normalize(&l_count, 0);
         assert(l_count == 1);
         // Should return the argument unchanged (no normalization of body)
         assert(l_reduced->equals(l_arg));
@@ -2369,7 +2377,7 @@ void test_app_normalize()
         size_t l_peak = 999;
         // Set step limit to prevent infinite loop, size limit high
         auto l_reduced = l_expr->normalize(&l_count, 5, &l_peak, 100);
-        assert(l_count == 5);
+        assert(l_count == 6);              // Limit 5 allows 6 reductions (5+1)
         assert(l_peak == 9);               // Omega combinator stays same size
         assert(l_reduced->equals(l_expr)); // Returns to itself
     }
@@ -2421,23 +2429,24 @@ void test_app_normalize()
     }
 
     // Test both step limit and size limit active
-    // Step limit should be hit first
+    // Step limit should be hit first (needs 2, limit 0 allows 1)
     {
         auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
         size_t l_count = 999;
         size_t l_peak = 999;
-        auto l_reduced = l_expr->normalize(&l_count, 1, &l_peak, 100);
-        assert(l_count == 1); // Step limit hit
+        auto l_reduced = l_expr->normalize(&l_count, 0, &l_peak, 100);
+        assert(l_count == 1); // Step limit hit (exceeds 0)
         auto l_expected = a(v(5), a(f(v(1)), v(6)));
         assert(l_reduced->equals(l_expected));
     }
 
     // Test size limit hit before step limit
+    // Expression has size 4, limit is 3, so no reductions possible
     {
         auto l_expr = a(f(v(0)), v(5));
         size_t l_count = 999;
         auto l_reduced = l_expr->normalize(&l_count, 100, nullptr, 3);
-        assert(l_count == 0); // Size limit prevents any reduction
+        assert(l_count == 0); // Size 4 > 3, so loop never executes
         assert(l_reduced->equals(l_expr));
     }
 
@@ -2478,12 +2487,13 @@ void test_app_normalize()
         auto l_expr = a(l_dup2->clone(), l_dup3->clone()); // size 11
 
         // Test with step limit to see growth pattern
+        // Limit 2 allows 3 steps (exceeds limit of 2)
         size_t l_count = 999;
         size_t l_peak = 999;
         auto l_reduced_3steps = l_expr->normalize(
-            &l_count, 3, &l_peak, std::numeric_limits<size_t>::max());
+            &l_count, 2, &l_peak, std::numeric_limits<size_t>::max());
         assert(l_count == 3);
-        assert(l_peak == 27); // Should grow to 27 after 2 steps
+        assert(l_peak == 27); // Should grow to 27 after 3 steps
 
         // Test with size limit that allows some growth but prevents explosion
         // Limit to 15: allows reductions until size exceeds 15
@@ -2520,6 +2530,74 @@ void test_app_normalize()
         // Result should be: (λ.0 0 0) (λ.0 0 0) with size 13
         auto l_expected_boundary = a(l_dup3->clone(), l_dup3->clone());
         assert(l_reduced_boundary->equals(l_expected_boundary));
+    }
+
+    // Test N-2 scenario: 3-step expression with limit allowing only 1 step
+    // Expression: (λ.0) (((λ.2) 3) ((λ.4) 5))
+    // Needs 3 reductions total, set limit to N-2 = 1
+    {
+        auto l_inner =
+            a(a(f(v(2)), v(3)), a(f(v(4)), v(5)));  // ((λ.2) 3) ((λ.4) 5)
+        auto l_expr = a(f(v(0)), l_inner->clone()); // (λ.0) (...)
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 1);
+        // With limit 1, can do 2 reductions (exceeds limit)
+        assert(l_count == 2);
+        // Should reduce outer app and one inner app
+        // NOT reach full normal form (1 3)
+    }
+
+    // Test N-2 scenario: 4-step expression limited to 2 steps
+    // Expression: ((λ.0) (λ.0)) (((λ.2) 3) ((λ.4) 5))
+    // Needs 4 reductions, limit 2 allows 3
+    {
+        auto l_inner =
+            a(a(f(v(2)), v(3)), a(f(v(4)), v(5))); // ((λ.2) 3) ((λ.4) 5)
+        auto l_wrapped =
+            a(a(f(v(0)), f(v(0))), l_inner->clone()); // ((λ.0) (λ.0)) (...)
+        size_t l_count = 999;
+        auto l_reduced = l_wrapped->normalize(&l_count, 2);
+        // With limit 2, can do 3 reductions (exceeds limit)
+        assert(l_count == 3);
+        // Should NOT reach full normal form
+    }
+
+    // Test N-2 scenario: Expression that needs 5 steps, limit allows 3
+    // Expression: ((((λ.0) 1) ((λ.0) 2)) ((λ.0) 3)) ((λ.0) 4)) ((λ.0) 5)
+    // Needs 5 reductions, limit 3 allows 4
+    {
+        auto l_r1 = a(f(v(0)), v(1)); // (λ.0) 1
+        auto l_r2 = a(f(v(0)), v(2)); // (λ.0) 2
+        auto l_r3 = a(f(v(0)), v(3)); // (λ.0) 3
+        auto l_r4 = a(f(v(0)), v(4)); // (λ.0) 4
+        auto l_r5 = a(f(v(0)), v(5)); // (λ.0) 5
+        auto l_expr = a(
+            a(a(a(l_r1->clone(), l_r2->clone()), l_r3->clone()), l_r4->clone()),
+            l_r5->clone());
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 3);
+        // With limit 3 (N-2 where N=5), can do 4 reductions (exceeds limit)
+        assert(l_count == 4);
+        // Expression is partially reduced, NOT in normal form
+        // Result: ((((1 2) 3) 4) ((λ.0) 5)) - still has one redex left
+        auto l_expected = a(a(a(a(v(1), v(2)), v(3)), v(4)), a(f(v(0)), v(5)));
+        assert(l_reduced->equals(l_expected));
+    }
+
+    // Test exact N-1 scenario: 4-step expression with limit 3 (allows 4,
+    // exceeds) Expression: ((λ.0) 5) ((λ.0) 6) ((λ.0) 7) ((λ.0) 8) Needs 4
+    // reductions, limit 3 allows 4 (exceeds)
+    {
+        auto l_expr =
+            a(a(a(a(f(v(0)), v(5)), a(f(v(0)), v(6))), a(f(v(0)), v(7))),
+              a(f(v(0)), v(8)));
+        size_t l_count = 999;
+        auto l_reduced = l_expr->normalize(&l_count, 3);
+        // 4 reductions needed, limit is 3, so does 4 (exceeds)
+        assert(l_count == 4);
+        // Result: (((5 6) 7) 8) - fully normalized
+        auto l_expected = a(a(a(v(5), v(6)), v(7)), v(8));
+        assert(l_reduced->equals(l_expected));
     }
 }
 
@@ -3681,8 +3759,10 @@ void generic_use_case_test()
         // this should never terminate -- omega combinator
         const auto OMEGA = a(f(a(v(0), v(0))), f(a(v(0), v(0))));
         size_t l_count = 0;
-        auto l_reduced = OMEGA->normalize(&l_count, 1000);
+        auto l_reduced = OMEGA->normalize(&l_count, 999);
         // omega becomes itself forever
+        // With limit 999, does 1000 reductions (exceeds limit)
+        assert(l_count == 1000);
         assert(l_reduced->equals(OMEGA->clone()));
     }
 
