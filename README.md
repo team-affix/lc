@@ -20,8 +20,8 @@
 The library is designed to be:
 - **Minimal**: Three expression types (`var`, `func`, `app`), clean API
 - **Safe**: Immutable expressions with `std::unique_ptr` memory management
-- **Controlled**: Configurable step and size limits prevent non-termination
-- **Debuggable**: Tracks reduction steps and peak expression sizes
+- **Controlled**: Configurable step and size limits with detailed results prevent non-termination
+- **Debuggable**: Returns reduction steps, peak sizes, and limit violation flags
 - **Fast**: Efficient substitution and reduction with De Bruijn levels
 
 ### Design & Implementation
@@ -61,7 +61,7 @@ using namespace lambda;
 auto identity = f(v(0));  // λ.0
 auto expr = a(identity->clone(), v(5));
 auto result = expr->normalize();
-// result equals v(5)
+// result.m_expr equals v(5)
 ```
 
 The library uses factory functions for construction:
@@ -102,41 +102,74 @@ Represents function application (applying a function to an argument).
 
 #### Expression Normalization
 
-The `normalize()` method reduces expressions to normal form with configurable constraints:
+The `normalize()` method reduces expressions to normal form and returns a `normalize_result` struct with detailed information:
 
 ```cpp
-std::unique_ptr<expr> normalize(
-    size_t* a_step_count = nullptr,           // Output: number of reductions performed
-    size_t a_step_limit = SIZE_MAX,           // Input: maximum reductions allowed
-    size_t* a_size_peak = nullptr,            // Output: peak expression size
-    size_t a_size_limit = SIZE_MAX            // Input: maximum expression size allowed
+struct normalize_result {
+    bool m_step_excess;           // true if step limit was hit
+    bool m_size_excess;           // true if size limit was hit
+    size_t m_step_count;          // number of reductions performed
+    size_t m_size_peak;           // maximum intermediate result size
+    std::unique_ptr<expr> m_expr; // the normalized expression
+};
+
+normalize_result normalize(
+    size_t a_step_limit = SIZE_MAX,    // maximum reductions allowed
+    size_t a_size_limit = SIZE_MAX     // maximum expression size allowed
 ) const;
 ```
 
-**Parameters:**
+**Return Value: `normalize_result` struct**
 
-1. **`a_step_count`** (output): Number of beta-reductions performed
-   - Returns the count even if a limit was exceeded
-   - Useful for detecting non-termination
+- **`m_step_excess`**: `true` if step limit was reached while more reductions are possible
+- **`m_size_excess`**: `true` if a reduction would have exceeded the size limit
+- **`m_step_count`**: Number of reductions actually performed (never exceeds `a_step_limit`)
+- **`m_size_peak`**: Maximum size of intermediate results (excludes limit-violating reductions)
+- **`m_expr`**: The normalized expression (or partially normalized if limits hit)
 
-2. **`a_step_limit`** (input): Maximum number of reduction steps
-   - Prevents infinite loops (e.g., omega combinator: `(λ.(0 0)) (λ.(0 0))`)
+**Limit Precedence:**
 
-3. **`a_size_peak`** (output): Peak expression size reached
-   - Tracks maximum size during normalization
-   - Useful for detecting exponential growth
+Step limit **ALWAYS** takes precedence over size limit. When both limits would block a reduction:
+- `m_step_excess = true`
+- `m_size_excess = false`
 
-4. **`a_size_limit`** (input): Maximum expression size allowed
-   - Prevents exponential explosion during reduction
+**When Limits Are Exceeded:**
 
-**Normalization Algorithm:**
+- **Step limit**: `m_step_excess = true` when `m_step_count` reaches `a_step_limit` AND more reductions are possible
+- **Size limit**: `m_size_excess = true` when a reduction would produce a result with `size > a_size_limit`
+- Only ONE excess flag can be `true` (step takes precedence)
+- If `m_step_excess = true`, then `m_step_count == a_step_limit`
+- If `m_size_excess = true`, then `m_step_count < a_step_limit`
 
-As long as we are within the limits, we attempt to reduce one step. If a reduction takes place (i.e., not in beta-normal form), we increment the step count and update the peak size reached.
+**Reduction Lookahead Behavior:**
 
-**Key Insight:** Limit checks happen *before* attempting each reduction, which is why the final state can exceed limits by one step.
+The normalizer uses lookahead to enforce limits:
+1. The next reduction is computed (lookahead)
+2. Limits are checked *before* applying it
+3. If a limit would be violated
+   1. The appropriate excess flag is set
+   2. The reduction is **discarded** (not committed)
+   3. Normalization halts immediately
+4. The returned expression is the **last valid state** (before the limit-violating reduction)
 
-- **Step Limit**: Continues while `step_count <= a_step_limit`. When exceeded, `step_count = step_limit + 1`, and detection is: `step_count > step_limit`.
-- **Size Limit**: Continues while `current_size <= a_size_limit`. Detection: `peak > size_limit`
+This ensures:
+- The returned expression is always within limits OR is the initial expression
+- `m_step_count` reflects only successful, committed reductions
+- `m_size_peak` only includes sizes of committed reductions
+
+**Size Checking:**
+
+- **Initial expression size is NEVER checked** against `a_size_limit`
+- Only reduction **results** are checked
+- This allows large expressions that reduce to smaller results
+- Example: Expression of size 100 can normalize with `a_size_limit = 50` if all intermediate results are ≤ 50
+
+**Size Peak Behavior:**
+
+- Tracks maximum size of intermediate **results** (not original expression)
+- Updated after each successful reduction
+- If no reductions occur: `m_size_peak = std::numeric_limits<size_t>::min()`
+- Does **NOT** include sizes of rejected (limit-violating) reductions
 
 #### Expression Size
 
@@ -186,13 +219,15 @@ auto expr = a(f(v(0)), v(5));
 auto identity = f(v(0));  // λ.0
 auto expr = a(identity->clone(), v(5));
 auto result = expr->normalize();
-// result equals v(5)
+// result.m_expr equals v(5)
+// result.m_step_count == 1
 
 // K combinator: ((λ.λ.0) 7) 8 → 7
 auto K = f(f(v(0)));  // λ.λ.0
 auto expr = a(a(K->clone(), v(7)), v(8));
 auto result = expr->normalize();
-// result equals v(7)
+// result.m_expr equals v(7)
+// result.m_step_count == 2
 ```
 
 #### Church Numerals
@@ -214,25 +249,58 @@ auto two = f(f(a(v(0), a(v(0), v(1)))));
 #### Reduction with Constraints
 
 ```cpp
-// Limit reduction steps
+// Step limit with omega combinator
 // Omega combinator: (λ.(0 0)) (λ.(0 0))
 auto omega = a(f(a(v(0), v(0))), f(a(v(0), v(0))));
-size_t count = 0;
-auto result = omega->normalize(&count, 100);  // Stop after exceeding 100 steps
-// count will be 101, omega reduces to itself indefinitely
+auto result = omega->normalize(100);  // Limit to 100 steps
+// result.m_step_excess == true (more reductions possible)
+// result.m_step_count == 100 (exactly 100 reductions were applied)
+// The 101st reduction was computed but NOT applied
+// omega reduces to itself indefinitely
 
-// Limit expression size
+// Size limit with growing expression
 // Growing combinator: (λ.(0 0)) (λ.(0 0 0))
 auto growing = a(f(a(v(0), v(0))), f(a(a(v(0), v(0)), v(0))));
-size_t peak = 0;
-result = growing->normalize(nullptr, SIZE_MAX, &peak, 20);
-// Stops when expression size exceeds 20
+auto result = growing->normalize(SIZE_MAX, 20);  // size_limit=20
+if (result.m_size_excess) {
+    std::cout << "Stopped due to size after " 
+              << result.m_step_count << " steps\n";
+    // The reduction that would exceed 20 was detected via lookahead and discarded
+    // result.m_expr->size() <= 20
+    // result.m_size_peak <= 20
+}
 
-// Track both step count and peak size
-size_t steps = 0;
-size_t peak_size = 0;
-result = expr->normalize(&steps, 1000, &peak_size, 100);
-std::cout << "Steps: " << steps << ", Peak size: " << peak_size << std::endl;
+// Track both metrics
+auto result = expr->normalize(1000, 100);  // step_limit=1000, size_limit=100
+std::cout << "Steps: " << result.m_step_count 
+          << ", Peak: " << result.m_size_peak << "\n";
+if (result.m_step_excess) {
+    std::cout << "Hit step limit\n";
+}
+if (result.m_size_excess) {
+    std::cout << "Hit size limit\n";
+}
+
+// Limit precedence demonstration
+auto expr = ...;  // Expression needing many steps
+auto result = expr->normalize(5, 10);  // Both limits restrictive
+// If step limit hits after 5 reductions:
+// result.m_step_excess == true
+// result.m_size_excess == false  // Step takes precedence
+// result.m_step_count == 5
+
+// Initial size doesn't matter
+auto large_expr = ...; // Expression with size 100
+auto result = large_expr->normalize(SIZE_MAX, 50);  // size_limit=50
+// Succeeds if all intermediate results have size <= 50
+// Initial size of 100 is not checked
+
+// Understanding lookahead behavior
+auto expr = ...; // Expression needing 10 steps to normalize
+auto result = expr->normalize(5);  // step_limit=5
+// result.m_step_count == 5 (only 5 reductions applied)
+// The 6th reduction was computed (lookahead) but discarded
+// result.m_expr is the state after exactly 5 reductions
 ```
 
 #### Combinator Identities
@@ -250,7 +318,7 @@ auto S = f(f(f(a(a(v(0), v(2)), a(v(1), v(2))))));
 // Test: S K K a → a (SKK is equivalent to I)
 auto expr = a(a(a(S->clone(), K->clone()), K->clone()), v(10));
 auto result = expr->normalize();
-// result equals v(10)
+// result.m_expr equals v(10)
 ```
 
 #### Measuring Expression Size
@@ -261,8 +329,8 @@ auto expr = a(f(v(0)), v(5));
 std::cout << "Size: " << expr->size() << std::endl;  // Prints: 4
 // Size breakdown: 1 (app) + 2 (func with var body) + 1 (var) = 4
 
-auto normalized = expr->normalize();
-std::cout << "Size after: " << normalized->size() << std::endl;  // Prints: 1
+auto result = expr->normalize();
+std::cout << "Size after: " << result.m_expr->size() << std::endl;  // Prints: 1
 // Just v(5) remains
 ```
 
@@ -275,6 +343,8 @@ std::cout << "Size after: " << normalized->size() << std::endl;  // Prints: 1
 **Building and linking against the library is required for usage in your project**.
 
 ### Building & Testing
+
+Currently, building only has supported methods for Linux, but the build is simple.
 
 #### Build Library
 
