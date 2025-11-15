@@ -108,6 +108,34 @@ std::unique_ptr<expr> f(std::unique_ptr<expr>&& a_body);
 std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_lhs,
                         std::unique_ptr<expr>&& a_rhs);
 
+// construct_program: builds a tower of lambda abstractions to emulate delta
+// reductions through beta-reductions.
+//
+// Given helpers [h0, h1, h2, ...] and a main function M, constructs:
+//   ((λ.((λ.((λ.M) h2)) h1)) h0)
+//
+// When normalized, this binds each helper to its index (h0→0, h1→1, etc.),
+// allowing the main function to reference helpers as De Bruijn level variables.
+//
+// Template parameter IT must support:
+//   - Dereference (*it) -> const std::unique_ptr<expr>&
+//   - std::next(it) -> IT
+//   - Equality comparison (it == end)
+template <typename IT>
+std::unique_ptr<expr> construct_program(IT a_helpers_begin, IT a_helpers_end,
+                                        const std::unique_ptr<expr>& a_main_fn)
+{
+    // Base case: no helpers, just return the main function
+    if(a_helpers_begin == a_helpers_end)
+        return a_main_fn->clone();
+
+    // Recursive case: wrap in lambda and apply first helper
+    // ((λ.(recursion with remaining helpers)) first_helper)
+    return a(f(construct_program(std::next(a_helpers_begin), a_helpers_end,
+                                 a_main_fn)),
+             (*a_helpers_begin)->clone());
+}
+
 } // namespace lambda
 
 #endif
