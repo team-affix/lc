@@ -185,55 +185,52 @@ std::unique_ptr<expr> expr::clone() const
 }
 
 // EXPR NORMALIZE METHOD
-std::unique_ptr<expr> expr::normalize(size_t* a_step_count, size_t a_step_limit,
-                                      size_t* a_size_peak,
-                                      size_t a_size_limit) const
+expr::normalize_result expr::normalize(size_t a_step_limit,
+                                       size_t a_size_limit) const
 {
-    // start with the original expression
-    std::unique_ptr<expr> l_result = clone();
+    // initialize the result
+    normalize_result l_result{
+        .m_step_excess = false,
+        .m_size_excess = false,
+        .m_step_count = 0,
+        .m_size_peak = std::numeric_limits<size_t>::min(),
+        .m_expr = clone(),
+    };
 
     // log the original expression
-    LOG_EXPR(l_result);
-
-    // track the number of reductions
-    size_t l_step_count = 0;
-
-    // track the peak size
-    size_t l_size_peak = l_result->size();
+    LOG_EXPR(l_result.m_expr);
 
     // as long as we are within the limits, keep reducing
-    while(l_step_count <= a_step_limit && l_size_peak <= a_size_limit)
+    while(auto l_reduced = l_result.m_expr->reduce_one_step(0))
     {
-        // try to reduce the expression by one step
-        auto l_reduced = l_result->reduce_one_step(0);
+        // check if the step limit has been exceeded
+        if(l_result.m_step_count == a_step_limit)
+        {
+            l_result.m_step_excess = true;
+            break;
+        }
 
-        // if the expression cannot reduce, break.
-        if(!l_reduced)
-            break; // make sure not to increment step as
-                   // no reduction occurred
-
-        // update the result to the reduced expression
-        l_result = std::move(l_reduced);
+        // check if the size limit has been exceeded
+        if(l_reduced->size() > a_size_limit)
+        {
+            l_result.m_size_excess = true;
+            break;
+        }
 
         // update the step count
-        ++l_step_count;
+        ++l_result.m_step_count;
 
         // update the peak size
-        l_size_peak = std::max(l_size_peak, l_result->size());
+        l_result.m_size_peak =
+            std::max(l_result.m_size_peak, l_reduced->size());
+
+        // update the result to the reduced expression
+        l_result.m_expr = std::move(l_reduced);
 
         // log the reduction
-        LOG_EXPR(l_result);
+        LOG_EXPR(l_result.m_expr);
     }
 
-    // output the reduction count if necessary
-    if(a_step_count)
-        *a_step_count = l_step_count;
-
-    // output the peak size if necessary
-    if(a_size_peak)
-        *a_size_peak = l_size_peak;
-
-    // return the normalized expression
     return l_result;
 }
 

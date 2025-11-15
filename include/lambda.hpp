@@ -11,6 +11,15 @@ namespace lambda
 
 struct expr
 {
+    // used for normalize() results:
+    struct normalize_result
+    {
+        bool m_step_excess;
+        bool m_size_excess;
+        size_t m_step_count;
+        size_t m_size_peak;
+        std::unique_ptr<expr> m_expr;
+    };
     virtual ~expr() = default;
     virtual bool equals(const std::unique_ptr<expr>&) const = 0;
     virtual void print(std::ostream& a_ostream) const = 0;
@@ -21,10 +30,8 @@ struct expr
                const std::unique_ptr<expr>& a_arg) const = 0;
     virtual std::unique_ptr<expr> reduce_one_step(size_t a_depth) const = 0;
     std::unique_ptr<expr> clone() const;
-    std::unique_ptr<expr>
-    normalize(size_t* a_step_count = nullptr,
-              size_t a_step_limit = std::numeric_limits<size_t>::max(),
-              size_t* a_size_peak = nullptr,
+    normalize_result
+    normalize(size_t a_step_limit = std::numeric_limits<size_t>::max(),
               size_t a_size_limit = std::numeric_limits<size_t>::max()) const;
     size_t size() const;
     expr(size_t a_size);
