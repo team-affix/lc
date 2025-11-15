@@ -171,6 +171,111 @@ This ensures:
 - If no reductions occur: `m_size_peak = std::numeric_limits<size_t>::min()`
 - Does **NOT** include sizes of rejected (limit-violating) reductions
 
+#### Emulating Delta Reductions with `construct_program`
+
+The `construct_program()` function enables **delta reductions** (named function definitions) to be emulated through pure beta-reductions. This is particularly useful for building complex programs with reusable helper functions.
+
+**What are Delta Reductions?**
+
+In lambda calculus, a **delta reduction** is a named reduction rule like `SUCC → λf.λx.f(fx)`. While pure lambda calculus only has beta-reduction, delta reductions allow convenient definitions of functions by name.
+
+**How `construct_program` Works:**
+
+Given a list of helper expressions `[h₀, h₁, h₂, ...]` and a main expression `M`, `construct_program` builds a tower of lambda abstractions:
+
+```
+((λ.((λ.((λ.M) h₂)) h₁)) h₀)
+```
+
+When normalized, this structure binds each helper to its De Bruijn level (h₀→0, h₁→1, etc.), allowing the main expression to reference helpers as global variables. After normalization, the helper bindings are eliminated through substitution.
+
+**Function Signature:**
+
+```cpp
+template <typename IT>
+std::unique_ptr<expr> construct_program(
+    IT a_helpers_begin,
+    IT a_helpers_end,
+    const std::unique_ptr<expr>& a_main_fn
+);
+```
+
+- **Template parameter**: `IT` can be any iterator type (`std::list`, `std::vector`, etc.)
+- **Returns**: A program expression ready for normalization
+
+**The `l()` and `g()` Helper Pattern:**
+
+When building helpers and main expressions, use these lambda helpers to correctly reference variables:
+
+```cpp
+std::list<std::unique_ptr<expr>> helpers;
+
+// l(index) creates a LOCAL variable reference
+auto l = [&helpers](size_t a_local_index) {
+    return v(helpers.size() + a_local_index);
+};
+
+// g(index) creates a GLOBAL variable reference (to a helper)
+auto g = [&helpers](size_t a_global_index) {
+    return v(a_global_index);
+};
+```
+
+- **`l(index)`**: References local variables/parameters within the current helper or main function
+- **`g(index)`**: References previously defined helpers by their index in the helpers list
+
+**Example: Church Booleans with NOT Combinator**
+
+```cpp
+using namespace lambda;
+std::list<std::unique_ptr<expr>> helpers;
+
+auto l = [&helpers](size_t a_local_index) {
+    return v(helpers.size() + a_local_index);
+};
+auto g = [&helpers](size_t a_global_index) {
+    return v(a_global_index);
+};
+
+// Helper 0: TRUE = λ.λ.0 (returns first argument)
+const auto TRUE = g(helpers.size());
+helpers.emplace_back(f(f(l(0))));
+
+// Helper 1: FALSE = λ.λ.1 (returns second argument)
+const auto FALSE = g(helpers.size());
+helpers.emplace_back(f(f(l(1))));
+
+// Helper 2: NOT = λ.((arg FALSE) TRUE)
+// Uses earlier helpers (FALSE and TRUE)
+const auto NOT = g(helpers.size());
+helpers.emplace_back(
+    f(a(a(l(0), FALSE->clone()), TRUE->clone())));
+
+// Main: Apply NOT to TRUE
+auto main_expr = a(NOT->clone(), TRUE->clone());
+
+// Construct and normalize the program
+auto program = construct_program(helpers.begin(), helpers.end(), main_expr);
+auto result = program->normalize();
+
+// Result: FALSE = λ.λ.1
+assert(result.m_expr->equals(f(f(v(1)))));
+```
+
+**Key Insight: Locals Become Globals**
+
+After normalization, helper bindings are eliminated through substitution, effectively **decrementing all variable indices** by the number of helpers. This means:
+- Locals in the main function become globals (zero-indexed from the outermost scope)
+- A local `l(0)` (which was `v(N)` where N = helpers.size()) becomes `v(0)` after N helpers are eliminated
+
+**Use Cases:**
+
+- Building libraries of reusable combinators (TRUE, FALSE, NOT, AND, OR)
+- Church numeral arithmetic (ZERO, SUCC, ADD, MULT)
+- Complex recursive functions using Y-combinator
+- Testing reduction properties with named definitions
+- Educational demonstrations of lambda calculus encodings
+
 #### Expression Size
 
 Every expression has a `size()` method that returns its structural size:
@@ -365,6 +470,7 @@ The project includes comprehensive unit tests covering:
 - Reduction constraints (step and size limits)
 - Combinator identities (I, K, S)
 - Church numeral arithmetic
+- `construct_program` with helpers and dependencies
 
 Build tests with:
 ```bash
