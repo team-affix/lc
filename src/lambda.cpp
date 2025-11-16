@@ -298,6 +298,13 @@ std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_lhs,
     return std::unique_ptr<expr>(new app(std::move(a_lhs), std::move(a_rhs)));
 }
 
+// operator for printing expressions to ostreams
+std::ostream& operator<<(std::ostream& a_ostream, const expr& a_expr)
+{
+    a_expr.print(a_ostream);
+    return a_ostream;
+}
+
 } // namespace lambda
 
 #ifdef UNIT_TEST

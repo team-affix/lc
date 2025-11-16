@@ -108,6 +108,9 @@ std::unique_ptr<expr> f(std::unique_ptr<expr>&& a_body);
 std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_lhs,
                         std::unique_ptr<expr>&& a_rhs);
 
+// operator for printing expressions to ostreams
+std::ostream& operator<<(std::ostream& a_ostream, const expr& a_expr);
+
 // construct_program: builds a tower of lambda abstractions to emulate delta
 // reductions through beta-reductions.
 //
