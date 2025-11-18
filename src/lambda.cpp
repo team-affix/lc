@@ -3837,11 +3837,11 @@ void construct_program_test()
 
         auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
-        auto g = [&l_helpers](size_t a_global_index)
+        auto gprev = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: Returns v(100) regardless of input
-        const auto CONST_100 = g(l_helpers.size());
+        const auto CONST_100 = gprev(l_helpers.size());
         l_helpers.emplace_back(f(v(100)));
 
         // Main: Apply helper to dummy value
@@ -3861,15 +3861,15 @@ void construct_program_test()
 
         auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
-        auto g = [&l_helpers](size_t a_global_index)
+        auto gprev = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: TRUE = λ.λ.0 (returns first arg)
-        const auto TRUE = g(l_helpers.size());
+        const auto TRUE = gprev(l_helpers.size());
         l_helpers.emplace_back(f(f(lprev(0))));
 
         // Helper 1: FALSE = λ.λ.1 (returns second arg)
-        const auto FALSE = g(l_helpers.size());
+        const auto FALSE = gprev(l_helpers.size());
         l_helpers.emplace_back(f(f(lprev(1))));
 
         // Test TRUE: ((TRUE branch_a) branch_b) → branch_a
@@ -3901,19 +3901,19 @@ void construct_program_test()
 
         auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
-        auto g = [&l_helpers](size_t a_global_index)
+        auto gprev = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: TRUE
-        const auto TRUE = g(l_helpers.size());
+        const auto TRUE = gprev(l_helpers.size());
         l_helpers.emplace_back(f(f(lprev(0))));
 
         // Helper 1: FALSE
-        const auto FALSE = g(l_helpers.size());
+        const auto FALSE = gprev(l_helpers.size());
         l_helpers.emplace_back(f(f(lprev(1))));
 
         // Helper 2: NOT = λ.((0 FALSE) TRUE)
-        const auto NOT = g(l_helpers.size());
+        const auto NOT = gprev(l_helpers.size());
         l_helpers.emplace_back(
             f(a(a(lprev(0)->clone(), FALSE->clone()), TRUE->clone())));
 
@@ -3946,15 +3946,15 @@ void construct_program_test()
 
         auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
-        auto g = [&l_helpers](size_t a_global_index)
+        auto gprev = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: ZERO = λ.λ.1
-        const auto ZERO = g(l_helpers.size());
+        const auto ZERO = gprev(l_helpers.size());
         l_helpers.emplace_back(f(f(lprev(1))));
 
         // Helper 1: SUCC = λ.λ.λ.(1 ((0 1) 2))
-        const auto SUCC = g(l_helpers.size());
+        const auto SUCC = gprev(l_helpers.size());
         l_helpers.emplace_back(f(
             f(f(a(lprev(1)->clone(), a(a(lprev(0)->clone(), lprev(1)->clone()),
                                        lprev(2)->clone()))))));
@@ -3976,11 +3976,11 @@ void construct_program_test()
 
         auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
-        auto g = [&l_helpers](size_t a_global_index)
+        auto gprev = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: TRUE
-        const auto TRUE = g(l_helpers.size());
+        const auto TRUE = gprev(l_helpers.size());
         l_helpers.emplace_back(f(f(lprev(0))));
 
         // Main: λ.λ.((TRUE l(0)) l(1))
@@ -4006,15 +4006,15 @@ void construct_program_test()
 
         auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
-        auto g = [&l_helpers](size_t a_global_index)
+        auto gprev = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: K combinator
-        const auto K = g(l_helpers.size());
+        const auto K = gprev(l_helpers.size());
         l_helpers.push_back(f(f(lprev(0))));
 
         // Helper 1: S combinator λ.λ.λ.((0 2) (1 2))
-        const auto S = g(l_helpers.size());
+        const auto S = gprev(l_helpers.size());
         l_helpers.push_back(
             f(f(f(a(a(lprev(0)->clone(), lprev(2)->clone()),
                     a(lprev(1)->clone(), lprev(2)->clone()))))));
@@ -4039,19 +4039,19 @@ void construct_program_test()
 
         auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
-        auto g = [&l_helpers](size_t a_global_index)
+        auto gprev = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: TRUE
-        const auto TRUE = g(l_helpers.size());
+        const auto TRUE = gprev(l_helpers.size());
         l_helpers.emplace_back(f(f(lprev(0))));
 
         // Helper 1: FALSE
-        const auto FALSE = g(l_helpers.size());
+        const auto FALSE = gprev(l_helpers.size());
         l_helpers.emplace_back(f(f(lprev(1))));
 
         // Helper 2: AND = λ.λ.((0 1) FALSE)
-        const auto AND = g(l_helpers.size());
+        const auto AND = gprev(l_helpers.size());
         l_helpers.emplace_back(
             f(f(a(a(lprev(0)->clone(), lprev(1)->clone()), FALSE->clone()))));
 
@@ -4077,15 +4077,16 @@ void generic_use_case_test()
     auto lprev = [&l_helpers](size_t a_local_index)
     { return v(l_helpers.size() + a_local_index); };
 
-    auto g = [&l_helpers](size_t a_global_index) { return v(a_global_index); };
+    auto gprev = [&l_helpers](size_t a_global_index)
+    { return v(a_global_index); };
 
     // church booleans
 
     // true
-    const auto TRUE = g(l_helpers.size());
+    const auto TRUE = gprev(l_helpers.size());
     l_helpers.emplace_back(f(f(lprev(0))));
     // false
-    const auto FALSE = g(l_helpers.size());
+    const auto FALSE = gprev(l_helpers.size());
     l_helpers.emplace_back(f(f(lprev(1))));
 
     // test the church bools
@@ -4132,18 +4133,18 @@ void generic_use_case_test()
         // test the reductions.
         // NOTE: after reduction of a program, the main function's locals BECOME
         // globals.
-        assert(l_true_result.m_expr->equals(f(g(10))));
-        assert(l_false_result.m_expr->equals(f(g(11))));
+        assert(l_true_result.m_expr->equals(f(gprev(10))));
+        assert(l_false_result.m_expr->equals(f(gprev(11))));
     }
 
     // add church numerals
 
     // 0
-    const auto ZERO = g(l_helpers.size());
+    const auto ZERO = gprev(l_helpers.size());
     l_helpers.emplace_back(f(f(lprev(1))));
 
     // succ
-    const auto SUCC = g(l_helpers.size());
+    const auto SUCC = gprev(l_helpers.size());
     l_helpers.emplace_back(
         f(f(f(a(lprev(1), a(a(lprev(0), lprev(1)), lprev(2)))))));
 
@@ -4218,18 +4219,20 @@ void generic_use_case_test()
         FIVE_RESULT.m_expr->print(std::cout);
         std::cout << std::endl;
 
-        assert(ONE_RESULT.m_expr->equals(f(f(a(g(0), g(1))))));
-        assert(TWO_RESULT.m_expr->equals(f(f(a(g(0), a(g(0), g(1)))))));
-        assert(
-            THREE_RESULT.m_expr->equals(f(f(a(g(0), a(g(0), a(g(0), g(1))))))));
-        assert(FOUR_RESULT.m_expr->equals(
-            f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
-        assert(FIVE_RESULT.m_expr->equals(
-            f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1))))))))));
+        assert(ONE_RESULT.m_expr->equals(f(f(a(gprev(0), gprev(1))))));
+        assert(TWO_RESULT.m_expr->equals(
+            f(f(a(gprev(0), a(gprev(0), gprev(1)))))));
+        assert(THREE_RESULT.m_expr->equals(
+            f(f(a(gprev(0), a(gprev(0), a(gprev(0), gprev(1))))))));
+        assert(FOUR_RESULT.m_expr->equals(f(
+            f(a(gprev(0), a(gprev(0), a(gprev(0), a(gprev(0), gprev(1)))))))));
+        assert(FIVE_RESULT.m_expr->equals(f(f(
+            a(gprev(0),
+              a(gprev(0), a(gprev(0), a(gprev(0), a(gprev(0), gprev(1))))))))));
     }
 
     // add
-    const auto ADD = g(l_helpers.size());
+    const auto ADD = gprev(l_helpers.size());
     l_helpers.emplace_back(f(
         f(f(f(a(a(lprev(0), lprev(2)), a(a(lprev(1), lprev(2)), lprev(3))))))));
 
@@ -4310,24 +4313,29 @@ void generic_use_case_test()
         std::cout << std::endl;
 
         // assertions
-        assert(ADD_ONE_ONE_RESULT.m_expr->equals(f(f(a(g(0), a(g(0), g(1)))))));
+        assert(ADD_ONE_ONE_RESULT.m_expr->equals(
+            f(f(a(gprev(0), a(gprev(0), gprev(1)))))));
         assert(ADD_ONE_TWO_RESULT.m_expr->equals(
-            f(f(a(g(0), a(g(0), a(g(0), g(1))))))));
-        assert(ADD_TWO_TWO_RESULT.m_expr->equals(
-            f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
-        assert(ADD_THREE_TWO_RESULT.m_expr->equals(
-            f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1))))))))));
-        assert(ADD_FIVE_FIVE_RESULT.m_expr->equals(f(f(a(
-            g(0),
-            a(g(0),
-              a(g(0),
-                a(g(0),
-                  a(g(0),
-                    a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))))))))));
+            f(f(a(gprev(0), a(gprev(0), a(gprev(0), gprev(1))))))));
+        assert(ADD_TWO_TWO_RESULT.m_expr->equals(f(
+            f(a(gprev(0), a(gprev(0), a(gprev(0), a(gprev(0), gprev(1)))))))));
+        assert(ADD_THREE_TWO_RESULT.m_expr->equals(f(f(
+            a(gprev(0),
+              a(gprev(0), a(gprev(0), a(gprev(0), a(gprev(0), gprev(1))))))))));
+        assert(ADD_FIVE_FIVE_RESULT.m_expr->equals(
+            f(f(a(gprev(0),
+                  a(gprev(0),
+                    a(gprev(0),
+                      a(gprev(0),
+                        a(gprev(0),
+                          a(gprev(0),
+                            a(gprev(0),
+                              a(gprev(0),
+                                a(gprev(0), a(gprev(0), gprev(1)))))))))))))));
     }
 
     // define MULT
-    const auto MULT = g(l_helpers.size());
+    const auto MULT = gprev(l_helpers.size());
     l_helpers.emplace_back(
         f(f(f(f(a(a(lprev(0), a(lprev(1), lprev(2))), lprev(3)))))));
 
@@ -4416,43 +4424,47 @@ void generic_use_case_test()
         MULT_FIVE_FIVE_RESULT.m_expr->print(std::cout);
         std::cout << std::endl;
 
-        assert(MULT_ZERO_ZERO_RESULT.m_expr->equals(f(f(g(1)))));
-        assert(MULT_ZERO_ONE_RESULT.m_expr->equals(f(f(g(1)))));
-        assert(MULT_ONE_ONE_RESULT.m_expr->equals(f(f(a(g(0), g(1))))));
-        assert(
-            MULT_ONE_TWO_RESULT.m_expr->equals(f(f(a(g(0), a(g(0), g(1)))))));
-        assert(MULT_TWO_TWO_RESULT.m_expr->equals(
-            f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
+        assert(MULT_ZERO_ZERO_RESULT.m_expr->equals(f(f(gprev(1)))));
+        assert(MULT_ZERO_ONE_RESULT.m_expr->equals(f(f(gprev(1)))));
+        assert(MULT_ONE_ONE_RESULT.m_expr->equals(f(f(a(gprev(0), gprev(1))))));
+        assert(MULT_ONE_TWO_RESULT.m_expr->equals(
+            f(f(a(gprev(0), a(gprev(0), gprev(1)))))));
+        assert(MULT_TWO_TWO_RESULT.m_expr->equals(f(
+            f(a(gprev(0), a(gprev(0), a(gprev(0), a(gprev(0), gprev(1)))))))));
         assert(MULT_THREE_TWO_RESULT.m_expr->equals(
-            f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))))));
+            f(f(a(gprev(0),
+                  a(gprev(0),
+                    a(gprev(0),
+                      a(gprev(0), a(gprev(0), a(gprev(0), gprev(1)))))))))));
 
         const auto TWENTY_FIVE = f(f(a(
-            g(0),
-            a(g(0),
-              a(g(0),
-                a(g(0),
-                  a(g(0),
-                    a(g(0),
-                      a(g(0),
-                        a(g(0),
-                          a(g(0),
-                            a(g(0),
-                              a(g(0),
-                                a(g(0),
-                                  a(g(0),
-                                    a(g(0),
-                                      a(g(0),
-                                        a(g(0),
-                                          a(g(0),
-                                            a(g(0),
-                                              a(g(0),
-                                                a(g(0),
-                                                  a(g(0),
-                                                    a(g(0),
-                                                      a(g(0),
-                                                        a(g(0),
-                                                          a(g(0),
-                                                            g(1))))))))))))))))))))))))))));
+            gprev(0),
+            a(gprev(0),
+              a(gprev(0),
+                a(gprev(0),
+                  a(gprev(0),
+                    a(gprev(0),
+                      a(gprev(0),
+                        a(gprev(0),
+                          a(gprev(0),
+                            a(gprev(0),
+                              a(gprev(0),
+                                a(gprev(0),
+                                  a(gprev(0),
+                                    a(gprev(0),
+                                      a(gprev(0),
+                                        a(gprev(0),
+                                          a(gprev(0),
+                                            a(gprev(0),
+                                              a(gprev(0),
+                                                a(gprev(0),
+                                                  a(gprev(0),
+                                                    a(gprev(0),
+                                                      a(gprev(0),
+                                                        a(gprev(0),
+                                                          a(gprev(0),
+                                                            gprev(
+                                                                1))))))))))))))))))))))))))));
 
         assert(MULT_FIVE_FIVE_RESULT.m_expr->equals(TWENTY_FIVE->clone()));
     }
