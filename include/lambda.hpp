@@ -2,6 +2,7 @@
 #define LAMBDA_HPP
 
 #include <cstddef>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <ostream>
@@ -30,9 +31,10 @@ struct expr
                const std::unique_ptr<expr>& a_arg) const = 0;
     virtual std::unique_ptr<expr> reduce_one_step(size_t a_depth) const = 0;
     std::unique_ptr<expr> clone() const;
-    normalize_result
-    normalize(size_t a_step_limit = std::numeric_limits<size_t>::max(),
-              size_t a_size_limit = std::numeric_limits<size_t>::max()) const;
+    normalize_result normalize(
+        size_t a_step_limit = std::numeric_limits<size_t>::max(),
+        size_t a_size_limit = std::numeric_limits<size_t>::max(),
+        std::function<void(const expr&)> a_trace = [](const expr&) {}) const;
     size_t size() const;
     expr(size_t a_size);
     expr(const expr& other) = delete;

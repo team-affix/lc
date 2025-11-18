@@ -1,20 +1,20 @@
 #include "../include/lambda.hpp"
 
-#define VERBOSE_LOGS 1
-#if VERBOSE_LOGS
+// #define VERBOSE_LOGS 1
+// #if VERBOSE_LOGS
 
-#include <iostream>
+// #include <iostream>
 
-#define LOG_EXPR(a_expr)                                                       \
-    a_expr->print(std::cout);                                                  \
-    std::cout << std::endl;
+// #define LOG_EXPR(a_expr)                                                       \
+//     a_expr->print(std::cout);                                                  \
+//     std::cout << std::endl;
 
-#else
+// #else
 
-// no-op
-#define LOG_EXPR(a_expr)
+// // no-op
+// #define LOG_EXPR(a_expr)
 
-#endif
+// #endif
 
 namespace lambda
 {
@@ -185,8 +185,9 @@ std::unique_ptr<expr> expr::clone() const
 }
 
 // EXPR NORMALIZE METHOD
-expr::normalize_result expr::normalize(size_t a_step_limit,
-                                       size_t a_size_limit) const
+expr::normalize_result
+expr::normalize(size_t a_step_limit, size_t a_size_limit,
+                std::function<void(const expr&)> a_trace) const
 {
     // initialize the result
     normalize_result l_result{
@@ -198,7 +199,7 @@ expr::normalize_result expr::normalize(size_t a_step_limit,
     };
 
     // log the original expression
-    LOG_EXPR(l_result.m_expr);
+    a_trace(*l_result.m_expr);
 
     // as long as we are within the limits, keep reducing
     while(auto l_reduced = l_result.m_expr->reduce_one_step(0))
@@ -228,7 +229,7 @@ expr::normalize_result expr::normalize(size_t a_step_limit,
         l_result.m_expr = std::move(l_reduced);
 
         // log the reduction
-        LOG_EXPR(l_result.m_expr);
+        a_trace(*l_result.m_expr);
     }
 
     return l_result;
