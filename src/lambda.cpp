@@ -79,9 +79,9 @@ void app::print(std::ostream& a_ostream) const
 std::unique_ptr<expr> local::lift(size_t a_lift_amount, size_t a_cutoff) const
 {
     if(m_index < a_cutoff)
-        return v(m_index);
+        return l(m_index);
 
-    return v(m_index + a_lift_amount);
+    return l(m_index + a_lift_amount);
 }
 
 std::unique_ptr<expr> func::lift(size_t a_lift_amount, size_t a_cutoff) const
@@ -106,7 +106,7 @@ local::substitute(size_t a_lift_amount, size_t a_var_index,
     if(m_index > a_var_index)
         // this var is defined inside the redex, so it is
         //     now 1 level shallower.
-        return v(m_index - 1);
+        return l(m_index - 1);
 
     if(m_index < a_var_index)
         // leave the var alone, it was declared outside the redex
@@ -283,7 +283,7 @@ app::app(std::unique_ptr<expr>&& a_lhs, std::unique_ptr<expr>&& a_rhs)
 
 // FACTORY FUNCTIONS
 
-std::unique_ptr<expr> v(size_t a_index)
+std::unique_ptr<expr> l(size_t a_index)
 {
     return std::unique_ptr<expr>(new local(a_index));
 }
@@ -320,7 +320,7 @@ void test_var_constructor()
 {
     // index 0
     {
-        auto l_var = v(0);
+        auto l_var = l(0);
         const local* l_var_casted = dynamic_cast<local*>(l_var.get());
         assert(l_var_casted != nullptr);
         assert(l_var_casted->index() == 0);
@@ -328,7 +328,7 @@ void test_var_constructor()
 
     // index 1
     {
-        auto l_var = v(1);
+        auto l_var = l(1);
         const local* l_var_casted = dynamic_cast<local*>(l_var.get());
         assert(l_var_casted != nullptr);
         assert(l_var_casted->index() == 1);
@@ -339,7 +339,7 @@ void test_func_constructor()
 {
     // local body
     {
-        auto l_func = f(v(0));
+        auto l_func = f(l(0));
         // get body
         const func* l_func_casted = dynamic_cast<func*>(l_func.get());
         assert(l_func_casted != nullptr);
@@ -356,7 +356,7 @@ void test_app_constructor()
 {
     // local application
     {
-        auto l_app = a(v(0), v(1));
+        auto l_app = a(l(0), l(1));
         // get the lhs
         const app* l_app_casted = dynamic_cast<app*>(l_app.get());
         assert(l_app_casted != nullptr);
@@ -380,22 +380,22 @@ void test_var_equals()
 {
     // index 0, equals index 0
     {
-        auto l_var = v(0);
-        auto l_local_other = v(0);
+        auto l_var = l(0);
+        auto l_local_other = l(0);
         assert(l_var->equals(l_local_other->clone()));
     }
 
     // index 0, equals index 1
     {
-        auto l_var = v(0);
-        auto l_local_other = v(1);
+        auto l_var = l(0);
+        auto l_local_other = l(1);
         assert(!l_var->equals(l_local_other->clone()));
     }
 
     // index 1, equals index 1
     {
-        auto l_var = v(1);
-        auto l_local_other = v(1);
+        auto l_var = l(1);
+        auto l_local_other = l(1);
         assert(l_var->equals(l_local_other->clone()));
     }
 
@@ -408,15 +408,15 @@ void test_var_equals()
 
     // local equals func
     {
-        auto l_var = v(0);
-        auto l_func = f(v(0));
+        auto l_var = l(0);
+        auto l_func = f(l(0));
         assert(!l_var->equals(l_func->clone()));
     }
 
     // local equals app
     {
-        auto l_var = v(0);
-        auto l_app = a(v(0), v(0));
+        auto l_var = l(0);
+        auto l_app = a(l(0), l(0));
         assert(!l_var->equals(l_app->clone()));
     }
 }
@@ -425,7 +425,7 @@ void test_func_equals()
 {
     // local body, equals local body
     {
-        auto l_var = v(0);
+        auto l_var = l(0);
         auto l_func = f(l_var->clone());
         auto l_func_other = f(l_var->clone());
         assert(l_func->equals(l_func_other->clone()));
@@ -433,15 +433,15 @@ void test_func_equals()
 
     // func equals local
     {
-        auto l_func = f(v(0));
-        auto l_var = v(0);
+        auto l_func = f(l(0));
+        auto l_var = l(0);
         assert(!l_func->equals(l_var->clone()));
     }
 
     // func with different bodies
     {
-        auto l_var = v(0);
-        auto l_local_other = v(1);
+        auto l_var = l(0);
+        auto l_local_other = l(1);
         auto l_func = f(l_var->clone());
         auto l_func_other = f(l_local_other->clone());
         assert(!l_func->equals(l_func_other->clone()));
@@ -452,8 +452,8 @@ void test_app_equals()
 {
     // local lhs, local rhs, equals local lhs, local rhs
     {
-        auto l_lhs_var = v(0);
-        auto l_rhs_var = v(0);
+        auto l_lhs_var = l(0);
+        auto l_rhs_var = l(0);
         auto l_app = a(l_lhs_var->clone(), l_rhs_var->clone());
         auto l_app_other = a(l_lhs_var->clone(), l_rhs_var->clone());
         assert(l_app->equals(l_app_other->clone()));
@@ -461,10 +461,10 @@ void test_app_equals()
 
     // different applications
     {
-        auto l_lhs_lhs = v(1);
-        auto l_lhs_rhs = v(0);
-        auto l_rhs_lhs = v(0);
-        auto l_rhs_rhs = v(0);
+        auto l_lhs_lhs = l(1);
+        auto l_lhs_rhs = l(0);
+        auto l_rhs_lhs = l(0);
+        auto l_rhs_rhs = l(0);
         auto l_lhs = a(l_lhs_lhs->clone(), l_lhs_rhs->clone());
         auto l_rhs = a(l_rhs_lhs->clone(), l_rhs_rhs->clone());
         assert(!l_lhs->equals(l_rhs));
@@ -475,7 +475,7 @@ void test_var_lift()
 {
     // index 0, lift 1 level
     {
-        auto l_var = v(0);
+        auto l_var = l(0);
         auto l_lifted = l_var->lift(1, 0);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -484,7 +484,7 @@ void test_var_lift()
 
     // index 1, lift 1 level
     {
-        auto l_var = v(1);
+        auto l_var = l(1);
         auto l_lifted = l_var->lift(1, 0);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -493,7 +493,7 @@ void test_var_lift()
 
     // index 1, lift 0 levels
     {
-        auto l_var = v(1);
+        auto l_var = l(1);
         auto l_lifted = l_var->lift(0, 0);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -502,7 +502,7 @@ void test_var_lift()
 
     // index 0, lift 1 level, cutoff 1
     {
-        auto l_var = v(0);
+        auto l_var = l(0);
         auto l_lifted = l_var->lift(1, 1);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -511,7 +511,7 @@ void test_var_lift()
 
     // index 1, lift 2 levels, cutoff 1
     {
-        auto l_var = v(1);
+        auto l_var = l(1);
         auto l_lifted = l_var->lift(2, 1);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -520,7 +520,7 @@ void test_var_lift()
 
     // index 1, lift 2 levels, cutoff 2
     {
-        auto l_var = v(1);
+        auto l_var = l(1);
         auto l_lifted = l_var->lift(2, 2);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -530,7 +530,7 @@ void test_var_lift()
     // Edge case: index equals cutoff, should be lifted (>= cutoff)
     // index 3, lift 5 levels, cutoff 3
     {
-        auto l_var = v(3);
+        auto l_var = l(3);
         auto l_lifted = l_var->lift(5, 3);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -540,7 +540,7 @@ void test_var_lift()
     // Edge case: index just below cutoff
     // index 4, lift 3 levels, cutoff 5
     {
-        auto l_var = v(4);
+        auto l_var = l(4);
         auto l_lifted = l_var->lift(3, 5);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -550,7 +550,7 @@ void test_var_lift()
     // Higher cutoff value test
     // index 7, lift 10 levels, cutoff 3
     {
-        auto l_var = v(7);
+        auto l_var = l(7);
         auto l_lifted = l_var->lift(10, 3);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -560,7 +560,7 @@ void test_var_lift()
     // Multiple different cutoffs - lower index below cutoff
     // index 2, lift 4 levels, cutoff 10
     {
-        auto l_var = v(2);
+        auto l_var = l(2);
         auto l_lifted = l_var->lift(4, 10);
         const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
@@ -572,7 +572,7 @@ void test_func_lift()
 {
     // local body, lift 1 level
     {
-        auto l_var = v(0);
+        auto l_var = l(0);
         auto l_func = f(l_var->clone());
         auto l_lifted = l_func->lift(1, 0);
         const func* l_lifted_func = dynamic_cast<func*>(l_lifted.get());
@@ -585,7 +585,7 @@ void test_func_lift()
 
     // local body, lift 2 levels
     {
-        auto l_var = v(1);
+        auto l_var = l(1);
         auto l_func = f(l_var->clone());
         auto l_lifted = l_func->lift(2, 0);
         const func* l_lifted_func = dynamic_cast<func*>(l_lifted.get());
@@ -598,7 +598,7 @@ void test_func_lift()
 
     // local body, lift 1 level, cutoff 1
     {
-        auto l_var = v(0);
+        auto l_var = l(0);
         auto l_func = f(l_var->clone());
         auto l_lifted = l_func->lift(1, 1);
         const func* l_lifted_func = dynamic_cast<func*>(l_lifted.get());
@@ -611,7 +611,7 @@ void test_func_lift()
 
     // local body, lift 2 levels, cutoff 2
     {
-        auto l_var = v(2);
+        auto l_var = l(2);
         auto l_func = f(l_var->clone());
         auto l_lifted = l_func->lift(2, 2);
         const func* l_lifted_func = dynamic_cast<func*>(l_lifted.get());
@@ -625,7 +625,7 @@ void test_func_lift()
     // func with app body, mixed locals with various cutoffs
     // Body: (2 5 8), lift 3, cutoff 5
     {
-        auto l_body = a(a(v(2)->clone(), v(5)->clone()), v(8)->clone());
+        auto l_body = a(a(l(2)->clone(), l(5)->clone()), l(8)->clone());
         auto l_func = f(l_body->clone());
         auto l_lifted = l_func->lift(3, 5);
 
@@ -636,14 +636,14 @@ void test_func_lift()
         // l(2) < 5, not lifted
         // l(5) >= 5, lifted to 8
         // l(8) >= 5, lifted to 11
-        auto l_expected = f(a(a(v(2)->clone(), v(8)->clone()), v(11)->clone()));
+        auto l_expected = f(a(a(l(2)->clone(), l(8)->clone()), l(11)->clone()));
         assert(l_lifted->equals(l_expected));
     }
 
     // func with nested func, testing cutoff propagation
     // f(f((1 3 6))), lift 2, cutoff 3
     {
-        auto l_inner_body = a(a(v(1)->clone(), v(3)->clone()), v(6)->clone());
+        auto l_inner_body = a(a(l(1)->clone(), l(3)->clone()), l(6)->clone());
         auto l_body = f(l_inner_body->clone());
         auto l_func = f(l_body->clone());
         auto l_lifted = l_func->lift(2, 3);
@@ -653,18 +653,18 @@ void test_func_lift()
         // l(3) >= 3, lifted to 5
         // l(6) >= 3, lifted to 8
         auto l_expected =
-            f(f(a(a(v(1)->clone(), v(5)->clone()), v(8)->clone())));
+            f(f(a(a(l(1)->clone(), l(5)->clone()), l(8)->clone())));
         assert(l_lifted->equals(l_expected));
     }
 
     // func with higher cutoff than any local
     // f(l(2)), lift 5, cutoff 10
     {
-        auto l_func = f(v(2)->clone());
+        auto l_func = f(l(2)->clone());
         auto l_lifted = l_func->lift(5, 10);
 
         // l(2) < 10, not lifted
-        auto l_expected = f(v(2)->clone());
+        auto l_expected = f(l(2)->clone());
         assert(l_lifted->equals(l_expected));
     }
 }
@@ -673,8 +673,8 @@ void test_app_lift()
 {
     // local lhs, local rhs, lift 1 level
     {
-        auto l_lhs_var = v(1);
-        auto l_rhs_var = v(2);
+        auto l_lhs_var = l(1);
+        auto l_rhs_var = l(2);
         auto l_app = a(l_lhs_var->clone(), l_rhs_var->clone());
         auto l_lifted = l_app->lift(1, 0);
 
@@ -699,8 +699,8 @@ void test_app_lift()
 
     // local lhs, local rhs, lift 2 levels
     {
-        auto l_lhs_var = v(1);
-        auto l_rhs_var = v(2);
+        auto l_lhs_var = l(1);
+        auto l_rhs_var = l(2);
         auto l_app = a(l_lhs_var->clone(), l_rhs_var->clone());
         auto l_lifted = l_app->lift(2, 0);
 
@@ -725,8 +725,8 @@ void test_app_lift()
 
     // local lhs, local rhs, lift 1 level, cutoff 1
     {
-        auto l_lhs_var = v(1);
-        auto l_rhs_var = v(2);
+        auto l_lhs_var = l(1);
+        auto l_rhs_var = l(2);
         auto l_app = a(l_lhs_var->clone(), l_rhs_var->clone());
         auto l_lifted = l_app->lift(1, 1);
 
@@ -751,8 +751,8 @@ void test_app_lift()
 
     // local lhs, local rhs, lift 2 levels, cutoff 2
     {
-        auto l_lhs_var = v(1);
-        auto l_rhs_var = v(2);
+        auto l_lhs_var = l(1);
+        auto l_rhs_var = l(2);
         auto l_app = a(l_lhs_var->clone(), l_rhs_var->clone());
         auto l_lifted = l_app->lift(2, 2);
 
@@ -779,39 +779,39 @@ void test_app_lift()
     // (1 2 3 4 5) - mix below, at, and above cutoff
     {
         auto l_app = a(
-            a(a(a(v(1)->clone(), v(2)->clone()), v(3)->clone()), v(4)->clone()),
-            v(5)->clone());
+            a(a(a(l(1)->clone(), l(2)->clone()), l(3)->clone()), l(4)->clone()),
+            l(5)->clone());
         auto l_lifted = l_app->lift(4, 3);
 
         // Expected: (1 2 7 8 9)
         // l(1), l(2) < 3, not lifted
         // l(3), l(4), l(5) >= 3, lifted by 4
         auto l_expected = a(
-            a(a(a(v(1)->clone(), v(2)->clone()), v(7)->clone()), v(8)->clone()),
-            v(9)->clone());
+            a(a(a(l(1)->clone(), l(2)->clone()), l(7)->clone()), l(8)->clone()),
+            l(9)->clone());
         assert(l_lifted->equals(l_expected));
     }
 
     // app with nested funcs, cutoff applies throughout
     // (f(l(2)) f(l(4))), lift 3, cutoff 3
     {
-        auto l_lhs = f(v(2)->clone());
-        auto l_rhs = f(v(4)->clone());
+        auto l_lhs = f(l(2)->clone());
+        auto l_rhs = f(l(4)->clone());
         auto l_app = a(l_lhs->clone(), l_rhs->clone());
         auto l_lifted = l_app->lift(3, 3);
 
         // Expected: (f(l(2)) f(l(7)))
         // l(2) < 3, not lifted
         // l(4) >= 3, lifted to 7
-        auto l_expected = a(f(v(2)->clone()), f(v(7)->clone()));
+        auto l_expected = a(f(l(2)->clone()), f(l(7)->clone()));
         assert(l_lifted->equals(l_expected));
     }
 
     // app with complex nested structure, various cutoffs
     // ((1 6) (f(3) f(8))), lift 2, cutoff 5
     {
-        auto l_func_left = a(v(1)->clone(), v(6)->clone());
-        auto l_func_right = a(f(v(3)->clone()), f(v(8)->clone()));
+        auto l_func_left = a(l(1)->clone(), l(6)->clone());
+        auto l_func_right = a(f(l(3)->clone()), f(l(8)->clone()));
         auto l_app = a(l_func_left->clone(), l_func_right->clone());
         auto l_lifted = l_app->lift(2, 5);
 
@@ -820,30 +820,30 @@ void test_app_lift()
         // l(6) >= 5, lifted to 8
         // l(3) < 5, not lifted
         // l(8) >= 5, lifted to 10
-        auto l_expected = a(a(v(1)->clone(), v(8)->clone()),
-                            a(f(v(3)->clone()), f(v(10)->clone())));
+        auto l_expected = a(a(l(1)->clone(), l(8)->clone()),
+                            a(f(l(3)->clone()), f(l(10)->clone())));
         assert(l_lifted->equals(l_expected));
     }
 
     // app with high cutoff, nothing gets lifted
     // (3 4 5), lift 10, cutoff 20
     {
-        auto l_app = a(a(v(3)->clone(), v(4)->clone()), v(5)->clone());
+        auto l_app = a(a(l(3)->clone(), l(4)->clone()), l(5)->clone());
         auto l_lifted = l_app->lift(10, 20);
 
         // All < 20, none lifted
-        auto l_expected = a(a(v(3)->clone(), v(4)->clone()), v(5)->clone());
+        auto l_expected = a(a(l(3)->clone(), l(4)->clone()), l(5)->clone());
         assert(l_lifted->equals(l_expected));
     }
 
     // app with cutoff 0, everything gets lifted
     // (0 1 2), lift 5, cutoff 0
     {
-        auto l_app = a(a(v(0)->clone(), v(1)->clone()), v(2)->clone());
+        auto l_app = a(a(l(0)->clone(), l(1)->clone()), l(2)->clone());
         auto l_lifted = l_app->lift(5, 0);
 
         // All >= 0, all lifted by 5
-        auto l_expected = a(a(v(5)->clone(), v(6)->clone()), v(7)->clone());
+        auto l_expected = a(a(l(5)->clone(), l(6)->clone()), l(7)->clone());
         assert(l_lifted->equals(l_expected));
     }
 }
@@ -852,8 +852,8 @@ void test_var_substitute()
 {
     // index 0, occurrance depth 0, substitute with a local
     {
-        auto l_var = v(0);
-        auto l_sub = v(1);
+        auto l_var = l(0);
+        auto l_sub = l(1);
         auto l_substituted = l_var->substitute(0, 0, l_sub->clone());
 
         const local* l_substituted_var =
@@ -864,8 +864,8 @@ void test_var_substitute()
 
     // index 0, occurrance depth 10, substitute with a local
     {
-        auto l_var = v(0);
-        auto l_sub = v(1);
+        auto l_var = l(0);
+        auto l_sub = l(1);
         auto l_substituted = l_var->substitute(10, 0, l_sub->clone());
 
         const local* l_substituted_var =
@@ -878,8 +878,8 @@ void test_var_substitute()
 
     // index 2, occurrance depth 0, substitute with a local
     {
-        auto l_var = v(2);
-        auto l_sub = v(3);
+        auto l_var = l(2);
+        auto l_sub = l(3);
         auto l_substituted = l_var->substitute(0, 0, l_sub->clone());
 
         const local* l_substituted_var =
@@ -898,8 +898,8 @@ void test_var_substitute()
 
     // index 1, occurrance depth 0, substitute with a local
     {
-        auto l_var = v(1);
-        auto l_sub = v(3);
+        auto l_var = l(1);
+        auto l_sub = l(3);
         auto l_substituted = l_var->substitute(0, 0, l_sub->clone());
 
         const local* l_substituted_var =
@@ -918,8 +918,8 @@ void test_var_substitute()
 
     // index 2, occurrance depth 10, substitute with a local
     {
-        auto l_var = v(2);
-        auto l_sub = v(3);
+        auto l_var = l(2);
+        auto l_sub = l(3);
         auto l_substituted = l_var->substitute(10, 0, l_sub->clone());
 
         const local* l_substituted_var =
@@ -938,8 +938,8 @@ void test_var_substitute()
 
     // index 1, occurrance depth 10, substitute with a local
     {
-        auto l_var = v(1);
-        auto l_sub = v(3);
+        auto l_var = l(1);
+        auto l_sub = l(3);
         auto l_substituted = l_var->substitute(10, 0, l_sub->clone());
 
         const local* l_substituted_var =
@@ -958,8 +958,8 @@ void test_var_substitute()
 
     // index 0, occurrance depth 0, substitute with a local, a_var_index 1
     {
-        auto l_var = v(0);
-        auto l_sub = v(1);
+        auto l_var = l(0);
+        auto l_sub = l(1);
         auto l_substituted = l_var->substitute(0, 1, l_sub->clone());
 
         const local* l_substituted_var =
@@ -970,8 +970,8 @@ void test_var_substitute()
 
     // index 0, occurrance depth 10, substitute with a local, a_var_index 1
     {
-        auto l_var = v(0);
-        auto l_sub = v(1);
+        auto l_var = l(0);
+        auto l_sub = l(1);
         auto l_substituted = l_var->substitute(10, 1, l_sub->clone());
 
         const local* l_substituted_var =
@@ -986,8 +986,8 @@ void test_var_substitute()
 
     // index 2, occurrance depth 0, substitute with a local, a_var_index 2
     {
-        auto l_var = v(2);
-        auto l_sub = v(3);
+        auto l_var = l(2);
+        auto l_sub = l(3);
         auto l_substituted = l_var->substitute(0, 2, l_sub->clone());
 
         const local* l_substituted_var =
@@ -1001,8 +1001,8 @@ void test_var_substitute()
 
     // index 1, occurrance depth 0, substitute with a local, a_var_index 2
     {
-        auto l_var = v(1);
-        auto l_sub = v(3);
+        auto l_var = l(1);
+        auto l_sub = l(3);
         auto l_substituted = l_var->substitute(0, 2, l_sub->clone());
 
         const local* l_substituted_var =
@@ -1017,8 +1017,8 @@ void test_var_substitute()
 
     // index 2, occurrance depth 10, substitute with a local, a_var_index 2
     {
-        auto l_var = v(2);
-        auto l_sub = v(3);
+        auto l_var = l(2);
+        auto l_sub = l(3);
         auto l_substituted = l_var->substitute(10, 2, l_sub->clone());
 
         const local* l_substituted_var =
@@ -1032,8 +1032,8 @@ void test_var_substitute()
 
     // index 1, occurrance depth 10, substitute with a local, a_var_index 2
     {
-        auto l_var = v(1);
-        auto l_sub = v(3);
+        auto l_var = l(1);
+        auto l_sub = l(3);
         auto l_substituted = l_var->substitute(10, 2, l_sub->clone());
 
         const local* l_substituted_var =
@@ -1057,8 +1057,8 @@ void test_func_substitute()
         // there USED to be an even more outer binder (which 0 would
         // have been bound to, hence the substitution DOES take place)
 
-        auto l_func = f(v(0)->clone());
-        auto l_var = v(11);
+        auto l_func = f(l(0)->clone());
+        auto l_var = l(11);
 
         const auto l_subbed = l_func->substitute(0, 0, l_var->clone());
 
@@ -1086,8 +1086,8 @@ void test_func_substitute()
         // there USED to be an even more outer binder (which 0 would
         // have been bound to, hence the substitution DOES take place)
 
-        auto l_func = f(f(v(0)->clone())->clone());
-        auto l_var = v(11);
+        auto l_func = f(f(l(0)->clone())->clone());
+        auto l_var = l(11);
 
         const auto l_subbed = l_func->substitute(0, 0, l_var->clone());
 
@@ -1120,8 +1120,8 @@ void test_func_substitute()
         // there USED to be an even more outer binder (which 0 would
         // have been bound to, hence the substitution DOES take place)
 
-        auto l_func = f(v(0)->clone());
-        auto l_var = v(11);
+        auto l_func = f(l(0)->clone());
+        auto l_var = l(11);
 
         const auto l_subbed = l_func->substitute(0, 1, l_var->clone());
 
@@ -1152,8 +1152,8 @@ void test_func_substitute()
         // there USED to be an even more outer binder (which 0 would
         // have been bound to, hence the substitution DOES take place)
 
-        auto l_func = f(f(v(0)->clone())->clone());
-        auto l_var = v(11);
+        auto l_func = f(f(l(0)->clone())->clone());
+        auto l_var = l(11);
 
         const auto l_subbed = l_func->substitute(0, 1, l_var->clone());
 
@@ -1181,8 +1181,8 @@ void test_func_substitute()
     {
         // Create a function whose body contains a local with index 2 (is the
         // occurrence)
-        auto l_func = f(v(2)->clone());
-        auto l_sub = v(7);
+        auto l_func = f(l(2)->clone());
+        auto l_sub = l(7);
 
         // substitute at depth = 6 (5 + 1), var_index=2, so a_lift_amount=6
         const auto l_subbed = l_func->substitute(5, 2, l_sub->clone());
@@ -1202,10 +1202,10 @@ void test_func_substitute()
     {
         // Body: (0 1 2 3 4) - mix of locals below, at, and above var_index=3
         auto l_body = a(
-            a(a(a(v(0)->clone(), v(1)->clone()), v(2)->clone()), v(3)->clone()),
-            v(4)->clone());
+            a(a(a(l(0)->clone(), l(1)->clone()), l(2)->clone()), l(3)->clone()),
+            l(4)->clone());
         auto l_func = f(l_body->clone());
-        auto l_sub = v(99);
+        auto l_sub = l(99);
 
         // substitute var_index=3 with l(99) at depth 0
         const auto l_subbed = l_func->substitute(0, 3, l_sub->clone());
@@ -1215,9 +1215,9 @@ void test_func_substitute()
         // - l(3) gets replaced with l(99) lifted by 1 (func binder) = l(100)
         // - l(4) decrements to l(3) (> 3)
         auto l_expected =
-            f(a(a(a(a(v(0)->clone(), v(1)->clone()), v(2)->clone()),
-                  v(100)->clone()),
-                v(3)->clone()));
+            f(a(a(a(a(l(0)->clone(), l(1)->clone()), l(2)->clone()),
+                  l(100)->clone()),
+                l(3)->clone()));
 
         assert(l_subbed->equals(l_expected));
     }
@@ -1227,10 +1227,10 @@ void test_func_substitute()
         // Body: λ.(0 2 3) with outer var_index=2
         // Inner l(0) is bound by inner lambda
         // Outer l(2) and l(3) are from outer scope
-        auto l_inner_body = a(a(v(0)->clone(), v(2)->clone()), v(3)->clone());
+        auto l_inner_body = a(a(l(0)->clone(), l(2)->clone()), l(3)->clone());
         auto l_body = f(l_inner_body->clone());
         auto l_func = f(l_body->clone());
-        auto l_sub = v(88);
+        auto l_sub = l(88);
 
         // substitute var_index=2 at depth=0
         const auto l_subbed = l_func->substitute(0, 2, l_sub->clone());
@@ -1241,7 +1241,7 @@ void test_func_substitute()
         //   and be replaced with l(88) lifted by 2 = l(90)
         // - l(3) decrements to l(2)
         auto l_expected =
-            f(f(a(a(v(0)->clone(), v(90)->clone()), v(2)->clone())));
+            f(f(a(a(l(0)->clone(), l(90)->clone()), l(2)->clone())));
 
         assert(l_subbed->equals(l_expected));
     }
@@ -1251,10 +1251,10 @@ void test_app_substitute()
 {
     // app of locals, both are occurrances
     {
-        auto l_lhs = v(0);
-        auto l_rhs = v(0);
+        auto l_lhs = l(0);
+        auto l_rhs = l(0);
         auto l_app = a(l_lhs->clone(), l_rhs->clone());
-        auto l_sub = v(11);
+        auto l_sub = l(11);
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
 
         // get the outer app
@@ -1284,10 +1284,10 @@ void test_app_substitute()
 
     // app of locals, lhs is an occurrance
     {
-        auto l_lhs = v(0);
-        auto l_rhs = v(1);
+        auto l_lhs = l(0);
+        auto l_rhs = l(1);
         auto l_app = a(l_lhs->clone(), l_rhs->clone());
-        auto l_sub = v(11);
+        auto l_sub = l(11);
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
 
         // get the outer app
@@ -1317,10 +1317,10 @@ void test_app_substitute()
 
     // app of locals, rhs is an occurrance
     {
-        auto l_lhs = v(1);
-        auto l_rhs = v(0);
+        auto l_lhs = l(1);
+        auto l_rhs = l(0);
         auto l_app = a(l_lhs->clone(), l_rhs->clone());
-        auto l_sub = v(11);
+        auto l_sub = l(11);
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
 
         // get the outer app
@@ -1350,10 +1350,10 @@ void test_app_substitute()
 
     // app of locals, neither are occurrances
     {
-        auto l_lhs = v(1);
-        auto l_rhs = v(1);
+        auto l_lhs = l(1);
+        auto l_rhs = l(1);
         auto l_app = a(l_lhs->clone(), l_rhs->clone());
-        auto l_sub = v(11);
+        auto l_sub = l(11);
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
 
         // get the outer app
@@ -1383,10 +1383,10 @@ void test_app_substitute()
 
     // app of funcs, both with occurrances
     {
-        auto l_lhs = f(v(0)->clone());
-        auto l_rhs = f(v(0)->clone());
+        auto l_lhs = f(l(0)->clone());
+        auto l_rhs = f(l(0)->clone());
         auto l_app = a(l_lhs->clone(), l_rhs->clone());
-        auto l_sub = v(11);
+        auto l_sub = l(11);
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
 
         // get the outer app
@@ -1433,93 +1433,93 @@ void test_app_substitute()
     // Test 1: substitute at depth 0, var_index 0 - basic substitution
     // (0 0) with var 0 -> l(5) should give (5 5)
     {
-        auto l_app = a(v(0)->clone(), v(0)->clone());
-        auto l_sub = v(5);
+        auto l_app = a(l(0)->clone(), l(0)->clone());
+        auto l_sub = l(5);
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
-        auto l_expected = a(v(5)->clone(), v(5)->clone());
+        auto l_expected = a(l(5)->clone(), l(5)->clone());
         assert(l_subbed->equals(l_expected));
     }
 
     // Test 2: substitute at depth 0, var_index 1 - substituting higher var
     // (1 2) with var 1 -> l(7) should give (7 1)
     {
-        auto l_app = a(v(1)->clone(), v(2)->clone());
-        auto l_sub = v(7);
+        auto l_app = a(l(1)->clone(), l(2)->clone());
+        auto l_sub = l(7);
         const auto l_subbed = l_app->substitute(0, 1, l_sub->clone());
-        auto l_expected = a(v(7)->clone(), v(1)->clone());
+        auto l_expected = a(l(7)->clone(), l(1)->clone());
         assert(l_subbed->equals(l_expected));
     }
 
     // Test 3: substitute at depth 1, var_index 0 - inside a binder context
     // (λ.0 λ.1) with var 0 at depth 1 -> l(3) should give (λ.5 λ.0)
     {
-        auto l_app = a(f(v(0)->clone()), f(v(1)->clone()));
-        auto l_sub = v(3);
+        auto l_app = a(f(l(0)->clone()), f(l(1)->clone()));
+        auto l_sub = l(3);
         const auto l_subbed = l_app->substitute(1, 0, l_sub->clone());
-        auto l_expected = a(f(v(5)->clone()), f(v(0)->clone()));
+        auto l_expected = a(f(l(5)->clone()), f(l(0)->clone()));
         assert(l_subbed->equals(l_expected));
     }
 
     // Test 5: substitute with complex expression (app as substitution)
     // (0 1) with var 0 -> (2 3) should give ((2 3) 0)
     {
-        auto l_app = a(v(0)->clone(), v(1)->clone());
-        auto l_sub = a(v(2)->clone(), v(3)->clone());
+        auto l_app = a(l(0)->clone(), l(1)->clone());
+        auto l_sub = a(l(2)->clone(), l(3)->clone());
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
-        auto l_expected = a(a(v(2)->clone(), v(3)->clone()), v(0)->clone());
+        auto l_expected = a(a(l(2)->clone(), l(3)->clone()), l(0)->clone());
         assert(l_subbed->equals(l_expected));
     }
 
     // Test 6: substitute with func as substitution
     // (0 0) with var 0 -> λ.5 should give (λ.5 λ.5)
     {
-        auto l_app = a(v(0)->clone(), v(0)->clone());
-        auto l_sub = f(v(5)->clone());
+        auto l_app = a(l(0)->clone(), l(0)->clone());
+        auto l_sub = f(l(5)->clone());
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
-        auto l_expected = a(f(v(5)->clone()), f(v(5)->clone()));
+        auto l_expected = a(f(l(5)->clone()), f(l(5)->clone()));
         assert(l_subbed->equals(l_expected));
     }
 
     // Test 7: substitute at depth 2, var_index 1 - deeply nested
     // (λ.λ.1 λ.λ.2) with var 1 at depth 2 -> l(10) should give (λ.λ.14 λ.λ.1)
     {
-        auto l_app = a(f(f(v(1)->clone())), f(f(v(2)->clone())));
-        auto l_sub = v(10);
+        auto l_app = a(f(f(l(1)->clone())), f(f(l(2)->clone())));
+        auto l_sub = l(10);
         const auto l_subbed = l_app->substitute(2, 1, l_sub->clone());
-        auto l_expected = a(f(f(v(14)->clone())), f(f(v(1)->clone())));
+        auto l_expected = a(f(f(l(14)->clone())), f(f(l(1)->clone())));
         assert(l_subbed->equals(l_expected));
     }
 
     // Test 8: no matching variable - all vars higher than target
     // (2 3) with var 0 -> l(99) should give (1 2)
     {
-        auto l_app = a(v(2)->clone(), v(3)->clone());
-        auto l_sub = v(99);
+        auto l_app = a(l(2)->clone(), l(3)->clone());
+        auto l_sub = l(99);
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
-        auto l_expected = a(v(1)->clone(), v(2)->clone());
+        auto l_expected = a(l(1)->clone(), l(2)->clone());
         assert(l_subbed->equals(l_expected));
     }
 
     // Test 9: no matching variable - all vars lower than target
     // (0 1) with var 5 -> l(99) should give (0 1)
     {
-        auto l_app = a(v(0)->clone(), v(1)->clone());
-        auto l_sub = v(99);
+        auto l_app = a(l(0)->clone(), l(1)->clone());
+        auto l_sub = l(99);
         const auto l_subbed = l_app->substitute(0, 5, l_sub->clone());
-        auto l_expected = a(v(0)->clone(), v(1)->clone());
+        auto l_expected = a(l(0)->clone(), l(1)->clone());
         assert(l_subbed->equals(l_expected));
     }
 
     // Test 10: nested app with mixed locals
     // ((0 1) (2 0)) with var 0 -> l(8) should give ((8 0) (1 8))
     {
-        auto l_inner1 = a(v(0)->clone(), v(1)->clone());
-        auto l_inner2 = a(v(2)->clone(), v(0)->clone());
+        auto l_inner1 = a(l(0)->clone(), l(1)->clone());
+        auto l_inner2 = a(l(2)->clone(), l(0)->clone());
         auto l_app = a(l_inner1->clone(), l_inner2->clone());
-        auto l_sub = v(8);
+        auto l_sub = l(8);
         const auto l_subbed = l_app->substitute(0, 0, l_sub->clone());
         auto l_expected =
-            a(a(v(8)->clone(), v(0)->clone()), a(v(1)->clone(), v(8)->clone()));
+            a(a(l(8)->clone(), l(0)->clone()), a(l(1)->clone(), l(8)->clone()));
         assert(l_subbed->equals(l_expected));
     }
 
@@ -1527,10 +1527,10 @@ void test_app_substitute()
     // (0 2) with var 2 -> l(9) should give (0 9)
     // l(0) stays unchanged (< 2), l(2) gets replaced
     {
-        auto l_app = a(v(0)->clone(), v(2)->clone());
-        auto l_sub = v(9);
+        auto l_app = a(l(0)->clone(), l(2)->clone());
+        auto l_sub = l(9);
         const auto l_subbed = l_app->substitute(0, 2, l_sub->clone());
-        auto l_expected = a(v(0)->clone(), v(9)->clone());
+        auto l_expected = a(l(0)->clone(), l(9)->clone());
         assert(l_subbed->equals(l_expected));
     }
 
@@ -1538,10 +1538,10 @@ void test_app_substitute()
     // ((0 1 2 3) (4 5 6)) with var 4 -> l(77) should give ((0 1 2 3) (77 4 5))
     {
         auto l_func_app =
-            a(a(a(v(0)->clone(), v(1)->clone()), v(2)->clone()), v(3)->clone());
-        auto l_arg_app = a(a(v(4)->clone(), v(5)->clone()), v(6)->clone());
+            a(a(a(l(0)->clone(), l(1)->clone()), l(2)->clone()), l(3)->clone());
+        auto l_arg_app = a(a(l(4)->clone(), l(5)->clone()), l(6)->clone());
         auto l_app = a(l_func_app->clone(), l_arg_app->clone());
-        auto l_sub = v(77);
+        auto l_sub = l(77);
         const auto l_subbed = l_app->substitute(0, 4, l_sub->clone());
 
         // Expected: ((0 1 2 3) (77 4 5))
@@ -1549,18 +1549,18 @@ void test_app_substitute()
         // l(4) replaced with l(77)
         // l(5), l(6) decremented to l(4), l(5)
         auto l_expected = a(
-            a(a(a(v(0)->clone(), v(1)->clone()), v(2)->clone()), v(3)->clone()),
-            a(a(v(77)->clone(), v(4)->clone()), v(5)->clone()));
+            a(a(a(l(0)->clone(), l(1)->clone()), l(2)->clone()), l(3)->clone()),
+            a(a(l(77)->clone(), l(4)->clone()), l(5)->clone()));
         assert(l_subbed->equals(l_expected));
     }
 
     // Test 13: nested app with funcs, var_index=2
     // (λ.(0 1 2) λ.(1 2 3)) with var 2 -> l(55)
     {
-        auto l_lhs_body = a(a(v(0)->clone(), v(1)->clone()), v(2)->clone());
-        auto l_rhs_body = a(a(v(1)->clone(), v(2)->clone()), v(3)->clone());
+        auto l_lhs_body = a(a(l(0)->clone(), l(1)->clone()), l(2)->clone());
+        auto l_rhs_body = a(a(l(1)->clone(), l(2)->clone()), l(3)->clone());
         auto l_app = a(f(l_lhs_body->clone()), f(l_rhs_body->clone()));
-        auto l_sub = v(55);
+        auto l_sub = l(55);
         const auto l_subbed = l_app->substitute(0, 2, l_sub->clone());
 
         // In lhs func: depth becomes 1, so var 2 at that depth
@@ -1571,8 +1571,8 @@ void test_app_substitute()
         // l(2) matches var 2, replaced with l(55) lifted by 1 = l(56)
         // l(3) decrements to l(2)
         auto l_expected =
-            a(f(a(a(v(0)->clone(), v(1)->clone()), v(56)->clone())),
-              f(a(a(v(1)->clone(), v(56)->clone()), v(2)->clone())));
+            a(f(a(a(l(0)->clone(), l(1)->clone()), l(56)->clone())),
+              f(a(a(l(1)->clone(), l(56)->clone()), l(2)->clone())));
         assert(l_subbed->equals(l_expected));
     }
 }
@@ -1581,7 +1581,7 @@ void test_var_normalize()
 {
     // local with var 0
     {
-        auto l_expr = v(0);
+        auto l_expr = l(0);
         const auto l_result = l_expr->normalize();
 
         assert(l_result.m_step_excess == false);
@@ -1599,7 +1599,7 @@ void test_var_normalize()
 
     // local with var 1
     {
-        auto l_expr = v(1);
+        auto l_expr = l(1);
         const auto l_result = l_expr->normalize();
 
         assert(l_result.m_step_excess == false);
@@ -1617,96 +1617,96 @@ void test_var_normalize()
 
     // Test reduction count with no reductions (var cannot reduce)
     {
-        auto l_expr = v(5);
+        auto l_expr = l(5);
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test reduction limit on var (no effect since vars don't reduce)
     {
-        auto l_expr = v(7);
+        auto l_expr = l(7);
         auto l_result = l_expr->normalize(0);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(v(7)));
+        assert(l_result.m_expr->equals(l(7)));
     }
 
     // Test size peak tracking on var (size should stay at min since no
     // reductions)
     {
-        auto l_expr = v(10);
+        auto l_expr = l(10);
         auto l_result = l_expr->normalize(std::numeric_limits<size_t>::max(),
                                           std::numeric_limits<size_t>::max());
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(v(10)));
+        assert(l_result.m_expr->equals(l(10)));
     }
 
     // Test size peak with default parameters (should work without tracking)
     {
-        auto l_expr = v(5);
+        auto l_expr = l(5);
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test size limit on var (no effect since size stays at 1 and never
     // reduces)
     {
-        auto l_expr = v(3);
+        auto l_expr = l(3);
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 1);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(v(3)));
+        assert(l_result.m_expr->equals(l(3)));
     }
 
     // Test size limit smaller than var size (no reductions happen so no excess)
     {
-        auto l_expr = v(5);
+        auto l_expr = l(5);
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 0);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test both step count and size peak together
     {
-        auto l_expr = v(8);
+        auto l_expr = l(8);
         auto l_result = l_expr->normalize(std::numeric_limits<size_t>::max(),
                                           std::numeric_limits<size_t>::max());
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(v(8)));
+        assert(l_result.m_expr->equals(l(8)));
     }
 
     // Test all parameters together
     {
-        auto l_expr = v(12);
+        auto l_expr = l(12);
         auto l_result = l_expr->normalize(100, 10);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(v(12)));
+        assert(l_result.m_expr->equals(l(12)));
     }
 }
 
@@ -1714,7 +1714,7 @@ void test_func_normalize()
 {
     // func with body of a local
     {
-        auto l_expr = f(v(0)->clone());
+        auto l_expr = f(l(0)->clone());
 
         const auto l_result = l_expr->normalize();
 
@@ -1737,37 +1737,37 @@ void test_func_normalize()
 
     // Test reduction count on func with no redex
     {
-        auto l_expr = f(v(3));
+        auto l_expr = f(l(3));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(f(v(3))));
+        assert(l_result.m_expr->equals(f(l(3))));
     }
 
     // Test reduction limit on func with no redex
     {
-        auto l_expr = f(a(v(2), v(5)));
+        auto l_expr = f(a(l(2), l(5)));
         auto l_result = l_expr->normalize(0);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(f(a(v(2), v(5)))));
+        assert(l_result.m_expr->equals(f(a(l(2), l(5)))));
     }
 
     // Test reduction count with redex inside function body
     // λ.((λ.0) 5) -> λ.0 (1 reduction inside body)
     // Note: v(0) at depth 1 refers to outer lambda, so it's not replaced
     {
-        auto l_expr = f(a(f(v(0)), v(5)));
+        auto l_expr = f(a(f(l(0)), l(5)));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 2); // λ.0 has size 2
-        auto l_expected = f(v(0));
+        auto l_expected = f(l(0));
         assert(l_result.m_expr->equals(l_expected));
     }
 
@@ -1775,7 +1775,7 @@ void test_func_normalize()
     // λ.((λ.1) 2) with limit 0 -> step limit reached after 0 steps (first
     // reduction blocked)
     {
-        auto l_expr = f(a(f(v(1)), v(2)));
+        auto l_expr = f(a(f(l(1)), l(2)));
         auto l_result = l_expr->normalize(0);
         assert(l_result.m_step_excess == true); // Can reduce but hit limit
         assert(l_result.m_size_excess == false);
@@ -1787,7 +1787,7 @@ void test_func_normalize()
     // Test nested functions with multiple reductions
     // λ.λ.((λ.2) ((λ.3) 5)) -> λ.λ.(2 4) (2 reductions)
     {
-        auto l_expr = f(f(a(f(v(2)), a(f(v(3)), v(5)))));
+        auto l_expr = f(f(a(f(l(2)), a(f(l(3)), l(5)))));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
@@ -1796,52 +1796,52 @@ void test_func_normalize()
         // Second reduction: size 6 -> 3
         // Peak is the max of intermediate result sizes = 6
         assert(l_result.m_size_peak == 6);
-        auto l_expected = f(f(v(2)));
+        auto l_expected = f(f(l(2)));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test size peak tracking on func with no reductions
     // λ.5 has size 2 and stays that way
     {
-        auto l_expr = f(v(5));
+        auto l_expr = f(l(5));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(f(v(5))));
+        assert(l_result.m_expr->equals(f(l(5))));
     }
 
     // Test size peak tracking on func with reduction where size decreases
     // λ.((λ.0) 5) has size 5, reduces to λ.0 with size 2
     // Peak should be 2 (size after reduction)
     {
-        auto l_expr = f(a(f(v(0)), v(5)));
+        auto l_expr = f(a(f(l(0)), l(5)));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 2);
-        auto l_expected = f(v(0));
+        auto l_expected = f(l(0));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test size peak with step count on func with reduction
     {
-        auto l_expr = f(a(f(v(1)), v(2)));
+        auto l_expr = f(a(f(l(1)), l(2)));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 2); // λ.2 has size 2
-        assert(l_result.m_expr->equals(f(v(2))));
+        assert(l_result.m_expr->equals(f(l(2))));
     }
 
     // Test size limit preventing reduction
     // λ.((λ.3) 4) has size 5, result would be λ.2 with size 2
     // If we set size limit to 1, the reduction's result (size 2) exceeds it
     {
-        auto l_expr = f(a(f(v(3)), v(4)));
+        auto l_expr = f(a(f(l(3)), l(4)));
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 1);
         assert(l_result.m_step_excess == false);
@@ -1854,31 +1854,31 @@ void test_func_normalize()
     // Test size limit allowing reduction (limit >= result size)
     // λ.((λ.3) 4) with size limit 2 -> can reduce to λ.2 (size 2)
     {
-        auto l_expr = f(a(f(v(3)), v(4)));
+        auto l_expr = f(a(f(l(3)), l(4)));
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 2);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 2);
-        assert(l_result.m_expr->equals(f(v(2))));
+        assert(l_result.m_expr->equals(f(l(2))));
     }
 
     // Test all parameters together on func
     {
-        auto l_expr = f(a(f(v(1)), v(2)));
+        auto l_expr = f(a(f(l(1)), l(2)));
         auto l_result = l_expr->normalize(10, 100);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 2);
-        assert(l_result.m_expr->equals(f(v(2))));
+        assert(l_result.m_expr->equals(f(l(2))));
     }
 
     // Test N-2 scenario for func: needs 2 reductions, limit 0 blocks all
     // λ.((λ.1) ((λ.2) 3)) needs 2 reductions in body
     {
-        auto l_expr = f(a(f(v(1)), a(f(v(2)), v(3))));
+        auto l_expr = f(a(f(l(1)), a(f(l(2)), l(3))));
         auto l_result = l_expr->normalize(0, 100);
         assert(l_result.m_step_excess == true); // Can reduce but hit limit
         assert(l_result.m_size_excess == false);
@@ -1893,8 +1893,8 @@ void test_app_normalize()
 {
     // app with lhs and rhs both locals
     {
-        auto l_lhs = v(0);
-        auto l_rhs = v(1);
+        auto l_lhs = l(0);
+        auto l_rhs = l(1);
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -1924,8 +1924,8 @@ void test_app_normalize()
 
     // app with lhs func and rhs local
     {
-        auto l_lhs = f(v(0)->clone());
-        auto l_rhs = v(1);
+        auto l_lhs = f(l(0)->clone());
+        auto l_rhs = l(1);
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -1939,13 +1939,13 @@ void test_app_normalize()
 
         // make sure nothing changed
         // (beta reduction did not occur since rhs is local)
-        assert(l_result.m_expr->equals(v(1)));
+        assert(l_result.m_expr->equals(l(1)));
     }
 
     // app with lhs func and rhs func
     {
-        auto l_lhs = f(v(0)->clone());
-        auto l_rhs = f(v(1)->clone());
+        auto l_lhs = f(l(0)->clone());
+        auto l_rhs = f(l(1)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -1963,8 +1963,8 @@ void test_app_normalize()
 
     // app with lhs func (without occurrences of var 0) and rhs func
     {
-        auto l_lhs = f(v(3)->clone());
-        auto l_rhs = f(v(5)->clone());
+        auto l_lhs = f(l(3)->clone());
+        auto l_rhs = f(l(5)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -1978,13 +1978,13 @@ void test_app_normalize()
 
         // make sure beta-reduction occurred, but no replacements.
         // other vars decremented by 1.
-        assert(l_result.m_expr->equals(v(2)->clone()));
+        assert(l_result.m_expr->equals(l(2)->clone()));
     }
 
     // app with lhs (nested func with occurrences of var 0) and rhs func
     {
-        auto l_lhs = f(f(v(0)->clone())->clone());
-        auto l_rhs = f(v(5)->clone());
+        auto l_lhs = f(f(l(0)->clone())->clone());
+        auto l_rhs = f(l(5)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -1998,13 +1998,13 @@ void test_app_normalize()
 
         // make sure beta-reduction occurred, with replacement,
         // and a lifting of 1 level
-        assert(l_result.m_expr->equals(f(f(v(6)->clone()))->clone()));
+        assert(l_result.m_expr->equals(f(f(l(6)->clone()))->clone()));
     }
 
     // app with lhs (nested func without occurrences of var 0) and rhs func
     {
-        auto l_lhs = f(f(v(3)->clone())->clone());
-        auto l_rhs = f(v(5)->clone());
+        auto l_lhs = f(f(l(3)->clone())->clone());
+        auto l_rhs = f(l(5)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -2018,13 +2018,13 @@ void test_app_normalize()
 
         // make sure beta-reduction occurred, no replacements.
         // other vars decremented by 1.
-        assert(l_result.m_expr->equals(f(v(2)->clone())));
+        assert(l_result.m_expr->equals(f(l(2)->clone())));
     }
 
     // app with lhs (app that doesnt reduce to func) and rhs func
     {
-        auto l_lhs = a(v(3)->clone(), v(4)->clone());
-        auto l_rhs = f(v(5)->clone());
+        auto l_lhs = a(l(3)->clone(), l(4)->clone());
+        auto l_rhs = f(l(5)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -2044,8 +2044,8 @@ void test_app_normalize()
     // app with lhs (app with lhs (func without occurrances), rhs local)
     // and rhs func
     {
-        auto l_lhs = a(f(v(3)->clone())->clone(), v(4)->clone());
-        auto l_rhs = f(v(5)->clone());
+        auto l_lhs = a(f(l(3)->clone())->clone(), l(4)->clone());
+        auto l_rhs = f(l(5)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -2058,14 +2058,14 @@ void test_app_normalize()
         assert(l_result.m_size_peak == 4); // Result is (2 f(v(5))) with size 4
 
         // lhs should have beta-reduced, but cannot consume rhs of app
-        assert(l_result.m_expr->equals(a(v(2), f(v(5)))));
+        assert(l_result.m_expr->equals(a(l(2), f(l(5)))));
     }
 
     // app with lhs (app with lhs (func without occurrances), rhs func)
     // and rhs func, where there are too many arguments supplied
     {
-        auto l_lhs = a(f(v(3)->clone())->clone(), f(v(4)->clone())->clone());
-        auto l_rhs = f(v(5)->clone());
+        auto l_lhs = a(f(l(3)->clone())->clone(), f(l(4)->clone())->clone());
+        auto l_rhs = f(l(5)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -2080,15 +2080,15 @@ void test_app_normalize()
         // lhs of app should beta-reduce, but lhs is not capable of consuming 2
         // args. Thus NF is an application with LHS beta-reduced once.
         assert(l_result.m_expr->equals(
-            a(v(2)->clone(), f(v(5)->clone()))->clone()));
+            a(l(2)->clone(), f(l(5)->clone()))->clone()));
     }
 
     // app with lhs (app with lhs (func without occurrances), rhs func)
     // and rhs func, where there are correct number of args supplied.
     {
         auto l_lhs =
-            a(f(f(v(3)->clone())->clone())->clone(), f(v(4)->clone())->clone());
-        auto l_rhs = f(v(5)->clone());
+            a(f(f(l(3)->clone())->clone())->clone(), f(l(4)->clone())->clone());
+        auto l_rhs = f(l(5)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -2105,15 +2105,15 @@ void test_app_normalize()
 
         // should beta-reduce twice, consuming all args. No replacements, only
         // decrementing twice.
-        assert(l_result.m_expr->equals(v(1)->clone()));
+        assert(l_result.m_expr->equals(l(1)->clone()));
     }
 
     // app with lhs (app with lhs (func WITH occurrances), rhs func)
     // and rhs func, where there are correct number of args supplied.
     {
         auto l_lhs =
-            a(f(f(v(0)->clone())->clone())->clone(), f(v(4)->clone())->clone());
-        auto l_rhs = f(v(5)->clone());
+            a(f(f(l(0)->clone())->clone())->clone(), f(l(4)->clone())->clone());
+        auto l_rhs = f(l(5)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -2131,15 +2131,15 @@ void test_app_normalize()
         // should beta-reduce twice, consuming all args.
         // becomes first arg, without lifting. (lifting occurred but was undone
         // by second arg)
-        assert(l_result.m_expr->equals(f(v(4)->clone())));
+        assert(l_result.m_expr->equals(f(l(4)->clone())));
     }
 
     // app with lhs (app with lhs (func WITH occurrances), rhs func)
     // and rhs func, where there are correct number of args supplied.
     {
         auto l_lhs =
-            a(f(f(v(1)->clone())->clone())->clone(), f(v(4)->clone())->clone());
-        auto l_rhs = f(v(5)->clone());
+            a(f(f(l(1)->clone())->clone())->clone(), f(l(4)->clone())->clone());
+        auto l_rhs = f(l(5)->clone());
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
         // reduce the app
@@ -2163,20 +2163,20 @@ void test_app_normalize()
     // Test reduction count with single reduction
     // (λ.0) 5 -> 5 (1 reduction)
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test reduction count with multiple reductions
     // ((λ.0) 5) ((λ.1) 6) -> (5 ((λ.1) 6)) -> (5 0) (2 reductions)
     // Note: v(1) is a free variable, so it decrements to v(0)
     {
-        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_expr = a(a(f(l(0)), l(5)), a(f(l(1)), l(6)));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
@@ -2185,16 +2185,16 @@ void test_app_normalize()
         // After 2nd reduction: (5 0) has size 3
         // Peak is max of intermediate results = 6
         assert(l_result.m_size_peak == 6);
-        auto l_expected = a(v(5), v(0));
+        auto l_expected = a(l(5), l(0));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test reduction count with church numeral reduction
     // Church numeral 2 applied: many reductions
     {
-        auto l_two = f(f(a(v(0), a(v(0), v(1)))));
-        auto l_f = f(v(10));
-        auto l_x = v(5);
+        auto l_two = f(f(a(l(0), a(l(0), l(1)))));
+        auto l_f = f(l(10));
+        auto l_x = l(5);
         auto l_expr = a(a(l_two->clone(), l_f->clone()), l_x->clone());
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
@@ -2206,7 +2206,7 @@ void test_app_normalize()
 
     // Test limit of 0 - blocks first reduction
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result = l_expr->normalize(0);
         // Cannot do any reductions with limit 0
         assert(l_result.m_step_excess == true);
@@ -2219,20 +2219,20 @@ void test_app_normalize()
     // Test limit of 1 - allows 1 reduction, blocks second
     // ((λ.0) 5) ((λ.1) 6) needs 2 reductions total
     {
-        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_expr = a(a(f(l(0)), l(5)), a(f(l(1)), l(6)));
         auto l_result = l_expr->normalize(1);
         // Does 1 reduction, then hits limit
         assert(l_result.m_step_excess == true);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         // After 1 reduction: (5 ((λ.1) 6)) - partially normalized
-        auto l_expected = a(v(5), a(f(v(1)), v(6)));
+        auto l_expected = a(l(5), a(f(l(1)), l(6)));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test limit exactly at needed reductions (reaches normal form)
     {
-        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_expr = a(a(f(l(0)), l(5)), a(f(l(1)), l(6)));
         auto l_result = l_expr->normalize(2);
         // Needs 2 reductions, limit is 2, so reaches normal form
         assert(l_result.m_step_excess == false);
@@ -2240,26 +2240,26 @@ void test_app_normalize()
         assert(l_result.m_step_count == 2);
         // Peak is 6 (size after 1st reduction)
         assert(l_result.m_size_peak == 6);
-        auto l_expected = a(v(5), v(0));
+        auto l_expected = a(l(5), l(0));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test limit exceeds needed reductions
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result = l_expr->normalize(100);
         // Only needs 1 reduction, limit is 100
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test N-2 scenario: expression needs 2 reductions, limit is 0
     // Should do 0 reductions (blocked)
     {
-        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_expr = a(a(f(l(0)), l(5)), a(f(l(1)), l(6)));
         auto l_result = l_expr->normalize(0);
         assert(l_result.m_step_excess == true);
         assert(l_result.m_size_excess == false);
@@ -2270,20 +2270,20 @@ void test_app_normalize()
 
     // Test count with limit that allows full normalization
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result = l_expr->normalize(100);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test complex reduction with limit
     // ((λ.λ.0) 5) 6 -> (λ.6) 6 -> 5 (2 reductions total)
     // Note: v(6) in body is a free variable, so it decrements to v(5)
     {
-        auto l_expr = a(a(f(f(v(0))), v(5)), v(6));
+        auto l_expr = a(a(f(f(l(0))), l(5)), l(6));
 
         // Limit to 0: blocks first reduction
         auto l_result0 = l_expr->normalize(0);
@@ -2307,7 +2307,7 @@ void test_app_normalize()
         // After 1st reduction: (λ.6) 6 has size 4, after 2nd: v(5) has size 1
         // Peak is 4
         assert(l_result2.m_size_peak == 4);
-        assert(l_result2.m_expr->equals(v(5)));
+        assert(l_result2.m_expr->equals(l(5)));
 
         // Full normalization
         auto l_result_full = l_expr->normalize();
@@ -2316,14 +2316,14 @@ void test_app_normalize()
         assert(l_result_full.m_step_count == 2);
         // Peak is 4
         assert(l_result_full.m_size_peak == 4);
-        assert(l_result_full.m_expr->equals(v(5)));
+        assert(l_result_full.m_expr->equals(l(5)));
     }
 
     // Test identity combinator: (λ.0) applied to expression
     // (λ.0) (λ.5) -> λ.5 (1 reduction)
     {
-        auto l_identity = f(v(0));
-        auto l_arg = f(v(5));
+        auto l_identity = f(l(0));
+        auto l_arg = f(l(5));
         auto l_expr = a(l_identity->clone(), l_arg->clone());
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
@@ -2337,8 +2337,8 @@ void test_app_normalize()
     // ((λ.2) 3) ((λ.4) 5) needs 2 reductions, limit 0 blocks all
     // Left side reduces: v(2) > 0 decrements to v(1)
     {
-        auto l_lhs = a(f(v(2)), v(3));
-        auto l_rhs = a(f(v(4)), v(5));
+        auto l_lhs = a(f(l(2)), l(3));
+        auto l_rhs = a(f(l(4)), l(5));
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
         auto l_result = l_expr->normalize(0);
         assert(l_result.m_step_excess == true);
@@ -2351,15 +2351,15 @@ void test_app_normalize()
     // Test normal order continuation - reduce left, then right
     // ((λ.2) 3) ((λ.4) 5) with limit 1 allows 1 reduction
     {
-        auto l_lhs = a(f(v(2)), v(3));
-        auto l_rhs = a(f(v(4)), v(5));
+        auto l_lhs = a(f(l(2)), l(3));
+        auto l_rhs = a(f(l(4)), l(5));
         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
         auto l_result = l_expr->normalize(1);
         assert(l_result.m_step_excess == true);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         // Left reduces first (normal order)
-        auto l_expected = a(v(1), a(f(v(4)), v(5)));
+        auto l_expected = a(l(1), a(f(l(4)), l(5)));
         assert(l_result.m_expr->equals(l_expected));
     }
 
@@ -2367,7 +2367,7 @@ void test_app_normalize()
     // (λ.0 0) (λ.0 0) with limit 2 (omega combinator)
     // This tests that the limit actually stops potentially infinite reductions
     {
-        auto l_omega = f(a(v(0), v(0)));
+        auto l_omega = f(a(l(0), l(0)));
         auto l_expr = a(l_omega->clone(), l_omega->clone());
         auto l_result = l_expr->normalize(2);
         assert(l_result.m_step_excess == true); // Hits limit
@@ -2379,20 +2379,20 @@ void test_app_normalize()
     // Test reduction inside nested applications
     // (1 ((λ.0) 2)) -> (1 2) (1 reduction in rhs)
     {
-        auto l_expr = a(v(1), a(f(v(0)), v(2)));
+        auto l_expr = a(l(1), a(f(l(0)), l(2)));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 3); // (1 2) has size 3
-        auto l_expected = a(v(1), v(2));
+        auto l_expected = a(l(1), l(2));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test multiple reductions in sequence with precise count
     // (((λ.0) 1) ((λ.0) 2)) 3 -> (1 2) 3 -> no further reduction (2 reductions)
     {
-        auto l_expr = a(a(a(f(v(0)), v(1)), a(f(v(0)), v(2))), v(3));
+        auto l_expr = a(a(a(f(l(0)), l(1)), a(f(l(0)), l(2))), l(3));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
@@ -2401,20 +2401,20 @@ void test_app_normalize()
         // After 2nd reduction: ((1 2) 3) has size 5
         // Peak is 8
         assert(l_result.m_size_peak == 8);
-        auto l_expected = a(a(v(1), v(2)), v(3));
+        auto l_expected = a(a(l(1), l(2)), l(3));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test function returning function with counting
     // (λ.λ.1) 5 -> λ.0 (1 reduction, v(1) at depth 1 decrements)
     {
-        auto l_expr = a(f(f(v(1))), v(5));
+        auto l_expr = a(f(f(l(1))), l(5));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 2);
-        auto l_expected = f(v(0));
+        auto l_expected = f(l(0));
         assert(l_result.m_expr->equals(l_expected));
     }
 
@@ -2422,9 +2422,9 @@ void test_app_normalize()
     // (λ.0) (λ.((λ.1) 2)) needs 2 reductions, limit 0 blocks all
     // Nothing reduces
     {
-        auto l_inner_redex = a(f(v(1)), v(2));
+        auto l_inner_redex = a(f(l(1)), l(2));
         auto l_arg = f(l_inner_redex->clone());
-        auto l_expr = a(f(v(0)), l_arg->clone());
+        auto l_expr = a(f(l(0)), l_arg->clone());
         auto l_result = l_expr->normalize(0);
         assert(l_result.m_step_excess == true);
         assert(l_result.m_size_excess == false);
@@ -2437,9 +2437,9 @@ void test_app_normalize()
     // (λ.0) (λ.((λ.1) 2)) with no limit -> (λ.2)
     // Outer reduces, then inner reduces
     {
-        auto l_inner_redex = a(f(v(1)), v(2));
+        auto l_inner_redex = a(f(l(1)), l(2));
         auto l_arg = f(l_inner_redex->clone());
-        auto l_expr = a(f(v(0)), l_arg->clone());
+        auto l_expr = a(f(l(0)), l_arg->clone());
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
@@ -2448,7 +2448,7 @@ void test_app_normalize()
         // After inner reduction: λ.2 has size 2
         // Peak is 5
         assert(l_result.m_size_peak == 5);
-        auto l_expected = f(v(2));
+        auto l_expected = f(l(2));
         assert(l_result.m_expr->equals(l_expected));
     }
 
@@ -2457,8 +2457,8 @@ void test_app_normalize()
     // Note: v(0) at depth 1 gets replaced by v(5) lifted to v(6)
     //       Then v(6) > var_index(0) decrements to v(5)
     {
-        auto l_k = f(f(v(0)));
-        auto l_expr = a(a(l_k->clone(), v(5)), v(6));
+        auto l_k = f(f(l(0)));
+        auto l_expr = a(a(l_k->clone(), l(5)), l(6));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
@@ -2467,7 +2467,7 @@ void test_app_normalize()
         // After 2nd reduction: v(5) has size 1
         // Peak is 4
         assert(l_result.m_size_peak == 4);
-        auto l_expected = v(5);
+        auto l_expected = l(5);
         assert(l_result.m_expr->equals(l_expected));
     }
 
@@ -2475,45 +2475,45 @@ void test_app_normalize()
     // (λ.0) 5 has size 4, reduces to 5 with size 1
     // Peak should be 1 (size of result after reduction)
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test size peak tracking on app with no reductions
     // (3 4) has size 3 and stays that way
     {
-        auto l_expr = a(v(3), v(4));
+        auto l_expr = a(l(3), l(4));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 0);
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-        assert(l_result.m_expr->equals(a(v(3), v(4))));
+        assert(l_result.m_expr->equals(a(l(3), l(4))));
     }
 
     // Test size peak with step count on multiple reductions
     // ((λ.0) 5) ((λ.1) 6) -> (5 ((λ.1) 6)) -> (5 0)
     // Sizes: 9 -> 6 -> 3, peak is max of results (6 then 3) = 6
     {
-        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_expr = a(a(f(l(0)), l(5)), a(f(l(1)), l(6)));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 2);
         assert(l_result.m_size_peak == 6); // Peak of intermediate results
-        auto l_expected = a(v(5), v(0));
+        auto l_expected = a(l(5), l(0));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test size limit preventing reduction on application
     // (λ.0) 5 has size 4, result would be size 1, set limit to 0 to prevent
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 0);
         assert(l_result.m_step_excess == false);
@@ -2526,14 +2526,14 @@ void test_app_normalize()
     // Test size limit allowing reduction (limit >= result size)
     // (λ.0) 5 with size limit 1 -> can reduce to 5 (size 1)
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 1);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test size limit stopping in the middle of multi-step reduction
@@ -2541,7 +2541,7 @@ void test_app_normalize()
     // After 1 reduction: size 6, after 2: size 3
     // Set limit to 5: first reduction produces size 6 > 5, so size_excess
     {
-        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_expr = a(a(f(l(0)), l(5)), a(f(l(1)), l(6)));
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 5);
         // First reduction would produce size 6 > 5, so blocked by size limit
@@ -2556,7 +2556,7 @@ void test_app_normalize()
     // Set limit high enough to allow reductions (6 allows first, 3 allows
     // second)
     {
-        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_expr = a(a(f(l(0)), l(5)), a(f(l(1)), l(6)));
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 9);
         // Can do all reductions since result sizes are <= 9
@@ -2564,26 +2564,26 @@ void test_app_normalize()
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 2);
         assert(l_result.m_size_peak == 6);
-        auto l_expected = a(v(5), v(0));
+        auto l_expected = a(l(5), l(0));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test all parameters together on application
     {
-        auto l_expr = a(f(v(0)), v(8));
+        auto l_expr = a(f(l(0)), l(8));
         auto l_result = l_expr->normalize(10, 100);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(8)));
+        assert(l_result.m_expr->equals(l(8)));
     }
 
     // Test size limit with omega combinator to prevent explosion
     // (λ.0 0) (λ.0 0) with step limit
     // Each reduction produces same size
     {
-        auto l_omega = f(a(v(0), v(0)));
+        auto l_omega = f(a(l(0), l(0)));
         auto l_expr = a(l_omega->clone(), l_omega->clone());
         // Set step limit to 5 to prevent infinite loop
         auto l_result = l_expr->normalize(5, 100);
@@ -2598,14 +2598,14 @@ void test_app_normalize()
     // (λ.λ.(0 1)) 3 -> λ.(3 1)
     // Original size: 6, result size: 4
     {
-        auto l_expr = a(f(f(a(v(0), v(1)))), v(3));
+        auto l_expr = a(f(f(a(l(0), l(1)))), l(3));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         // Peak is size of result
         assert(l_result.m_size_peak == 4);
-        auto l_expected = f(a(v(4), v(0)));
+        auto l_expected = f(a(l(4), l(0)));
         assert(l_result.m_expr->equals(l_expected));
     }
 
@@ -2613,9 +2613,9 @@ void test_app_normalize()
     // (λ.0) (λ.((λ.5) 6)) could reduce multiple times
     // After first: λ.((λ.5) 6), after second: λ.4
     {
-        auto l_inner_redex = a(f(v(5)), v(6));
+        auto l_inner_redex = a(f(l(5)), l(6));
         auto l_arg = f(l_inner_redex->clone());
-        auto l_expr = a(f(v(0)), l_arg->clone());
+        auto l_expr = a(f(l(0)), l_arg->clone());
         // Allow all reductions
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 100);
@@ -2626,27 +2626,27 @@ void test_app_normalize()
         // After 2nd reduction: λ.4 has size 2
         // Peak is 5
         assert(l_result.m_size_peak == 5);
-        auto l_expected = f(v(4));
+        auto l_expected = f(l(4));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test size limit exactly at boundary
     // (λ.0) 5 result is v(5) with size 1, so limit 1 allows reduction
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 1);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test both step limit and size limit active
     // Step limit should be hit (limit 0 blocks all)
     {
-        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_expr = a(a(f(l(0)), l(5)), a(f(l(1)), l(6)));
         auto l_result = l_expr->normalize(0, 100);
         assert(l_result.m_step_excess == true); // Step limit hit
         assert(l_result.m_size_excess == false);
@@ -2658,7 +2658,7 @@ void test_app_normalize()
     // Test size limit hit before step limit
     // Result would be size 1, limit is 0, so size limit blocks
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result = l_expr->normalize(100, 0);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == true); // Size limit hit
@@ -2669,28 +2669,28 @@ void test_app_normalize()
 
     // Test size_limit allowing reduction
     {
-        auto l_expr = a(f(v(0)), v(7));
+        auto l_expr = a(f(l(0)), l(7));
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 10);
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(7)));
+        assert(l_result.m_expr->equals(l(7)));
     }
 
     // Test complex expression with size tracking
     // ((λ.λ.0) 5) 6 -> (λ.6) 6 -> 5
     // Sizes: 7 -> 4 -> 1
     {
-        auto l_k = f(f(v(0)));
-        auto l_expr = a(a(l_k->clone(), v(5)), v(6));
+        auto l_k = f(f(l(0)));
+        auto l_expr = a(a(l_k->clone(), l(5)), l(6));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 2);
         assert(l_result.m_size_peak == 4); // Peak of intermediate results
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test size limit on expression that GROWS during reduction
@@ -2700,8 +2700,8 @@ void test_app_normalize()
     // Step 2: ((λ.0 0 0) (λ.0 0 0)) (λ.0 0 0) - size 1 + 13 + 6 = 20
     // Step 3: (((λ.0 0 0) (λ.0 0 0)) (λ.0 0 0)) (λ.0 0 0) - size ≈ 27+
     {
-        auto l_dup2 = f(a(v(0), v(0)));                    // λ.(0 0), size 4
-        auto l_dup3 = f(a(a(v(0), v(0)), v(0)));           // λ.(0 0 0), size 6
+        auto l_dup2 = f(a(l(0), l(0)));                    // λ.(0 0), size 4
+        auto l_dup3 = f(a(a(l(0), l(0)), l(0)));           // λ.(0 0 0), size 6
         auto l_expr = a(l_dup2->clone(), l_dup3->clone()); // size 11
 
         // Test with step limit to see growth pattern
@@ -2757,8 +2757,8 @@ void test_app_normalize()
     // Needs 3 reductions total, limit 1 allows only 1 step
     {
         auto l_inner =
-            a(a(f(v(2)), v(3)), a(f(v(4)), v(5)));  // ((λ.2) 3) ((λ.4) 5)
-        auto l_expr = a(f(v(0)), l_inner->clone()); // (λ.0) (...)
+            a(a(f(l(2)), l(3)), a(f(l(4)), l(5)));  // ((λ.2) 3) ((λ.4) 5)
+        auto l_expr = a(f(l(0)), l_inner->clone()); // (λ.0) (...)
         auto l_result = l_expr->normalize(1);
         assert(l_result.m_step_excess == true);
         assert(l_result.m_size_excess == false);
@@ -2772,9 +2772,9 @@ void test_app_normalize()
     // Needs 4 reductions, limit 2 allows 2
     {
         auto l_inner =
-            a(a(f(v(2)), v(3)), a(f(v(4)), v(5))); // ((λ.2) 3) ((λ.4) 5)
+            a(a(f(l(2)), l(3)), a(f(l(4)), l(5))); // ((λ.2) 3) ((λ.4) 5)
         auto l_wrapped =
-            a(a(f(v(0)), f(v(0))), l_inner->clone()); // ((λ.0) (λ.0)) (...)
+            a(a(f(l(0)), f(l(0))), l_inner->clone()); // ((λ.0) (λ.0)) (...)
         auto l_result = l_wrapped->normalize(2);
         assert(l_result.m_step_excess == true);
         assert(l_result.m_size_excess == false);
@@ -2786,11 +2786,11 @@ void test_app_normalize()
     // Expression: ((((λ.0) 1) ((λ.0) 2)) ((λ.0) 3)) ((λ.0) 4)) ((λ.0) 5)
     // Needs 5 reductions, limit 3 allows 3
     {
-        auto l_r1 = a(f(v(0)), v(1)); // (λ.0) 1
-        auto l_r2 = a(f(v(0)), v(2)); // (λ.0) 2
-        auto l_r3 = a(f(v(0)), v(3)); // (λ.0) 3
-        auto l_r4 = a(f(v(0)), v(4)); // (λ.0) 4
-        auto l_r5 = a(f(v(0)), v(5)); // (λ.0) 5
+        auto l_r1 = a(f(l(0)), l(1)); // (λ.0) 1
+        auto l_r2 = a(f(l(0)), l(2)); // (λ.0) 2
+        auto l_r3 = a(f(l(0)), l(3)); // (λ.0) 3
+        auto l_r4 = a(f(l(0)), l(4)); // (λ.0) 4
+        auto l_r5 = a(f(l(0)), l(5)); // (λ.0) 5
         auto l_expr = a(
             a(a(a(l_r1->clone(), l_r2->clone()), l_r3->clone()), l_r4->clone()),
             l_r5->clone());
@@ -2807,8 +2807,8 @@ void test_app_normalize()
     // reductions, limit 3 allows 3
     {
         auto l_expr =
-            a(a(a(a(f(v(0)), v(5)), a(f(v(0)), v(6))), a(f(v(0)), v(7))),
-              a(f(v(0)), v(8)));
+            a(a(a(a(f(l(0)), l(5)), a(f(l(0)), l(6))), a(f(l(0)), l(7))),
+              a(f(l(0)), l(8)));
         auto l_result = l_expr->normalize(3);
         assert(l_result.m_step_excess == true);
         assert(l_result.m_size_excess == false);
@@ -2824,7 +2824,7 @@ void test_app_normalize()
     // When both step_limit and size_limit would prevent reduction, step_limit
     // takes precedence
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result = l_expr->normalize(0, 0);
         // step_limit=0 blocks first, so step_excess=true, size_excess=false
         assert(l_result.m_step_excess == true);
@@ -2839,7 +2839,7 @@ void test_app_normalize()
     // reductions)
     {
         // Expression: ((λ.0) 1) ((λ.0) 2) needs 2 steps
-        auto l_expr = a(a(f(v(0)), v(1)), a(f(v(0)), v(2)));
+        auto l_expr = a(a(f(l(0)), l(1)), a(f(l(0)), l(2)));
         // step_limit=1 with high size_limit
         // After 1 step: step_count=1, next iteration checks step==limit first
         auto l_result = l_expr->normalize(1, 100);
@@ -2857,9 +2857,9 @@ void test_app_normalize()
         // - (λ.0) ((λ.0) 1): 1 + (1+1) + 4 = 7
         // - (λ.0) 2: 1 + (1+1) + 1 = 4
         // - Full expression: 1 + 7 + 4 = 12
-        auto l_inner = a(f(v(0)), v(1));                      // size 4
-        auto l_middle = a(f(v(0)), l_inner->clone());         // size 7
-        auto l_right = a(f(v(0)), v(2));                      // size 4
+        auto l_inner = a(f(l(0)), l(1));                      // size 4
+        auto l_middle = a(f(l(0)), l_inner->clone());         // size 7
+        auto l_right = a(f(l(0)), l(2));                      // size 4
         auto l_expr = a(l_middle->clone(), l_right->clone()); // size 12
 
         assert(l_expr->size() == 12);
@@ -2876,25 +2876,25 @@ void test_app_normalize()
         assert(l_result.m_size_excess == false); // Initial size doesn't trigger
         assert(l_result.m_step_count == 3);
         assert(l_result.m_size_peak == 9);
-        auto l_expected = a(v(1), v(2));
+        auto l_expected = a(l(1), l(2));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test 3: Exact boundary test - step_count equals step_limit
     {
-        auto l_expr = a(a(f(v(0)), v(1)), a(f(v(0)), v(2)));
+        auto l_expr = a(a(f(l(0)), l(1)), a(f(l(0)), l(2)));
         // Needs exactly 2 steps, limit is 2
         auto l_result = l_expr->normalize(2);
         assert(l_result.m_step_excess == false); // Completed within limit
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 2);
-        auto l_expected = a(v(1), v(2));
+        auto l_expected = a(l(1), l(2));
         assert(l_result.m_expr->equals(l_expected));
     }
 
     // Test 3b: Exact boundary test - size_peak equals size_limit
     {
-        auto l_expr = a(f(v(0)), v(7));
+        auto l_expr = a(f(l(0)), l(7));
         // Result has size 1, set limit exactly to 1
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 1);
@@ -2902,12 +2902,12 @@ void test_app_normalize()
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1); // Exactly at limit
-        assert(l_result.m_expr->equals(v(7)));
+        assert(l_result.m_expr->equals(l(7)));
     }
 
     // Test 4: Size peak when blocked immediately by step limit
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         auto l_result = l_expr->normalize(0); // step_limit=0 blocks immediately
         assert(l_result.m_step_excess == true);
         assert(l_result.m_size_excess == false);
@@ -2919,7 +2919,7 @@ void test_app_normalize()
 
     // Test 4b: Size peak when blocked immediately by size limit
     {
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         // Result would be size 1, but limit is 0
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 0);
@@ -2936,7 +2936,7 @@ void test_app_normalize()
         // Expression: (((λ.0) 1) ((λ.0) 2)) ((λ.0) 3)
         // Needs 3 reductions to reach normal form
         auto l_expr =
-            a(a(a(f(v(0)), v(1)), a(f(v(0)), v(2))), a(f(v(0)), v(3)));
+            a(a(a(f(l(0)), l(1)), a(f(l(0)), l(2))), a(f(l(0)), l(3)));
         // step_limit=1, size_limit=100 (high enough to not block)
         auto l_result = l_expr->normalize(1, 100);
         // After 1 step, step_limit is hit
@@ -2949,8 +2949,8 @@ void test_app_normalize()
     {
         // Duplicator: (λ.(0 0)) (λ.(0 0 0))
         // Each reduction grows the expression
-        auto l_dup2 = f(a(v(0), v(0)));                    // λ.(0 0), size 4
-        auto l_dup3 = f(a(a(v(0), v(0)), v(0)));           // λ.(0 0 0), size 6
+        auto l_dup2 = f(a(l(0), l(0)));                    // λ.(0 0), size 4
+        auto l_dup3 = f(a(a(l(0), l(0)), l(0)));           // λ.(0 0 0), size 6
         auto l_expr = a(l_dup2->clone(), l_dup3->clone()); // size 11
 
         // Allow 2 reductions, track growth
@@ -2965,7 +2965,7 @@ void test_app_normalize()
 
     // Test 7: Zero-step scenario - already in normal form with zero limits
     {
-        auto l_expr = v(42); // Already in normal form
+        auto l_expr = l(42); // Already in normal form
         auto l_result = l_expr->normalize(0, 0);
         // No reduction needed, limits don't matter
         assert(l_result.m_step_excess == false); // No steps needed
@@ -2978,20 +2978,20 @@ void test_app_normalize()
     // Test 8: Maximum values edge case
     {
         // Simple expression with max limits
-        auto l_expr = a(f(v(0)), v(99));
+        auto l_expr = a(f(l(0)), l(99));
         auto l_result = l_expr->normalize(std::numeric_limits<size_t>::max(),
                                           std::numeric_limits<size_t>::max());
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(99)));
+        assert(l_result.m_expr->equals(l(99)));
     }
 
     // Test 9: Size limit equals result size boundary
     {
         // (λ.0) 5 -> v(5) with size 1
-        auto l_expr = a(f(v(0)), v(5));
+        auto l_expr = a(f(l(0)), l(5));
         // Set limit exactly to result size (1)
         auto l_result =
             l_expr->normalize(std::numeric_limits<size_t>::max(), 1);
@@ -2999,23 +2999,23 @@ void test_app_normalize()
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 1);
         assert(l_result.m_size_peak == 1);
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
     }
 
     // Test 10: Multiple same-size intermediates
     {
         // Expression where size stays constant through multiple reductions
         // (λ.(λ.0)) applied multiple times maintains structure
-        auto l_k = f(f(v(0))); // K combinator
+        auto l_k = f(f(l(0))); // K combinator
         // Build: ((λ.λ.0) 1) 2 -> (λ.2) 2 -> 1
         // Sizes: 7 -> 4 -> 1
-        auto l_expr = a(a(l_k->clone(), v(1)), v(2));
+        auto l_expr = a(a(l_k->clone(), l(1)), l(2));
         auto l_result = l_expr->normalize();
         assert(l_result.m_step_excess == false);
         assert(l_result.m_size_excess == false);
         assert(l_result.m_step_count == 2);
         assert(l_result.m_size_peak == 4); // Peak of intermediate sizes
-        assert(l_result.m_expr->equals(v(1)));
+        assert(l_result.m_expr->equals(l(1)));
     }
 }
 
@@ -3023,42 +3023,42 @@ void test_var_reduce_one_step()
 {
     // var at index 0 - cannot reduce
     {
-        auto l_var = v(0);
+        auto l_var = l(0);
         auto l_reduced = l_var->reduce_one_step(0);
         assert(l_reduced == nullptr);
     }
 
     // var at index 1 - cannot reduce
     {
-        auto l_var = v(1);
+        auto l_var = l(1);
         auto l_reduced = l_var->reduce_one_step(0);
         assert(l_reduced == nullptr);
     }
 
     // var at index 5 - cannot reduce
     {
-        auto l_var = v(5);
+        auto l_var = l(5);
         auto l_reduced = l_var->reduce_one_step(0);
         assert(l_reduced == nullptr);
     }
 
     // var at depth 0 - cannot reduce
     {
-        auto l_var = v(3);
+        auto l_var = l(3);
         auto l_reduced = l_var->reduce_one_step(0);
         assert(l_reduced == nullptr);
     }
 
     // var at depth 5 - cannot reduce
     {
-        auto l_var = v(3);
+        auto l_var = l(3);
         auto l_reduced = l_var->reduce_one_step(5);
         assert(l_reduced == nullptr);
     }
 
     // var at depth 10 - cannot reduce
     {
-        auto l_var = v(7);
+        auto l_var = l(7);
         auto l_reduced = l_var->reduce_one_step(10);
         assert(l_reduced == nullptr);
     }
@@ -3068,21 +3068,21 @@ void test_func_reduce_one_step()
 {
     // func with var body - cannot reduce
     {
-        auto l_func = f(v(0));
+        auto l_func = f(l(0));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced == nullptr);
     }
 
     // func with var body at depth 5 - cannot reduce
     {
-        auto l_func = f(v(3));
+        auto l_func = f(l(3));
         auto l_reduced = l_func->reduce_one_step(5);
         assert(l_reduced == nullptr);
     }
 
     // func with app body (both vars) - cannot reduce
     {
-        auto l_func = f(a(v(0), v(1)));
+        auto l_func = f(a(l(0), l(1)));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced == nullptr);
     }
@@ -3091,10 +3091,10 @@ void test_func_reduce_one_step()
     // λ.((λ.0) 1) -> λ.0
     // Note: v(0) inside inner lambda refers to OUTER lambda (De Bruijn levels)
     {
-        auto l_func = f(a(f(v(0)), v(1)));
+        auto l_func = f(a(f(l(0)), l(1)));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(v(0));
+        auto l_expected = f(l(0));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3103,10 +3103,10 @@ void test_func_reduce_one_step()
     // Note: v(1) inside inner lambda at depth 1 refers to inner lambda's bound
     // var
     {
-        auto l_func = f(a(f(v(1)), v(2)));
+        auto l_func = f(a(f(l(1)), l(2)));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(v(2));
+        auto l_expected = f(l(2));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3115,10 +3115,10 @@ void test_func_reduce_one_step()
     // Note: At depth 3, inner lambda is at depth 4, v(3) refs depth 3 (outer
     // lambda)
     {
-        auto l_func = f(a(f(v(3)), v(2)));
+        auto l_func = f(a(f(l(3)), l(2)));
         auto l_reduced = l_func->reduce_one_step(3);
         assert(l_reduced != nullptr);
-        auto l_expected = f(v(3));
+        auto l_expected = f(l(3));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3127,10 +3127,10 @@ void test_func_reduce_one_step()
     // Note: At depth 3, inner lambda is at depth 4, v(4) is the inner lambda's
     // bound var
     {
-        auto l_func = f(a(f(v(4)), v(2)));
+        auto l_func = f(a(f(l(4)), l(2)));
         auto l_reduced = l_func->reduce_one_step(3);
         assert(l_reduced != nullptr);
-        auto l_expected = f(v(2));
+        auto l_expected = f(l(2));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3138,10 +3138,10 @@ void test_func_reduce_one_step()
     // λ.((λ.(λ.0)) 5) -> λ.(λ.0)
     // Note: v(0) refs outermost lambda, not the one at depth 1 being reduced
     {
-        auto l_func = f(a(f(f(v(0))), v(5)));
+        auto l_func = f(a(f(f(l(0))), l(5)));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(f(v(0)));
+        auto l_expected = f(f(l(0)));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3149,33 +3149,33 @@ void test_func_reduce_one_step()
     // reduced λ.((λ.(λ.1)) 5) -> λ.(λ.6) Note: v(1) refs the lambda at depth 1,
     // which gets substituted with v(5) and lifted
     {
-        auto l_func = f(a(f(f(v(1))), v(5)));
+        auto l_func = f(a(f(f(l(1))), l(5)));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(f(v(6)));
+        auto l_expected = f(f(l(6)));
         assert(l_reduced->equals(l_expected));
     }
 
     // func with app that can reduce lhs (normal order)
     // λ.(((λ.0) 1) 2) - inner app lhs reduces first (leftmost-outermost)
     {
-        auto l_func = f(a(a(f(v(0)), v(1)), v(2)));
+        auto l_func = f(a(a(f(l(0)), l(1)), l(2)));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // After reducing inner app: v(0) < depth 1, stays v(0), result: λ.(0 2)
-        auto l_expected = f(a(v(0), v(2)));
+        auto l_expected = f(a(l(0), l(2)));
         assert(l_reduced->equals(l_expected));
     }
 
     // func with app where inner function uses its bound var
     // λ.(((λ.1) 2) 3) - inner app reduces, v(1) gets replaced with v(2)
     {
-        auto l_func = f(a(a(f(v(1)), v(2)), v(3)));
+        auto l_func = f(a(a(f(l(1)), l(2)), l(3)));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // After reducing inner app at depth 1: v(1) replaced with v(2), result:
         // λ.(2 3)
-        auto l_expected = f(a(v(2), v(3)));
+        auto l_expected = f(a(l(2), l(3)));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3183,10 +3183,10 @@ void test_func_reduce_one_step()
     // context λ.λ.((λ.0) 1) -> λ.λ.0 Note: At depth 2, v(0) refs depth 0, not
     // being substituted
     {
-        auto l_func = f(f(a(f(v(0)), v(1))));
+        auto l_func = f(f(a(f(l(0)), l(1))));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(f(v(0)));
+        auto l_expected = f(f(l(0)));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3194,20 +3194,20 @@ void test_func_reduce_one_step()
     // λ.λ.((λ.2) 1) -> λ.λ.1
     // Note: At depth 2, v(2) refs the innermost lambda, gets replaced with v(1)
     {
-        auto l_func = f(f(a(f(v(2)), v(1))));
+        auto l_func = f(f(a(f(l(2)), l(1))));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(f(v(1)));
+        auto l_expected = f(f(l(1)));
         assert(l_reduced->equals(l_expected));
     }
 
     // func with body that has reducible app in rhs position
     // λ.(0 ((λ.1) 2)) -> λ.(0 2)
     {
-        auto l_func = f(a(v(0), a(f(v(1)), v(2))));
+        auto l_func = f(a(l(0), a(f(l(1)), l(2))));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(a(v(0), v(2)));
+        auto l_expected = f(a(l(0), l(2)));
         assert(l_reduced->equals(l_expected));
     }
 }
@@ -3216,80 +3216,80 @@ void test_app_reduce_one_step()
 {
     // app of two vars - cannot reduce
     {
-        auto l_app = a(v(0), v(1));
+        auto l_app = a(l(0), l(1));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced == nullptr);
     }
 
     // app of two vars at depth 5 - cannot reduce
     {
-        auto l_app = a(v(3), v(4));
+        auto l_app = a(l(3), l(4));
         auto l_reduced = l_app->reduce_one_step(5);
         assert(l_reduced == nullptr);
     }
 
     // Beta-reduction: (λ.0) 1 -> 1
     {
-        auto l_app = a(f(v(0)), v(1));
+        auto l_app = a(f(l(0)), l(1));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = v(1);
+        auto l_expected = l(1);
         assert(l_reduced->equals(l_expected));
     }
 
     // Beta-reduction at depth 0: (λ.0) (λ.1) -> λ.1
     {
-        auto l_app = a(f(v(0)), f(v(1)));
+        auto l_app = a(f(l(0)), f(l(1)));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(v(1));
+        auto l_expected = f(l(1));
         assert(l_reduced->equals(l_expected));
     }
 
     // Beta-reduction at depth 3: (λ.3) 2 -> 2
     {
-        auto l_app = a(f(v(3)), v(2));
+        auto l_app = a(f(l(3)), l(2));
         auto l_reduced = l_app->reduce_one_step(3);
         assert(l_reduced != nullptr);
-        auto l_expected = v(2);
+        auto l_expected = l(2);
         assert(l_reduced->equals(l_expected));
     }
 
     // Beta-reduction with substitution (no lifting at depth 0): (λ.0) (λ.5) ->
     // λ.5 Note: Applications don't contribute to depth, so lift_amount = 0
     {
-        auto l_app = a(f(v(0)), f(v(5)));
+        auto l_app = a(f(l(0)), f(l(5)));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(v(5));
+        auto l_expected = f(l(5));
         assert(l_reduced->equals(l_expected));
     }
 
     // Beta-reduction with var that needs decrementing: (λ.2) 1 -> 1
     {
-        auto l_app = a(f(v(2)), v(1));
+        auto l_app = a(f(l(2)), l(1));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = v(1);
+        auto l_expected = l(1);
         assert(l_reduced->equals(l_expected));
     }
 
     // Beta-reduction with nested function: (λ.λ.0) 5 -> λ.5 (lifted to λ.6)
     {
-        auto l_app = a(f(f(v(0))), v(5));
+        auto l_app = a(f(f(l(0))), l(5));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(v(6));
+        auto l_expected = f(l(6));
         assert(l_reduced->equals(l_expected));
     }
 
     // Normal order: reduce lhs before rhs
     // ((λ.0) 1) 2 -> lhs reduces to 1, result is (1 2)
     {
-        auto l_app = a(a(f(v(0)), v(1)), v(2));
+        auto l_app = a(a(f(l(0)), l(1)), l(2));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = a(v(1), v(2));
+        auto l_expected = a(l(1), l(2));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3297,11 +3297,11 @@ void test_app_reduce_one_step()
     // ((λ.2) 3) 4 -> ((1) 4) = (1 4)
     // Note: v(2) > var_index(0), so it's a free var that gets decremented
     {
-        auto l_app = a(a(f(v(2)), v(3)), v(4));
+        auto l_app = a(a(f(l(2)), l(3)), l(4));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // lhs: v(2) decrements to v(1), so result is (1 4)
-        auto l_expected = a(v(1), v(4));
+        auto l_expected = a(l(1), l(4));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3309,20 +3309,20 @@ void test_app_reduce_one_step()
     // (0 ((λ.1) 2)) -> (0 0)
     // Note: v(1) > var_index(0), so it decrements to v(0)
     {
-        auto l_app = a(v(0), a(f(v(1)), v(2)));
+        auto l_app = a(l(0), a(f(l(1)), l(2)));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = a(v(0), v(0));
+        auto l_expected = a(l(0), l(0));
         assert(l_reduced->equals(l_expected));
     }
 
     // Normal order: lhs is var (cannot reduce), rhs reduces
     // (5 ((λ.0) 3)) -> (5 3)
     {
-        auto l_app = a(v(5), a(f(v(0)), v(3)));
+        auto l_app = a(l(5), a(f(l(0)), l(3)));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = a(v(5), v(3));
+        auto l_expected = a(l(5), l(3));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3331,72 +3331,72 @@ void test_app_reduce_one_step()
     // Note: v(3) and v(4) are free vars that get decremented when outer lambda
     // is removed
     {
-        auto l_app = a(f(a(f(v(3)), v(4))), v(2));
+        auto l_app = a(f(a(f(l(3)), l(4))), l(2));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = a(f(v(2)), v(3));
+        auto l_expected = a(f(l(2)), l(3));
         assert(l_reduced->equals(l_expected));
     }
 
     // Complex beta-reduction: (λ.(0 0)) (λ.5) -> (λ.5 λ.5) without lifting
     // Note: At depth 0, no lifting occurs (applications don't add depth)
     {
-        auto l_app = a(f(a(v(0), v(0))), f(v(5)));
+        auto l_app = a(f(a(l(0), l(0))), f(l(5)));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // v(0) gets replaced with f(v(5)) with no lifting at depth 0
-        auto l_expected = a(f(v(5)), f(v(5)));
+        auto l_expected = a(f(l(5)), f(l(5)));
         assert(l_reduced->equals(l_expected));
     }
 
     // Beta-reduction with multiple occurrences: (λ.(0 0 0)) 3 -> (3 3 3)
     {
-        auto l_app = a(f(a(a(v(0), v(0)), v(0))), v(3));
+        auto l_app = a(f(a(a(l(0), l(0)), l(0))), l(3));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = a(a(v(3), v(3)), v(3));
+        auto l_expected = a(a(l(3), l(3)), l(3));
         assert(l_reduced->equals(l_expected));
     }
 
     // Beta-reduction with higher De Bruijn level: (λ.5) 3 -> 4 (5 decrements to
     // 4)
     {
-        auto l_app = a(f(v(5)), v(3));
+        auto l_app = a(f(l(5)), l(3));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = v(4);
+        auto l_expected = l(4);
         assert(l_reduced->equals(l_expected));
     }
 
     // Beta-reduction with app as argument: (λ.0) (1 2) -> (1 2)
     {
-        auto l_app = a(f(v(0)), a(v(1), v(2)));
+        auto l_app = a(f(l(0)), a(l(1), l(2)));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = a(v(1), v(2));
+        auto l_expected = a(l(1), l(2));
         assert(l_reduced->equals(l_expected));
     }
 
     // Normal order: nested apps, leftmost-outermost reduction
     // (((λ.0) 1) ((λ.2) 3)) -> ((1) ((λ.2) 3))
     {
-        auto l_lhs = a(f(v(0)), v(1));
-        auto l_rhs = a(f(v(2)), v(3));
+        auto l_lhs = a(f(l(0)), l(1));
+        auto l_rhs = a(f(l(2)), l(3));
         auto l_app = a(l_lhs->clone(), l_rhs->clone());
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // lhs reduces to v(1), rhs stays same
-        auto l_expected = a(v(1), a(f(v(2)), v(3)));
+        auto l_expected = a(l(1), a(f(l(2)), l(3)));
         assert(l_reduced->equals(l_expected));
     }
 
     // Deeply nested beta-reduction at depth 10
     // (λ.10) 8 at depth 10 -> 8
     {
-        auto l_app = a(f(v(10)), v(8));
+        auto l_app = a(f(l(10)), l(8));
         auto l_reduced = l_app->reduce_one_step(10);
         assert(l_reduced != nullptr);
-        auto l_expected = v(8);
+        auto l_expected = l(8);
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3405,32 +3405,32 @@ void test_app_reduce_one_step()
     // Note: v(0) replaced with v(5), v(1) > var_index(0) so it decrements to
     // v(0)
     {
-        auto l_app = a(f(a(v(1), v(0))), v(5));
+        auto l_app = a(f(a(l(1), l(0))), l(5));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // v(1) decrements to v(0) (free var), v(0) replaced with v(5)
-        auto l_expected = a(v(0), v(5));
+        auto l_expected = a(l(0), l(5));
         assert(l_reduced->equals(l_expected));
     }
 
     // Beta-reduction with complex body
     // (λ.((0 1) (2 0))) 7 -> ((7 0) (1 7))
     {
-        auto l_body = a(a(v(0), v(1)), a(v(2), v(0)));
-        auto l_app = a(f(l_body->clone()), v(7));
+        auto l_body = a(a(l(0), l(1)), a(l(2), l(0)));
+        auto l_app = a(f(l_body->clone()), l(7));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // v(0) -> v(7), v(1) -> v(0), v(2) -> v(1)
-        auto l_expected = a(a(v(7), v(0)), a(v(1), v(7)));
+        auto l_expected = a(a(l(7), l(0)), a(l(1), l(7)));
         assert(l_reduced->equals(l_expected));
     }
 
     // Self-application: (λ.(0 0)) 5 -> (5 5)
     {
-        auto l_app = a(f(a(v(0), v(0))), v(5));
+        auto l_app = a(f(a(l(0), l(0))), l(5));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = a(v(5), v(5));
+        auto l_expected = a(l(5), l(5));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3439,38 +3439,38 @@ void test_app_reduce_one_step()
     // v(3) at depth 4 (inside innermost lambda) refers to depth 3 (middle
     // lambda)
     {
-        auto l_func = f(f(f(a(f(v(3)), v(5)))));
+        auto l_func = f(f(f(a(f(l(3)), l(5)))));
         auto l_reduced = l_func->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // After reduction: λ.λ.λ.5 (v(3) gets replaced with v(5), v(5)
         // decrements to v(4))
-        auto l_expected = f(f(f(v(5))));
+        auto l_expected = f(f(f(l(5))));
         assert(l_reduced->equals(l_expected));
     }
 
     // Normal order with multiple redexes - leftmost outer reduces first
     // ((λ.3) 1) ((λ.4) 2) -> (2 ((λ.4) 2))
     {
-        auto l_lhs = a(f(v(3)), v(1));
-        auto l_rhs = a(f(v(4)), v(2));
+        auto l_lhs = a(f(l(3)), l(1));
+        auto l_rhs = a(f(l(4)), l(2));
         auto l_app = a(l_lhs->clone(), l_rhs->clone());
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // LHS reduces first: v(3) > 0 decrements to v(2)
-        auto l_expected = a(v(2), a(f(v(4)), v(2)));
+        auto l_expected = a(l(2), a(f(l(4)), l(2)));
         assert(l_reduced->equals(l_expected));
     }
 
     // Reduction inside nested application structure
     // (2 (3 ((λ.5) 4))) -> reduces innermost redex
     {
-        auto l_inner = a(f(v(5)), v(4));
-        auto l_middle = a(v(3), l_inner->clone());
-        auto l_outer = a(v(2), l_middle->clone());
+        auto l_inner = a(f(l(5)), l(4));
+        auto l_middle = a(l(3), l_inner->clone());
+        auto l_outer = a(l(2), l_middle->clone());
         auto l_reduced = l_outer->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // Innermost reduces: v(5) > 0 decrements to v(4)
-        auto l_expected = a(v(2), a(v(3), v(4)));
+        auto l_expected = a(l(2), a(l(3), l(4)));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3479,10 +3479,10 @@ void test_app_reduce_one_step()
     // Note: v(0) refers to the outermost lambda being reduced, gets replaced
     // with 8 lifted by 1
     {
-        auto l_app = a(f(f(v(0))), v(8));
+        auto l_app = a(f(f(l(0))), l(8));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(v(9));
+        auto l_expected = f(l(9));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3490,77 +3490,77 @@ void test_app_reduce_one_step()
     // (λ.(λ.1)) 8 -> λ.0
     // Note: v(1) at depth 1 > var_index(0), so it's a free var that decrements
     {
-        auto l_app = a(f(f(v(1))), v(8));
+        auto l_app = a(f(f(l(1))), l(8));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // v(1) > var_index(0), decrements to v(0)
-        auto l_expected = f(v(0));
+        auto l_expected = f(l(0));
         assert(l_reduced->equals(l_expected));
     }
 
     // Reduction with argument that contains bound variables
     // (λ.0) (λ.(λ.10)) -> λ.(λ.10)
     {
-        auto l_app = a(f(v(0)), f(f(v(10))));
+        auto l_app = a(f(l(0)), f(f(l(10))));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
-        auto l_expected = f(f(v(10)));
+        auto l_expected = f(f(l(10)));
         assert(l_reduced->equals(l_expected));
     }
 
     // Multiple substitutions with lifting
     // (λ.(0 (λ.1))) 7 -> (7 (λ.8))
     {
-        auto l_app = a(f(a(v(0), f(v(1)))), v(7));
+        auto l_app = a(f(a(l(0), f(l(1)))), l(7));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // v(0) -> v(7), v(1) inside lambda at depth 1 > var_index(0) so:
         // decrements to v(0)
-        auto l_expected = a(v(7), f(v(0)));
+        auto l_expected = a(l(7), f(l(0)));
         assert(l_reduced->equals(l_expected));
     }
 
     // Deep nesting with correct depth tracking at depth 5
     // At depth 5: (λ.5) 3 -> 3 (v(5) is the bound var at depth 5)
     {
-        auto l_app = a(f(v(5)), v(3));
+        auto l_app = a(f(l(5)), l(3));
         auto l_reduced = l_app->reduce_one_step(5);
         assert(l_reduced != nullptr);
-        auto l_expected = v(3);
+        auto l_expected = l(3);
         assert(l_reduced->equals(l_expected));
     }
 
     // Verify that variables below depth are preserved
     // At depth 5: (λ.3) 10 -> 3 (v(3) < depth 5, preserved as free var)
     {
-        auto l_app = a(f(v(3)), v(10));
+        auto l_app = a(f(l(3)), l(10));
         auto l_reduced = l_app->reduce_one_step(5);
         assert(l_reduced != nullptr);
-        auto l_expected = v(3);
+        auto l_expected = l(3);
         assert(l_reduced->equals(l_expected));
     }
 
     // Edge case: var index exactly at depth gets substituted
     // At depth 7: (λ.7) 12 -> 12
     {
-        auto l_app = a(f(v(7)), v(12));
+        auto l_app = a(f(l(7)), l(12));
         auto l_reduced = l_app->reduce_one_step(7);
         assert(l_reduced != nullptr);
-        auto l_expected = v(12);
+        auto l_expected = l(12);
         assert(l_reduced->equals(l_expected));
     }
 
     // Composition pattern: (λ.λ.(1 (0 2))) 5 -> λ.(0 (6 1))
     // Tests correct handling of multiple bound vars at different depths
     {
-        auto l_body = f(a(v(1), a(v(0), v(2))));
-        auto l_app = a(f(l_body->clone()), v(5));
+        auto l_body = f(a(l(1), a(l(0), l(2))));
+        auto l_app = a(f(l_body->clone()), l(5));
         auto l_reduced = l_app->reduce_one_step(0);
         assert(l_reduced != nullptr);
         // v(1) > var_index(0): decrements to v(0)
         // v(0) == var_index(0): replaced with v(5) lifted by 1 = v(6)
         // v(2) > var_index(0): decrements to v(1)
-        auto l_expected = f(a(v(0), a(v(6), v(1))));
+        auto l_expected = f(a(l(0), a(l(6), l(1))));
         assert(l_reduced->equals(l_expected));
     }
 
@@ -3569,12 +3569,12 @@ void test_app_reduce_one_step()
     // Note: v(1) < depth(2), so it's a bound var from outer scope, no lifting
     // occurs
     {
-        auto l_app = a(f(v(2)), v(1));
+        auto l_app = a(f(l(2)), l(1));
         auto l_reduced = l_app->reduce_one_step(2);
         assert(l_reduced != nullptr);
         // v(2) at depth 2 gets replaced with v(1), which is < cutoff(2) so NOT
         // lifted
-        auto l_expected = v(1);
+        auto l_expected = l(1);
         assert(l_reduced->equals(l_expected));
     }
 }
@@ -3583,22 +3583,22 @@ void test_var_size()
 {
     // Test that all variables have size 1
     {
-        auto l_var = v(0);
+        auto l_var = l(0);
         assert(l_var->size() == 1);
     }
 
     {
-        auto l_var = v(5);
+        auto l_var = l(5);
         assert(l_var->size() == 1);
     }
 
     {
-        auto l_var = v(100);
+        auto l_var = l(100);
         assert(l_var->size() == 1);
     }
 
     {
-        auto l_var = v(999);
+        auto l_var = l(999);
         assert(l_var->size() == 1);
     }
 }
@@ -3609,24 +3609,24 @@ void test_func_size()
 
     // Simple function with var body: λ.0 has size 2
     {
-        auto l_func = f(v(0));
+        auto l_func = f(l(0));
         assert(l_func->size() == 2);
     }
 
     {
-        auto l_func = f(v(5));
+        auto l_func = f(l(5));
         assert(l_func->size() == 2);
     }
 
     // Nested functions: λ.λ.0 has size 3
     {
-        auto l_func = f(f(v(0)));
+        auto l_func = f(f(l(0)));
         assert(l_func->size() == 3);
     }
 
     // Triple nested: λ.λ.λ.0 has size 4
     {
-        auto l_func = f(f(f(v(0))));
+        auto l_func = f(f(f(l(0))));
         assert(l_func->size() == 4);
     }
 
@@ -3634,7 +3634,7 @@ void test_func_size()
     // Body is app: 1 + 1 (var 0) + 1 (var 1) = 3
     // Total: 1 + 3 = 4
     {
-        auto l_func = f(a(v(0), v(1)));
+        auto l_func = f(a(l(0), l(1)));
         assert(l_func->size() == 4);
     }
 
@@ -3642,7 +3642,7 @@ void test_func_size()
     // Body is app: 1 + (1+1+1) + 1 = 5
     // Total: 1 + 5 = 6
     {
-        auto l_func = f(a(a(v(0), v(1)), v(2)));
+        auto l_func = f(a(a(l(0), l(1)), l(2)));
         assert(l_func->size() == 6);
     }
 
@@ -3650,7 +3650,7 @@ void test_func_size()
     // Body is app: 1 + 2 (λ.0) + 1 (var 1) = 4
     // Total: 1 + 4 = 5
     {
-        auto l_func = f(a(f(v(0)), v(1)));
+        auto l_func = f(a(f(l(0)), l(1)));
         assert(l_func->size() == 5);
     }
 
@@ -3660,7 +3660,7 @@ void test_func_size()
     // Inner func: 1 + 5 = 6
     // Outer func: 1 + 6 = 7
     {
-        auto l_func = f(f(a(v(0), a(v(1), v(2)))));
+        auto l_func = f(f(a(l(0), a(l(1), l(2)))));
         assert(l_func->size() == 7);
     }
 }
@@ -3671,12 +3671,12 @@ void test_app_size()
 
     // Simple application: (0 1) has size 3
     {
-        auto l_app = a(v(0), v(1));
+        auto l_app = a(l(0), l(1));
         assert(l_app->size() == 3);
     }
 
     {
-        auto l_app = a(v(5), v(10));
+        auto l_app = a(l(5), l(10));
         assert(l_app->size() == 3);
     }
 
@@ -3685,19 +3685,19 @@ void test_app_size()
     // rhs is var: 1
     // Total: 1 + 2 + 1 = 4
     {
-        auto l_app = a(f(v(0)), v(1));
+        auto l_app = a(f(l(0)), l(1));
         assert(l_app->size() == 4);
     }
 
     // Application with function on right: (0 (λ.1)) has size 4
     {
-        auto l_app = a(v(0), f(v(1)));
+        auto l_app = a(l(0), f(l(1)));
         assert(l_app->size() == 4);
     }
 
     // Both sides are functions: ((λ.0) (λ.1)) has size 5
     {
-        auto l_app = a(f(v(0)), f(v(1)));
+        auto l_app = a(f(l(0)), f(l(1)));
         assert(l_app->size() == 5);
     }
 
@@ -3706,27 +3706,27 @@ void test_app_size()
     // rhs is var: 1
     // Total: 1 + 3 + 1 = 5
     {
-        auto l_app = a(a(v(0), v(1)), v(2));
+        auto l_app = a(a(l(0), l(1)), l(2));
         assert(l_app->size() == 5);
     }
 
     // Nested application on right: (0 (1 2)) has size 5
     {
-        auto l_app = a(v(0), a(v(1), v(2)));
+        auto l_app = a(l(0), a(l(1), l(2)));
         assert(l_app->size() == 5);
     }
 
     // Both sides nested applications: ((0 1) (2 3)) has size 7
     // lhs: 3, rhs: 3, total: 1 + 3 + 3 = 7
     {
-        auto l_app = a(a(v(0), v(1)), a(v(2), v(3)));
+        auto l_app = a(a(l(0), l(1)), a(l(2), l(3)));
         assert(l_app->size() == 7);
     }
 
     // Complex: ((λ.0) (λ.λ.1)) has size 6
     // lhs: 2, rhs: 3, total: 1 + 2 + 3 = 6
     {
-        auto l_app = a(f(v(0)), f(f(v(1))));
+        auto l_app = a(f(l(0)), f(f(l(1))));
         assert(l_app->size() == 6);
     }
 
@@ -3735,13 +3735,13 @@ void test_app_size()
     // rhs func body: 1 + 1 + 1 = 3, rhs func: 1 + 3 = 4
     // Total: 1 + 4 + 4 = 9
     {
-        auto l_app = a(f(a(v(0), v(1))), f(a(v(2), v(3))));
+        auto l_app = a(f(a(l(0), l(1))), f(a(l(2), l(3))));
         assert(l_app->size() == 9);
     }
 
     // Self-application: ((λ.0) (λ.0)) has size 5
     {
-        auto l_func = f(v(0));
+        auto l_func = f(l(0));
         auto l_app = a(l_func->clone(), l_func->clone());
         assert(l_app->size() == 5);
     }
@@ -3750,20 +3750,20 @@ void test_app_size()
     // body: 1 + 1 + 1 = 3
     // func: 1 + 3 = 4
     {
-        auto l_omega_func = f(a(v(0), v(0)));
+        auto l_omega_func = f(a(l(0), l(0)));
         assert(l_omega_func->size() == 4);
     }
 
     // Full omega: ((λ.(0 0)) (λ.(0 0))) has size 9
     {
-        auto l_omega_func = f(a(v(0), v(0)));
+        auto l_omega_func = f(a(l(0), l(0)));
         auto l_omega = a(l_omega_func->clone(), l_omega_func->clone());
         assert(l_omega->size() == 9);
     }
 
     // K combinator: (λ.λ.0) has size 3
     {
-        auto l_k = f(f(v(0)));
+        auto l_k = f(f(l(0)));
         assert(l_k->size() == 3);
     }
 
@@ -3775,13 +3775,13 @@ void test_app_size()
     // λ: 1 + 8 = 9
     // λ: 1 + 9 = 10
     {
-        auto l_s = f(f(f(a(a(v(0), v(2)), a(v(1), v(2))))));
+        auto l_s = f(f(f(a(a(l(0), l(2)), a(l(1), l(2))))));
         assert(l_s->size() == 10);
     }
 
     // Church numeral ZERO: λ.λ.0 has size 3
     {
-        auto l_zero = f(f(v(0)));
+        auto l_zero = f(f(l(0)));
         assert(l_zero->size() == 3);
     }
 
@@ -3790,7 +3790,7 @@ void test_app_size()
     // λ: 1 + 3 = 4
     // λ: 1 + 4 = 5
     {
-        auto l_one = f(f(a(v(1), v(0))));
+        auto l_one = f(f(a(l(1), l(0))));
         assert(l_one->size() == 5);
     }
 
@@ -3800,13 +3800,13 @@ void test_app_size()
     // λ: 1 + 5 = 6
     // λ: 1 + 6 = 7
     {
-        auto l_two = f(f(a(v(1), a(v(1), v(0)))));
+        auto l_two = f(f(a(l(1), a(l(1), l(0)))));
         assert(l_two->size() == 7);
     }
 
     // Test that size remains constant after cloning
     {
-        auto l_expr = a(f(a(v(0), v(1))), v(2));
+        auto l_expr = a(f(a(l(0), l(1))), l(2));
         size_t l_original_size = l_expr->size();
         auto l_cloned = l_expr->clone();
         assert(l_cloned->size() == l_original_size);
@@ -3823,11 +3823,11 @@ void construct_program_test()
     // Test 1: Empty helpers list
     {
         std::vector<std::unique_ptr<expr>> l_helpers{};
-        auto l_main = v(5);
+        auto l_main = l(5);
         auto l_program =
             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
         auto l_result = l_program->normalize();
-        assert(l_result.m_expr->equals(v(5)));
+        assert(l_result.m_expr->equals(l(5)));
         assert(l_result.m_step_count == 0);
     }
 
@@ -3836,13 +3836,13 @@ void construct_program_test()
         std::list<std::unique_ptr<expr>> l_helpers{};
 
         auto lprev = [&l_helpers](size_t a_local_index)
-        { return v(l_helpers.size() + a_local_index); };
+        { return l(l_helpers.size() + a_local_index); };
         auto gprev = [&l_helpers](size_t a_global_index)
-        { return v(a_global_index); };
+        { return l(a_global_index); };
 
         // Helper 0: Returns v(100) regardless of input
         const auto CONST_100 = gprev(l_helpers.size());
-        l_helpers.emplace_back(f(v(100)));
+        l_helpers.emplace_back(f(l(100)));
 
         // Main: Apply helper to dummy value
         auto l_main = a(CONST_100->clone(), lprev(0)->clone());
@@ -3852,7 +3852,7 @@ void construct_program_test()
         auto l_result = l_program->normalize();
 
         // After norm, returns v(99) (100 - 1 from removing one binding level)
-        assert(l_result.m_expr->equals(v(99)));
+        assert(l_result.m_expr->equals(l(99)));
     }
 
     // Test 3: Church booleans (TRUE and FALSE)
@@ -3860,9 +3860,9 @@ void construct_program_test()
         std::list<std::unique_ptr<expr>> l_helpers{};
 
         auto lprev = [&l_helpers](size_t a_local_index)
-        { return v(l_helpers.size() + a_local_index); };
+        { return l(l_helpers.size() + a_local_index); };
         auto gprev = [&l_helpers](size_t a_global_index)
-        { return v(a_global_index); };
+        { return l(a_global_index); };
 
         // Helper 0: TRUE = λ.λ.0 (returns first arg)
         const auto TRUE = gprev(l_helpers.size());
@@ -3880,7 +3880,7 @@ void construct_program_test()
                 construct_program(l_helpers.begin(), l_helpers.end(), l_main);
             auto l_result = l_program->normalize();
             // Returns first branch (after substitution and decrement)
-            assert(l_result.m_expr->equals(v(0)));
+            assert(l_result.m_expr->equals(l(0)));
         }
 
         // Test FALSE: ((FALSE branch_a) branch_b) → branch_b
@@ -3891,7 +3891,7 @@ void construct_program_test()
                 construct_program(l_helpers.begin(), l_helpers.end(), l_main);
             auto l_result = l_program->normalize();
             // Returns second branch (after substitution and decrement)
-            assert(l_result.m_expr->equals(v(1)));
+            assert(l_result.m_expr->equals(l(1)));
         }
     }
 
@@ -3900,9 +3900,9 @@ void construct_program_test()
         std::list<std::unique_ptr<expr>> l_helpers{};
 
         auto lprev = [&l_helpers](size_t a_local_index)
-        { return v(l_helpers.size() + a_local_index); };
+        { return l(l_helpers.size() + a_local_index); };
         auto gprev = [&l_helpers](size_t a_global_index)
-        { return v(a_global_index); };
+        { return l(a_global_index); };
 
         // Helper 0: TRUE
         const auto TRUE = gprev(l_helpers.size());
@@ -3924,7 +3924,7 @@ void construct_program_test()
                 construct_program(l_helpers.begin(), l_helpers.end(), l_main);
             auto l_result = l_program->normalize();
             // Result should be FALSE = λ.λ.1
-            auto l_expected = f(f(v(1)));
+            auto l_expected = f(f(l(1)));
             assert(l_result.m_expr->equals(l_expected));
         }
 
@@ -3935,7 +3935,7 @@ void construct_program_test()
                 construct_program(l_helpers.begin(), l_helpers.end(), l_main);
             auto l_result = l_program->normalize();
             // Result should be TRUE = λ.λ.0
-            auto l_expected = f(f(v(0)));
+            auto l_expected = f(f(l(0)));
             assert(l_result.m_expr->equals(l_expected));
         }
     }
@@ -3945,9 +3945,9 @@ void construct_program_test()
         std::list<std::unique_ptr<expr>> l_helpers{};
 
         auto lprev = [&l_helpers](size_t a_local_index)
-        { return v(l_helpers.size() + a_local_index); };
+        { return l(l_helpers.size() + a_local_index); };
         auto gprev = [&l_helpers](size_t a_global_index)
-        { return v(a_global_index); };
+        { return l(a_global_index); };
 
         // Helper 0: ZERO = λ.λ.1
         const auto ZERO = gprev(l_helpers.size());
@@ -3966,7 +3966,7 @@ void construct_program_test()
         auto l_result = l_program->normalize();
 
         // ONE = λ.λ.(0 1)
-        auto l_expected = f(f(a(v(0), v(1))));
+        auto l_expected = f(f(a(l(0), l(1))));
         assert(l_result.m_expr->equals(l_expected));
     }
 
@@ -3975,9 +3975,9 @@ void construct_program_test()
         std::list<std::unique_ptr<expr>> l_helpers{};
 
         auto lprev = [&l_helpers](size_t a_local_index)
-        { return v(l_helpers.size() + a_local_index); };
+        { return l(l_helpers.size() + a_local_index); };
         auto gprev = [&l_helpers](size_t a_global_index)
-        { return v(a_global_index); };
+        { return l(a_global_index); };
 
         // Helper 0: TRUE
         const auto TRUE = gprev(l_helpers.size());
@@ -3996,7 +3996,7 @@ void construct_program_test()
         // After normalization: helpers fall away, locals become globals
         // l(0) was v(1), becomes v(0) after 1 helper removed
         // Result: λ.λ.0 (TRUE returns first arg, which was l(0), now v(0))
-        auto l_expected = f(f(v(0)));
+        auto l_expected = f(f(l(0)));
         assert(l_result.m_expr->equals(l_expected));
     }
 
@@ -4005,9 +4005,9 @@ void construct_program_test()
         std::vector<std::unique_ptr<expr>> l_helpers{};
 
         auto lprev = [&l_helpers](size_t a_local_index)
-        { return v(l_helpers.size() + a_local_index); };
+        { return l(l_helpers.size() + a_local_index); };
         auto gprev = [&l_helpers](size_t a_global_index)
-        { return v(a_global_index); };
+        { return l(a_global_index); };
 
         // Helper 0: K combinator
         const auto K = gprev(l_helpers.size());
@@ -4030,7 +4030,7 @@ void construct_program_test()
 
         // SKK is identity, returns its argument
         // l(0) was v(2), after 2 helpers removed: v(2) - 2 = v(0)
-        assert(l_result.m_expr->equals(v(0)));
+        assert(l_result.m_expr->equals(l(0)));
     }
 
     // Test 8: Helper that uses multiple earlier helpers
@@ -4038,9 +4038,9 @@ void construct_program_test()
         std::list<std::unique_ptr<expr>> l_helpers{};
 
         auto lprev = [&l_helpers](size_t a_local_index)
-        { return v(l_helpers.size() + a_local_index); };
+        { return l(l_helpers.size() + a_local_index); };
         auto gprev = [&l_helpers](size_t a_global_index)
-        { return v(a_global_index); };
+        { return l(a_global_index); };
 
         // Helper 0: TRUE
         const auto TRUE = gprev(l_helpers.size());
@@ -4062,7 +4062,7 @@ void construct_program_test()
         auto l_result = l_program->normalize();
 
         // Result: TRUE = λ.λ.0
-        auto l_expected = f(f(v(0)));
+        auto l_expected = f(f(l(0)));
         assert(l_result.m_expr->equals(l_expected));
     }
 
@@ -4075,10 +4075,10 @@ void generic_use_case_test()
     std::list<std::unique_ptr<expr>> l_helpers{};
 
     auto lprev = [&l_helpers](size_t a_local_index)
-    { return v(l_helpers.size() + a_local_index); };
+    { return l(l_helpers.size() + a_local_index); };
 
     auto gprev = [&l_helpers](size_t a_global_index)
-    { return v(a_global_index); };
+    { return l(a_global_index); };
 
     // church booleans
 
@@ -4472,7 +4472,7 @@ void generic_use_case_test()
     // test for fun
     {
         // this should never terminate -- omega combinator
-        const auto OMEGA = a(f(a(v(0), v(0))), f(a(v(0), v(0))));
+        const auto OMEGA = a(f(a(l(0), l(0))), f(a(l(0), l(0))));
         auto l_result = OMEGA->normalize(999);
         // omega becomes itself forever
         // With limit 999, does 999 reductions (hits step limit)
@@ -4487,17 +4487,17 @@ void generic_use_case_test()
     {
         // Define combinators
         // I = λx. x
-        const auto I = f(v(0));
+        const auto I = f(l(0));
 
         // K = λx. λy. x
-        const auto K = f(f(v(0)));
+        const auto K = f(f(l(0)));
 
         // S = λx. λy. λz. x z (y z)
-        const auto S = f(f(f(a(a(v(0), v(2)), a(v(1), v(2))))));
+        const auto S = f(f(f(a(a(l(0), l(2)), a(l(1), l(2))))));
 
         // Test I a → a
         {
-            auto a_arg = v(5);
+            auto a_arg = l(5);
             auto expr = a(I->clone(), a_arg->clone());
             auto result = expr->normalize();
             assert(result.m_step_excess == false);
@@ -4510,8 +4510,8 @@ void generic_use_case_test()
 
         // Test K a b → a
         {
-            auto a_arg = v(7);
-            auto b_arg = v(8);
+            auto a_arg = l(7);
+            auto b_arg = l(8);
             auto expr = a(a(K->clone(), a_arg->clone()), b_arg->clone());
             auto result = expr->normalize();
             assert(result.m_step_excess == false);
@@ -4524,7 +4524,7 @@ void generic_use_case_test()
 
         // Test S K K a → a
         {
-            auto a_arg = v(10);
+            auto a_arg = l(10);
             auto expr =
                 a(a(a(S->clone(), K->clone()), K->clone()), a_arg->clone());
             auto result = expr->normalize();
@@ -4538,7 +4538,7 @@ void generic_use_case_test()
 
         // Test S I I a → a a
         {
-            auto a_arg = v(12);
+            auto a_arg = l(12);
             auto expr =
                 a(a(a(S->clone(), I->clone()), I->clone()), a_arg->clone());
             auto result = expr->normalize();
@@ -4554,8 +4554,8 @@ void generic_use_case_test()
         // Additional test: Use closed terms instead of free variables
         // Test K (λ.5) (λ.6) → λ.5
         {
-            auto a_arg = f(v(5));
-            auto b_arg = f(v(6));
+            auto a_arg = f(l(5));
+            auto b_arg = f(l(6));
             auto expr = a(a(K->clone(), a_arg->clone()), b_arg->clone());
             auto result = expr->normalize();
             assert(result.m_step_excess == false);
@@ -4568,7 +4568,7 @@ void generic_use_case_test()
 
         // Test S I I (λ.7) → (λ.7) (λ.7) → 6
         {
-            auto a_arg = f(v(7));
+            auto a_arg = f(l(7));
             auto expr =
                 a(a(a(S->clone(), I->clone()), I->clone()), a_arg->clone());
             auto result = expr->normalize();
@@ -4577,7 +4577,7 @@ void generic_use_case_test()
             std::cout << "S I I (λ.7): ";
             result.m_expr->print(std::cout);
             std::cout << std::endl;
-            auto expected = v(6);
+            auto expected = l(6);
             assert(result.m_expr->equals(expected));
         }
     }

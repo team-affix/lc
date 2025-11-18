@@ -57,7 +57,7 @@ struct local : expr
 
   private:
     local(size_t a_index);
-    friend std::unique_ptr<expr> v(size_t a_index);
+    friend std::unique_ptr<expr> l(size_t a_index);
     const size_t m_index;
 };
 
@@ -103,7 +103,7 @@ struct app : expr
 };
 
 // factory functions
-std::unique_ptr<expr> v(size_t a_index);
+std::unique_ptr<expr> l(size_t a_index);
 std::unique_ptr<expr> f(std::unique_ptr<expr>&& a_body);
 std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_lhs,
                         std::unique_ptr<expr>&& a_rhs);
