@@ -3159,6 +3159,202 @@ void test_app_normalize()
         assert(l_result.m_step_excess == true);
         assert(l_result.m_expr->equals(a(l_omega->clone(), l_omega->clone())));
     }
+
+    // Test trace callback on K combinator (2 steps)
+    // ((λ.λ.0) 5) 6 -> (λ.6) 6 -> 5
+    // Expected trace: [initial, after 1st reduction, after 2nd reduction]
+    {
+        auto l_expr = a(a(f(f(v(0))), v(5)), v(6));
+
+        // Expected trace: all intermediate steps
+        std::vector<std::unique_ptr<expr>> l_expected_trace;
+        l_expected_trace.push_back(a(a(f(f(v(0))), v(5)), v(6)));
+        l_expected_trace.push_back(a(f(v(6)), v(6)));
+        l_expected_trace.push_back(v(5));
+
+        size_t l_trace_index = 0;
+        auto l_trace = [&](const expr& a_expr)
+        {
+            assert(l_trace_index < l_expected_trace.size());
+            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            ++l_trace_index;
+        };
+
+        auto l_result =
+            l_expr->normalize(std::numeric_limits<size_t>::max(),
+                              std::numeric_limits<size_t>::max(), l_trace);
+
+        assert(l_trace_index == l_expected_trace.size());
+        assert(l_result.m_step_count == 2);
+        assert(l_result.m_expr->equals(v(5)));
+    }
+
+    // Test trace callback on Church numeral 2 application (3 steps)
+    // ((λ.λ.(0 (0 1))) (λ.10)) 5 -> ... -> 9
+    {
+        auto l_two = f(f(a(v(0), a(v(0), v(1)))));
+        auto l_func = f(v(10));
+        auto l_arg = v(5);
+        auto l_expr = a(a(l_two->clone(), l_func->clone()), l_arg->clone());
+
+        // Build complete expected trace
+        std::vector<std::unique_ptr<expr>> l_expected_trace;
+        // Initial: ((λ.λ.(0 (0 1))) (λ.10)) 5
+        l_expected_trace.push_back(
+            a(a(l_two->clone(), l_func->clone()), l_arg->clone()));
+        // After 1st reduction: (λ.((λ.11) (λ.11) 0)) 5
+        l_expected_trace.push_back(a(f(a(f(v(11)), a(f(v(11)), v(0)))), v(5)));
+        // After 2nd reduction: (λ.10) ((λ.10) 5)
+        l_expected_trace.push_back(a(f(v(10)), a(f(v(10)), v(5))));
+        // After 3rd reduction: 9
+        l_expected_trace.push_back(v(9));
+
+        size_t l_trace_index = 0;
+        auto l_trace = [&](const expr& a_expr)
+        {
+            assert(l_trace_index < l_expected_trace.size());
+            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            ++l_trace_index;
+        };
+
+        auto l_result =
+            l_expr->normalize(std::numeric_limits<size_t>::max(),
+                              std::numeric_limits<size_t>::max(), l_trace);
+
+        assert(l_trace_index == l_expected_trace.size());
+        assert(l_result.m_step_count == 3);
+        assert(l_result.m_expr->equals(v(9)));
+    }
+
+    // Test trace callback on deeply nested beta reductions (3 steps)
+    // ((λ.((λ.((λ.0) 1)) 2)) 3) -> (λ.((λ.5) 0)) 1 -> (λ.4) 1 -> 3
+    {
+        auto l_expr = a(f(a(f(a(f(v(0)), v(1))), v(2))), v(3));
+
+        // Build complete expected trace
+        std::vector<std::unique_ptr<expr>> l_expected_trace;
+        l_expected_trace.push_back(a(f(a(f(a(f(v(0)), v(1))), v(2))), v(3)));
+        l_expected_trace.push_back(a(f(a(f(v(5)), v(0))), v(1)));
+        l_expected_trace.push_back(a(f(v(4)), v(1)));
+        l_expected_trace.push_back(v(3));
+
+        size_t l_trace_index = 0;
+        auto l_trace = [&](const expr& a_expr)
+        {
+            assert(l_trace_index < l_expected_trace.size());
+            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            ++l_trace_index;
+        };
+
+        auto l_result =
+            l_expr->normalize(std::numeric_limits<size_t>::max(),
+                              std::numeric_limits<size_t>::max(), l_trace);
+
+        assert(l_trace_index == l_expected_trace.size());
+        assert(l_result.m_step_count == 3);
+        assert(l_result.m_expr->equals(v(3)));
+    }
+
+    // Test trace callback on complex application with multiple redexes (~3
+    // steps)
+    // ((((λ.0) 1) 2) ((λ.0) 3)) -> ((1 2) ((λ.0) 3)) -> ((1 2) 3)
+    {
+        auto l_expr = a(a(a(f(v(0)), v(1)), v(2)), a(f(v(0)), v(3)));
+
+        // Build complete expected trace
+        std::vector<std::unique_ptr<expr>> l_expected_trace;
+        l_expected_trace.push_back(
+            a(a(a(f(v(0)), v(1)), v(2)), a(f(v(0)), v(3))));
+        l_expected_trace.push_back(a(a(v(1), v(2)), a(f(v(0)), v(3))));
+        l_expected_trace.push_back(a(a(v(1), v(2)), v(3)));
+
+        size_t l_trace_index = 0;
+        auto l_trace = [&](const expr& a_expr)
+        {
+            assert(l_trace_index < l_expected_trace.size());
+            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            ++l_trace_index;
+        };
+
+        auto l_result =
+            l_expr->normalize(std::numeric_limits<size_t>::max(),
+                              std::numeric_limits<size_t>::max(), l_trace);
+
+        assert(l_trace_index == l_expected_trace.size());
+        assert(l_result.m_step_count == 2);
+        assert(l_result.m_expr->equals(a(a(v(1), v(2)), v(3))));
+    }
+
+    // Test trace callback on Church numeral 3 application (3 steps)
+    // ((λ.λ.(0 (0 (0 1)))) (λ.10)) 5 -> ... -> 9
+    {
+        auto l_three = f(f(a(v(0), a(v(0), a(v(0), v(1))))));
+        auto l_func = f(v(10));
+        auto l_arg = v(5);
+        auto l_expr = a(a(l_three->clone(), l_func->clone()), l_arg->clone());
+
+        // Build complete expected trace
+        std::vector<std::unique_ptr<expr>> l_expected_trace;
+        // Initial: ((λ.λ.(0 (0 (0 1)))) (λ.10)) 5
+        l_expected_trace.push_back(
+            a(a(l_three->clone(), l_func->clone()), l_arg->clone()));
+        // After 1st reduction: (λ.((λ.11) (λ.11) (λ.11) 0)) 5
+        l_expected_trace.push_back(
+            a(f(a(f(v(11)), a(f(v(11)), a(f(v(11)), v(0))))), v(5)));
+        // After 2nd reduction: (λ.10) ((λ.10) ((λ.10) 5))
+        l_expected_trace.push_back(a(f(v(10)), a(f(v(10)), a(f(v(10)), v(5)))));
+        // After 3rd reduction: 9
+        l_expected_trace.push_back(v(9));
+
+        size_t l_trace_index = 0;
+        auto l_trace = [&](const expr& a_expr)
+        {
+            assert(l_trace_index < l_expected_trace.size());
+            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            ++l_trace_index;
+        };
+
+        auto l_result =
+            l_expr->normalize(std::numeric_limits<size_t>::max(),
+                              std::numeric_limits<size_t>::max(), l_trace);
+
+        assert(l_trace_index == l_expected_trace.size());
+        assert(l_result.m_step_count == 3);
+        assert(l_result.m_expr->equals(v(9)));
+    }
+
+    // Test trace callback on S combinator partial application (2 steps)
+    // ((λ.λ.λ.((0 2) (1 2))) 5) 6 -> (λ.((7 1) (0 1))) 6 -> λ.((6 0) (7 0))
+    {
+        auto l_s = f(f(f(a(a(v(0), v(2)), a(v(1), v(2))))));
+        auto l_expr = a(a(l_s->clone(), v(5)), v(6));
+
+        // Build complete expected trace
+        std::vector<std::unique_ptr<expr>> l_expected_trace;
+        // Initial: ((λ.λ.λ.((0 2) (1 2))) 5) 6
+        l_expected_trace.push_back(a(a(l_s->clone(), v(5)), v(6)));
+        // After 1st reduction: (λ.λ.((7 1) (0 1))) 6
+        l_expected_trace.push_back(
+            a(f(f(a(a(v(7), v(1)), a(v(0), v(1))))), v(6)));
+        // After 2nd reduction: λ.((6 0) (7 0))
+        l_expected_trace.push_back(f(a(a(v(6), v(0)), a(v(7), v(0)))));
+
+        size_t l_trace_index = 0;
+        auto l_trace = [&](const expr& a_expr)
+        {
+            assert(l_trace_index < l_expected_trace.size());
+            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            ++l_trace_index;
+        };
+
+        auto l_result =
+            l_expr->normalize(std::numeric_limits<size_t>::max(),
+                              std::numeric_limits<size_t>::max(), l_trace);
+
+        assert(l_trace_index == l_expected_trace.size());
+        assert(l_result.m_step_count == 2);
+        assert(l_result.m_expr->equals(f(a(a(v(6), v(0)), a(v(7), v(0))))));
+    }
 }
 
 void test_var_reduce_one_step()
