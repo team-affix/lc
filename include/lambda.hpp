@@ -42,9 +42,9 @@ struct expr
     const size_t m_size;
 };
 
-struct var : expr
+struct local : expr
 {
-    virtual ~var() = default;
+    virtual ~local() = default;
     bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
     std::unique_ptr<expr> lift(size_t a_lift_amount,
@@ -56,7 +56,7 @@ struct var : expr
     size_t index() const;
 
   private:
-    var(size_t a_index);
+    local(size_t a_index);
     friend std::unique_ptr<expr> v(size_t a_index);
     const size_t m_index;
 };

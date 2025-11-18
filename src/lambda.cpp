@@ -21,9 +21,9 @@ namespace lambda
 
 // EQUALS METHODS
 
-bool var::equals(const std::unique_ptr<expr>& a_other) const
+bool local::equals(const std::unique_ptr<expr>& a_other) const
 {
-    const var* l_casted = dynamic_cast<const var*>(a_other.get());
+    const local* l_casted = dynamic_cast<const local*>(a_other.get());
 
     if(!l_casted)
         return false;
@@ -53,7 +53,7 @@ bool app::equals(const std::unique_ptr<expr>& a_other) const
 
 // PRINT METHODS
 
-void var::print(std::ostream& a_ostream) const
+void local::print(std::ostream& a_ostream) const
 {
     a_ostream << m_index;
 }
@@ -76,7 +76,7 @@ void app::print(std::ostream& a_ostream) const
 
 // LIFT METHODS
 
-std::unique_ptr<expr> var::lift(size_t a_lift_amount, size_t a_cutoff) const
+std::unique_ptr<expr> local::lift(size_t a_lift_amount, size_t a_cutoff) const
 {
     if(m_index < a_cutoff)
         return v(m_index);
@@ -99,8 +99,9 @@ std::unique_ptr<expr> app::lift(size_t a_lift_amount, size_t a_cutoff) const
 
 // SUBSTITUTE METHODS
 
-std::unique_ptr<expr> var::substitute(size_t a_lift_amount, size_t a_var_index,
-                                      const std::unique_ptr<expr>& a_arg) const
+std::unique_ptr<expr>
+local::substitute(size_t a_lift_amount, size_t a_var_index,
+                  const std::unique_ptr<expr>& a_arg) const
 {
     if(m_index > a_var_index)
         // this var is defined inside the redex, so it is
@@ -132,7 +133,7 @@ std::unique_ptr<expr> app::substitute(size_t a_lift_amount, size_t a_var_index,
 
 // REDUCE METHODS
 
-std::unique_ptr<expr> var::reduce_one_step(size_t a_depth) const
+std::unique_ptr<expr> local::reduce_one_step(size_t a_depth) const
 {
     // variables cannot reduce
     return nullptr;
@@ -240,7 +241,7 @@ size_t expr::size() const
     return m_size;
 }
 
-size_t var::index() const
+size_t local::index() const
 {
     return m_index;
 }
@@ -265,7 +266,7 @@ expr::expr(size_t a_size) : m_size(a_size)
 {
 }
 
-var::var(size_t a_index) : expr(1), m_index(a_index)
+local::local(size_t a_index) : expr(1), m_index(a_index)
 {
 }
 
@@ -284,7 +285,7 @@ app::app(std::unique_ptr<expr>&& a_lhs, std::unique_ptr<expr>&& a_rhs)
 
 std::unique_ptr<expr> v(size_t a_index)
 {
-    return std::unique_ptr<expr>(new var(a_index));
+    return std::unique_ptr<expr>(new local(a_index));
 }
 
 std::unique_ptr<expr> f(std::unique_ptr<expr>&& a_body)
@@ -320,7 +321,7 @@ void test_var_constructor()
     // index 0
     {
         auto l_var = v(0);
-        const var* l_var_casted = dynamic_cast<var*>(l_var.get());
+        const local* l_var_casted = dynamic_cast<local*>(l_var.get());
         assert(l_var_casted != nullptr);
         assert(l_var_casted->index() == 0);
     }
@@ -328,7 +329,7 @@ void test_var_constructor()
     // index 1
     {
         auto l_var = v(1);
-        const var* l_var_casted = dynamic_cast<var*>(l_var.get());
+        const local* l_var_casted = dynamic_cast<local*>(l_var.get());
         assert(l_var_casted != nullptr);
         assert(l_var_casted->index() == 1);
     }
@@ -344,7 +345,7 @@ void test_func_constructor()
         assert(l_func_casted != nullptr);
         const auto& l_body = l_func_casted->body();
         // check if the body is a local
-        const var* l_var = dynamic_cast<var*>(l_body.get());
+        const local* l_var = dynamic_cast<local*>(l_body.get());
         assert(l_var != nullptr);
         // check if the index is correct
         assert(l_var->index() == 0);
@@ -364,8 +365,8 @@ void test_app_constructor()
         const auto& l_rhs = l_app_casted->rhs();
 
         // make sure they both are locals
-        const var* l_lhs_var = dynamic_cast<var*>(l_lhs.get());
-        const var* l_rhs_var = dynamic_cast<var*>(l_rhs.get());
+        const local* l_lhs_var = dynamic_cast<local*>(l_lhs.get());
+        const local* l_rhs_var = dynamic_cast<local*>(l_rhs.get());
         assert(l_lhs_var != nullptr);
         assert(l_rhs_var != nullptr);
 
@@ -476,7 +477,7 @@ void test_var_lift()
     {
         auto l_var = v(0);
         auto l_lifted = l_var->lift(1, 0);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 1);
     }
@@ -485,7 +486,7 @@ void test_var_lift()
     {
         auto l_var = v(1);
         auto l_lifted = l_var->lift(1, 0);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 2);
     }
@@ -494,7 +495,7 @@ void test_var_lift()
     {
         auto l_var = v(1);
         auto l_lifted = l_var->lift(0, 0);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 1);
     }
@@ -503,7 +504,7 @@ void test_var_lift()
     {
         auto l_var = v(0);
         auto l_lifted = l_var->lift(1, 1);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 0);
     }
@@ -512,7 +513,7 @@ void test_var_lift()
     {
         auto l_var = v(1);
         auto l_lifted = l_var->lift(2, 1);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 3);
     }
@@ -521,7 +522,7 @@ void test_var_lift()
     {
         auto l_var = v(1);
         auto l_lifted = l_var->lift(2, 2);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 1);
     }
@@ -531,7 +532,7 @@ void test_var_lift()
     {
         auto l_var = v(3);
         auto l_lifted = l_var->lift(5, 3);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 8); // 3 + 5
     }
@@ -541,7 +542,7 @@ void test_var_lift()
     {
         auto l_var = v(4);
         auto l_lifted = l_var->lift(3, 5);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 4); // not lifted
     }
@@ -551,7 +552,7 @@ void test_var_lift()
     {
         auto l_var = v(7);
         auto l_lifted = l_var->lift(10, 3);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 17); // 7 + 10
     }
@@ -561,7 +562,7 @@ void test_var_lift()
     {
         auto l_var = v(2);
         auto l_lifted = l_var->lift(4, 10);
-        const var* l_lifted_var = dynamic_cast<var*>(l_lifted.get());
+        const local* l_lifted_var = dynamic_cast<local*>(l_lifted.get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 2); // not lifted
     }
@@ -576,8 +577,8 @@ void test_func_lift()
         auto l_lifted = l_func->lift(1, 0);
         const func* l_lifted_func = dynamic_cast<func*>(l_lifted.get());
         assert(l_lifted_func != nullptr);
-        const var* l_lifted_var =
-            dynamic_cast<var*>(l_lifted_func->body().get());
+        const local* l_lifted_var =
+            dynamic_cast<local*>(l_lifted_func->body().get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 1);
     }
@@ -589,8 +590,8 @@ void test_func_lift()
         auto l_lifted = l_func->lift(2, 0);
         const func* l_lifted_func = dynamic_cast<func*>(l_lifted.get());
         assert(l_lifted_func != nullptr);
-        const var* l_lifted_var =
-            dynamic_cast<var*>(l_lifted_func->body().get());
+        const local* l_lifted_var =
+            dynamic_cast<local*>(l_lifted_func->body().get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 3);
     }
@@ -602,8 +603,8 @@ void test_func_lift()
         auto l_lifted = l_func->lift(1, 1);
         const func* l_lifted_func = dynamic_cast<func*>(l_lifted.get());
         assert(l_lifted_func != nullptr);
-        const var* l_lifted_var =
-            dynamic_cast<var*>(l_lifted_func->body().get());
+        const local* l_lifted_var =
+            dynamic_cast<local*>(l_lifted_func->body().get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 0);
     }
@@ -615,8 +616,8 @@ void test_func_lift()
         auto l_lifted = l_func->lift(2, 2);
         const func* l_lifted_func = dynamic_cast<func*>(l_lifted.get());
         assert(l_lifted_func != nullptr);
-        const var* l_lifted_var =
-            dynamic_cast<var*>(l_lifted_func->body().get());
+        const local* l_lifted_var =
+            dynamic_cast<local*>(l_lifted_func->body().get());
         assert(l_lifted_var != nullptr);
         assert(l_lifted_var->index() == 4);
     }
@@ -683,13 +684,15 @@ void test_app_lift()
 
         // get the lifted lhs
         const auto& l_lifted_lhs = l_lifted_app->lhs();
-        const var* l_lifted_lhs_local = dynamic_cast<var*>(l_lifted_lhs.get());
+        const local* l_lifted_lhs_local =
+            dynamic_cast<local*>(l_lifted_lhs.get());
         assert(l_lifted_lhs_local != nullptr);
         assert(l_lifted_lhs_local->index() == 2);
 
         // get the lifted rhs
         const auto& l_lifted_rhs = l_lifted_app->rhs();
-        const var* l_lifted_rhs_local = dynamic_cast<var*>(l_lifted_rhs.get());
+        const local* l_lifted_rhs_local =
+            dynamic_cast<local*>(l_lifted_rhs.get());
         assert(l_lifted_rhs_local != nullptr);
         assert(l_lifted_rhs_local->index() == 3);
     }
@@ -707,13 +710,15 @@ void test_app_lift()
 
         // get the lifted lhs
         const auto& l_lifted_lhs = l_lifted_app->lhs();
-        const var* l_lifted_lhs_local = dynamic_cast<var*>(l_lifted_lhs.get());
+        const local* l_lifted_lhs_local =
+            dynamic_cast<local*>(l_lifted_lhs.get());
         assert(l_lifted_lhs_local != nullptr);
         assert(l_lifted_lhs_local->index() == 3);
 
         // get the lifted rhs
         const auto& l_lifted_rhs = l_lifted_app->rhs();
-        const var* l_lifted_rhs_local = dynamic_cast<var*>(l_lifted_rhs.get());
+        const local* l_lifted_rhs_local =
+            dynamic_cast<local*>(l_lifted_rhs.get());
         assert(l_lifted_rhs_local != nullptr);
         assert(l_lifted_rhs_local->index() == 4);
     }
@@ -731,13 +736,15 @@ void test_app_lift()
 
         // get the lifted lhs
         const auto& l_lifted_lhs = l_lifted_app->lhs();
-        const var* l_lifted_lhs_local = dynamic_cast<var*>(l_lifted_lhs.get());
+        const local* l_lifted_lhs_local =
+            dynamic_cast<local*>(l_lifted_lhs.get());
         assert(l_lifted_lhs_local != nullptr);
         assert(l_lifted_lhs_local->index() == 2);
 
         // get the lifted rhs
         const auto& l_lifted_rhs = l_lifted_app->rhs();
-        const var* l_lifted_rhs_local = dynamic_cast<var*>(l_lifted_rhs.get());
+        const local* l_lifted_rhs_local =
+            dynamic_cast<local*>(l_lifted_rhs.get());
         assert(l_lifted_rhs_local != nullptr);
         assert(l_lifted_rhs_local->index() == 3);
     }
@@ -755,13 +762,15 @@ void test_app_lift()
 
         // get the lifted lhs
         const auto& l_lifted_lhs = l_lifted_app->lhs();
-        const var* l_lifted_lhs_local = dynamic_cast<var*>(l_lifted_lhs.get());
+        const local* l_lifted_lhs_local =
+            dynamic_cast<local*>(l_lifted_lhs.get());
         assert(l_lifted_lhs_local != nullptr);
         assert(l_lifted_lhs_local->index() == 1);
 
         // get the lifted rhs
         const auto& l_lifted_rhs = l_lifted_app->rhs();
-        const var* l_lifted_rhs_local = dynamic_cast<var*>(l_lifted_rhs.get());
+        const local* l_lifted_rhs_local =
+            dynamic_cast<local*>(l_lifted_rhs.get());
         assert(l_lifted_rhs_local != nullptr);
         assert(l_lifted_rhs_local->index() == 4);
     }
@@ -847,7 +856,8 @@ void test_var_substitute()
         auto l_sub = v(1);
         auto l_substituted = l_var->substitute(0, 0, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
         assert(l_substituted_var->index() == 1);
     }
@@ -858,7 +868,8 @@ void test_var_substitute()
         auto l_sub = v(1);
         auto l_substituted = l_var->substitute(10, 0, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
         // it would be 1 if occurrance depth == 0, but since 10,
         //     l_substitute had to be lifted.
@@ -871,7 +882,8 @@ void test_var_substitute()
         auto l_sub = v(3);
         auto l_substituted = l_var->substitute(0, 0, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
 
         // this substitution decrements the lhs local index since the lhs does
@@ -890,7 +902,8 @@ void test_var_substitute()
         auto l_sub = v(3);
         auto l_substituted = l_var->substitute(0, 0, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
 
         // this substitution decrements the lhs local index since the lhs does
@@ -909,7 +922,8 @@ void test_var_substitute()
         auto l_sub = v(3);
         auto l_substituted = l_var->substitute(10, 0, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
 
         // this substitution decrements the lhs local index since the lhs does
@@ -928,7 +942,8 @@ void test_var_substitute()
         auto l_sub = v(3);
         auto l_substituted = l_var->substitute(10, 0, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
 
         // this substitution decrements the lhs local index since the lhs does
@@ -947,7 +962,8 @@ void test_var_substitute()
         auto l_sub = v(1);
         auto l_substituted = l_var->substitute(0, 1, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
         assert(l_substituted_var->index() == 0);
     }
@@ -958,7 +974,8 @@ void test_var_substitute()
         auto l_sub = v(1);
         auto l_substituted = l_var->substitute(10, 1, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
         // it would be 10 if a_var_index == 0, but since 1,
         //     not only were there no occurrances, but the
@@ -973,7 +990,8 @@ void test_var_substitute()
         auto l_sub = v(3);
         auto l_substituted = l_var->substitute(0, 2, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
 
         // this substitution trivially finds var(2) and substitutes with var(3),
@@ -987,7 +1005,8 @@ void test_var_substitute()
         auto l_sub = v(3);
         auto l_substituted = l_var->substitute(0, 2, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
 
         // this substitution does not find var(2),
@@ -1002,7 +1021,8 @@ void test_var_substitute()
         auto l_sub = v(3);
         auto l_substituted = l_var->substitute(10, 2, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
 
         // this substitution finds var(2) and substitutes with var(3),
@@ -1016,7 +1036,8 @@ void test_var_substitute()
         auto l_sub = v(3);
         auto l_substituted = l_var->substitute(10, 2, l_sub->clone());
 
-        const var* l_substituted_var = dynamic_cast<var*>(l_substituted.get());
+        const local* l_substituted_var =
+            dynamic_cast<local*>(l_substituted.get());
         assert(l_substituted_var != nullptr);
 
         // no var(2) was found, so var(1) is left alone since it was bound
@@ -1047,8 +1068,8 @@ void test_func_substitute()
         assert(l_subbed_func != nullptr);
 
         // get body
-        const var* l_subbed_var =
-            dynamic_cast<var*>(l_subbed_func->body().get());
+        const local* l_subbed_var =
+            dynamic_cast<local*>(l_subbed_func->body().get());
 
         // make sure the substitution took place
         assert(l_subbed_var != nullptr);
@@ -1079,8 +1100,8 @@ void test_func_substitute()
             dynamic_cast<func*>(l_subbed_func->body().get());
 
         // get body
-        const var* l_subbed_var =
-            dynamic_cast<var*>(l_subbed_func_2->body().get());
+        const local* l_subbed_var =
+            dynamic_cast<local*>(l_subbed_func_2->body().get());
 
         // make sure the substitution took place
         assert(l_subbed_var != nullptr);
@@ -1110,8 +1131,8 @@ void test_func_substitute()
         assert(l_subbed_func != nullptr);
 
         // get body
-        const var* l_subbed_var =
-            dynamic_cast<var*>(l_subbed_func->body().get());
+        const local* l_subbed_var =
+            dynamic_cast<local*>(l_subbed_func->body().get());
 
         // make sure the substitution took place
         assert(l_subbed_var != nullptr);
@@ -1145,8 +1166,8 @@ void test_func_substitute()
             dynamic_cast<func*>(l_subbed_func->body().get());
 
         // get body
-        const var* l_subbed_var =
-            dynamic_cast<var*>(l_subbed_func_2->body().get());
+        const local* l_subbed_var =
+            dynamic_cast<local*>(l_subbed_func_2->body().get());
 
         // make sure the substitution took place
         assert(l_subbed_var != nullptr);
@@ -1170,8 +1191,8 @@ void test_func_substitute()
         assert(l_subbed_func != nullptr);
 
         // get body, should be a local with index = 7 + 6 = 13
-        const var* l_subbed_var =
-            dynamic_cast<var*>(l_subbed_func->body().get());
+        const local* l_subbed_var =
+            dynamic_cast<local*>(l_subbed_func->body().get());
         assert(l_subbed_var != nullptr);
         assert(l_subbed_var->index() == 13);
     }
@@ -1243,13 +1264,15 @@ void test_app_substitute()
         assert(l_subbed_app != nullptr);
 
         // get lhs
-        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->lhs().get());
+        const local* l_subbed_lhs =
+            dynamic_cast<local*>(l_subbed_app->lhs().get());
 
         // make sure lhs is a local
         assert(l_subbed_lhs != nullptr);
 
         // get rhs
-        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->rhs().get());
+        const local* l_subbed_rhs =
+            dynamic_cast<local*>(l_subbed_app->rhs().get());
 
         // make sure rhs is a local
         assert(l_subbed_rhs != nullptr);
@@ -1274,13 +1297,15 @@ void test_app_substitute()
         assert(l_subbed_app != nullptr);
 
         // get lhs
-        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->lhs().get());
+        const local* l_subbed_lhs =
+            dynamic_cast<local*>(l_subbed_app->lhs().get());
 
         // make sure lhs is a local
         assert(l_subbed_lhs != nullptr);
 
         // get rhs
-        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->rhs().get());
+        const local* l_subbed_rhs =
+            dynamic_cast<local*>(l_subbed_app->rhs().get());
 
         // make sure rhs is a local
         assert(l_subbed_rhs != nullptr);
@@ -1305,13 +1330,15 @@ void test_app_substitute()
         assert(l_subbed_app != nullptr);
 
         // get lhs
-        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->lhs().get());
+        const local* l_subbed_lhs =
+            dynamic_cast<local*>(l_subbed_app->lhs().get());
 
         // make sure lhs is a local
         assert(l_subbed_lhs != nullptr);
 
         // get rhs
-        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->rhs().get());
+        const local* l_subbed_rhs =
+            dynamic_cast<local*>(l_subbed_app->rhs().get());
 
         // make sure rhs is a local
         assert(l_subbed_rhs != nullptr);
@@ -1336,13 +1363,15 @@ void test_app_substitute()
         assert(l_subbed_app != nullptr);
 
         // get lhs
-        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->lhs().get());
+        const local* l_subbed_lhs =
+            dynamic_cast<local*>(l_subbed_app->lhs().get());
 
         // make sure lhs is a local
         assert(l_subbed_lhs != nullptr);
 
         // get rhs
-        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->rhs().get());
+        const local* l_subbed_rhs =
+            dynamic_cast<local*>(l_subbed_app->rhs().get());
 
         // make sure rhs is a local
         assert(l_subbed_rhs != nullptr);
@@ -1380,12 +1409,14 @@ void test_app_substitute()
         // make sure rhs is a func
         assert(l_subbed_rhs != nullptr);
 
-        const var* l_lhs_var = dynamic_cast<var*>(l_subbed_lhs->body().get());
+        const local* l_lhs_var =
+            dynamic_cast<local*>(l_subbed_lhs->body().get());
 
         // make sure body of lhs is a local
         assert(l_lhs_var != nullptr);
 
-        const var* l_rhs_var = dynamic_cast<var*>(l_subbed_rhs->body().get());
+        const local* l_rhs_var =
+            dynamic_cast<local*>(l_subbed_rhs->body().get());
 
         // make sure body of rhs is a local
         assert(l_rhs_var != nullptr);
@@ -1559,7 +1590,7 @@ void test_var_normalize()
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
 
         // cast the pointer
-        const var* l_var = dynamic_cast<var*>(l_result.m_expr.get());
+        const local* l_var = dynamic_cast<local*>(l_result.m_expr.get());
         assert(l_var != nullptr);
 
         // make sure it has the same index
@@ -1577,7 +1608,7 @@ void test_var_normalize()
         assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
 
         // cast the pointer
-        const var* l_var = dynamic_cast<var*>(l_result.m_expr.get());
+        const local* l_var = dynamic_cast<local*>(l_result.m_expr.get());
         assert(l_var != nullptr);
 
         // make sure it has the same index
@@ -1697,7 +1728,7 @@ void test_func_normalize()
         assert(l_func != nullptr);
 
         // get body
-        const auto* l_body = dynamic_cast<var*>(l_func->body().get());
+        const auto* l_body = dynamic_cast<local*>(l_func->body().get());
         assert(l_body != nullptr);
 
         // make sure body is still same thing
@@ -1879,11 +1910,11 @@ void test_app_normalize()
         assert(l_app != nullptr);
 
         // lhs should be local
-        const var* l_reduced_lhs = dynamic_cast<var*>(l_app->lhs().get());
+        const local* l_reduced_lhs = dynamic_cast<local*>(l_app->lhs().get());
         assert(l_reduced_lhs != nullptr);
 
         // rhs should be local
-        const var* l_reduced_rhs = dynamic_cast<var*>(l_app->rhs().get());
+        const local* l_reduced_rhs = dynamic_cast<local*>(l_app->rhs().get());
         assert(l_reduced_rhs != nullptr);
 
         // same on both (no reduction occurred)
@@ -3804,7 +3835,7 @@ void construct_program_test()
     {
         std::list<std::unique_ptr<expr>> l_helpers{};
 
-        auto l = [&l_helpers](size_t a_local_index)
+        auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
         auto g = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
@@ -3814,7 +3845,7 @@ void construct_program_test()
         l_helpers.emplace_back(f(v(100)));
 
         // Main: Apply helper to dummy value
-        auto l_main = a(CONST_100->clone(), l(0)->clone());
+        auto l_main = a(CONST_100->clone(), lprev(0)->clone());
 
         auto l_program =
             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
@@ -3828,22 +3859,23 @@ void construct_program_test()
     {
         std::list<std::unique_ptr<expr>> l_helpers{};
 
-        auto l = [&l_helpers](size_t a_local_index)
+        auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
         auto g = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: TRUE = λ.λ.0 (returns first arg)
         const auto TRUE = g(l_helpers.size());
-        l_helpers.emplace_back(f(f(l(0))));
+        l_helpers.emplace_back(f(f(lprev(0))));
 
         // Helper 1: FALSE = λ.λ.1 (returns second arg)
         const auto FALSE = g(l_helpers.size());
-        l_helpers.emplace_back(f(f(l(1))));
+        l_helpers.emplace_back(f(f(lprev(1))));
 
         // Test TRUE: ((TRUE branch_a) branch_b) → branch_a
         {
-            auto l_main = a(a(TRUE->clone(), l(0)->clone()), l(1)->clone());
+            auto l_main =
+                a(a(TRUE->clone(), lprev(0)->clone()), lprev(1)->clone());
             auto l_program =
                 construct_program(l_helpers.begin(), l_helpers.end(), l_main);
             auto l_result = l_program->normalize();
@@ -3853,7 +3885,8 @@ void construct_program_test()
 
         // Test FALSE: ((FALSE branch_a) branch_b) → branch_b
         {
-            auto l_main = a(a(FALSE->clone(), l(0)->clone()), l(1)->clone());
+            auto l_main =
+                a(a(FALSE->clone(), lprev(0)->clone()), lprev(1)->clone());
             auto l_program =
                 construct_program(l_helpers.begin(), l_helpers.end(), l_main);
             auto l_result = l_program->normalize();
@@ -3866,23 +3899,23 @@ void construct_program_test()
     {
         std::list<std::unique_ptr<expr>> l_helpers{};
 
-        auto l = [&l_helpers](size_t a_local_index)
+        auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
         auto g = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: TRUE
         const auto TRUE = g(l_helpers.size());
-        l_helpers.emplace_back(f(f(l(0))));
+        l_helpers.emplace_back(f(f(lprev(0))));
 
         // Helper 1: FALSE
         const auto FALSE = g(l_helpers.size());
-        l_helpers.emplace_back(f(f(l(1))));
+        l_helpers.emplace_back(f(f(lprev(1))));
 
         // Helper 2: NOT = λ.((0 FALSE) TRUE)
         const auto NOT = g(l_helpers.size());
         l_helpers.emplace_back(
-            f(a(a(l(0)->clone(), FALSE->clone()), TRUE->clone())));
+            f(a(a(lprev(0)->clone(), FALSE->clone()), TRUE->clone())));
 
         // Test: NOT TRUE → FALSE
         {
@@ -3911,20 +3944,20 @@ void construct_program_test()
     {
         std::list<std::unique_ptr<expr>> l_helpers{};
 
-        auto l = [&l_helpers](size_t a_local_index)
+        auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
         auto g = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: ZERO = λ.λ.1
         const auto ZERO = g(l_helpers.size());
-        l_helpers.emplace_back(f(f(l(1))));
+        l_helpers.emplace_back(f(f(lprev(1))));
 
         // Helper 1: SUCC = λ.λ.λ.(1 ((0 1) 2))
         const auto SUCC = g(l_helpers.size());
-        l_helpers.emplace_back(
-            f(f(f(a(l(1)->clone(),
-                    a(a(l(0)->clone(), l(1)->clone()), l(2)->clone()))))));
+        l_helpers.emplace_back(f(
+            f(f(a(lprev(1)->clone(), a(a(lprev(0)->clone(), lprev(1)->clone()),
+                                       lprev(2)->clone()))))));
 
         // Test: SUCC ZERO = ONE
         auto l_main = a(SUCC->clone(), ZERO->clone());
@@ -3941,19 +3974,20 @@ void construct_program_test()
     {
         std::list<std::unique_ptr<expr>> l_helpers{};
 
-        auto l = [&l_helpers](size_t a_local_index)
+        auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
         auto g = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: TRUE
         const auto TRUE = g(l_helpers.size());
-        l_helpers.emplace_back(f(f(l(0))));
+        l_helpers.emplace_back(f(f(lprev(0))));
 
         // Main: λ.λ.((TRUE l(0)) l(1))
         // Two-arg function that applies TRUE to its arguments
         // l(0) = v(1), l(1) = v(2)
-        auto l_main = f(f(a(a(TRUE->clone(), l(0)->clone()), l(1)->clone())));
+        auto l_main =
+            f(f(a(a(TRUE->clone(), lprev(0)->clone()), lprev(1)->clone())));
 
         auto l_program =
             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
@@ -3970,24 +4004,25 @@ void construct_program_test()
     {
         std::vector<std::unique_ptr<expr>> l_helpers{};
 
-        auto l = [&l_helpers](size_t a_local_index)
+        auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
         auto g = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: K combinator
         const auto K = g(l_helpers.size());
-        l_helpers.push_back(f(f(l(0))));
+        l_helpers.push_back(f(f(lprev(0))));
 
         // Helper 1: S combinator λ.λ.λ.((0 2) (1 2))
         const auto S = g(l_helpers.size());
-        l_helpers.push_back(f(f(f(a(a(l(0)->clone(), l(2)->clone()),
-                                    a(l(1)->clone(), l(2)->clone()))))));
+        l_helpers.push_back(
+            f(f(f(a(a(lprev(0)->clone(), lprev(2)->clone()),
+                    a(lprev(1)->clone(), lprev(2)->clone()))))));
 
         // Main: ((S K) K) applied to a local
         // l(0) = v(2) (two helpers in place)
         auto l_skk = a(a(S->clone(), K->clone()), K->clone());
-        auto l_main = a(l_skk->clone(), l(0)->clone());
+        auto l_main = a(l_skk->clone(), lprev(0)->clone());
 
         auto l_program =
             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
@@ -4002,23 +4037,23 @@ void construct_program_test()
     {
         std::list<std::unique_ptr<expr>> l_helpers{};
 
-        auto l = [&l_helpers](size_t a_local_index)
+        auto lprev = [&l_helpers](size_t a_local_index)
         { return v(l_helpers.size() + a_local_index); };
         auto g = [&l_helpers](size_t a_global_index)
         { return v(a_global_index); };
 
         // Helper 0: TRUE
         const auto TRUE = g(l_helpers.size());
-        l_helpers.emplace_back(f(f(l(0))));
+        l_helpers.emplace_back(f(f(lprev(0))));
 
         // Helper 1: FALSE
         const auto FALSE = g(l_helpers.size());
-        l_helpers.emplace_back(f(f(l(1))));
+        l_helpers.emplace_back(f(f(lprev(1))));
 
         // Helper 2: AND = λ.λ.((0 1) FALSE)
         const auto AND = g(l_helpers.size());
         l_helpers.emplace_back(
-            f(f(a(a(l(0)->clone(), l(1)->clone()), FALSE->clone()))));
+            f(f(a(a(lprev(0)->clone(), lprev(1)->clone()), FALSE->clone()))));
 
         // Test: ((AND TRUE) TRUE) → TRUE
         auto l_main = a(a(AND->clone(), TRUE->clone()), TRUE->clone());
@@ -4039,7 +4074,7 @@ void generic_use_case_test()
     using namespace lambda;
     std::list<std::unique_ptr<expr>> l_helpers{};
 
-    auto l = [&l_helpers](size_t a_local_index)
+    auto lprev = [&l_helpers](size_t a_local_index)
     { return v(l_helpers.size() + a_local_index); };
 
     auto g = [&l_helpers](size_t a_global_index) { return v(a_global_index); };
@@ -4048,18 +4083,18 @@ void generic_use_case_test()
 
     // true
     const auto TRUE = g(l_helpers.size());
-    l_helpers.emplace_back(f(f(l(0))));
+    l_helpers.emplace_back(f(f(lprev(0))));
     // false
     const auto FALSE = g(l_helpers.size());
-    l_helpers.emplace_back(f(f(l(1))));
+    l_helpers.emplace_back(f(f(lprev(1))));
 
     // test the church bools
     {
         // true case
-        const auto l_true_case = f(l(10));
+        const auto l_true_case = f(lprev(10));
 
         // false case
-        const auto l_false_case = f(l(11));
+        const auto l_false_case = f(lprev(11));
 
         // test the true case
         const auto l_true_case_main =
@@ -4105,11 +4140,12 @@ void generic_use_case_test()
 
     // 0
     const auto ZERO = g(l_helpers.size());
-    l_helpers.emplace_back(f(f(l(1))));
+    l_helpers.emplace_back(f(f(lprev(1))));
 
     // succ
     const auto SUCC = g(l_helpers.size());
-    l_helpers.emplace_back(f(f(f(a(l(1), a(a(l(0), l(1)), l(2)))))));
+    l_helpers.emplace_back(
+        f(f(f(a(lprev(1), a(a(lprev(0), lprev(1)), lprev(2)))))));
 
     // test succ church numerals
     {
@@ -4194,8 +4230,8 @@ void generic_use_case_test()
 
     // add
     const auto ADD = g(l_helpers.size());
-    l_helpers.emplace_back(
-        f(f(f(f(a(a(l(0), l(2)), a(a(l(1), l(2)), l(3))))))));
+    l_helpers.emplace_back(f(
+        f(f(f(a(a(lprev(0), lprev(2)), a(a(lprev(1), lprev(2)), lprev(3))))))));
 
     // test add church numerals
     {
@@ -4292,7 +4328,8 @@ void generic_use_case_test()
 
     // define MULT
     const auto MULT = g(l_helpers.size());
-    l_helpers.emplace_back(f(f(f(f(a(a(l(0), a(l(1), l(2))), l(3)))))));
+    l_helpers.emplace_back(
+        f(f(f(f(a(a(lprev(0), a(lprev(1), lprev(2))), lprev(3)))))));
 
     // test mult church numerals
     {
