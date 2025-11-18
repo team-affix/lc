@@ -34,7 +34,8 @@ struct expr
     normalize_result normalize(
         size_t a_step_limit = std::numeric_limits<size_t>::max(),
         size_t a_size_limit = std::numeric_limits<size_t>::max(),
-        std::function<void(const expr&)> a_trace = [](const expr&) {}) const;
+        std::function<void(const std::unique_ptr<expr>&)> a_trace =
+            [](const std::unique_ptr<expr>&) {}) const;
     size_t size() const;
     expr(size_t a_size);
     expr(const expr& other) = delete;

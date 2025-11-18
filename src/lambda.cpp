@@ -187,7 +187,7 @@ std::unique_ptr<expr> expr::clone() const
 // EXPR NORMALIZE METHOD
 expr::normalize_result
 expr::normalize(size_t a_step_limit, size_t a_size_limit,
-                std::function<void(const expr&)> a_trace) const
+                std::function<void(const std::unique_ptr<expr>&)> a_trace) const
 {
     // initialize the result
     normalize_result l_result{
@@ -199,7 +199,7 @@ expr::normalize(size_t a_step_limit, size_t a_size_limit,
     };
 
     // log the original expression
-    a_trace(*l_result.m_expr);
+    a_trace(l_result.m_expr);
 
     // as long as we are within the limits, keep reducing
     while(auto l_reduced = l_result.m_expr->reduce_one_step(0))
@@ -229,7 +229,7 @@ expr::normalize(size_t a_step_limit, size_t a_size_limit,
         l_result.m_expr = std::move(l_reduced);
 
         // log the reduction
-        a_trace(*l_result.m_expr);
+        a_trace(l_result.m_expr);
     }
 
     return l_result;
@@ -1689,10 +1689,10 @@ void test_var_normalize()
         l_expected_trace.push_back(v(5));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -1895,10 +1895,10 @@ void test_func_normalize()
         l_expected_trace.push_back(f(v(0)));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -1924,10 +1924,10 @@ void test_func_normalize()
         l_expected_trace.push_back(f(f(v(2))));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -3082,10 +3082,10 @@ void test_app_normalize()
         l_expected_trace.push_back(v(1));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -3111,10 +3111,10 @@ void test_app_normalize()
         l_expected_trace.push_back(a(v(1), v(2)));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -3143,10 +3143,10 @@ void test_app_normalize()
         l_expected_trace.push_back(a(l_omega->clone(), l_omega->clone()));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -3173,10 +3173,10 @@ void test_app_normalize()
         l_expected_trace.push_back(v(5));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -3210,10 +3210,10 @@ void test_app_normalize()
         l_expected_trace.push_back(v(9));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -3239,10 +3239,10 @@ void test_app_normalize()
         l_expected_trace.push_back(v(3));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -3269,10 +3269,10 @@ void test_app_normalize()
         l_expected_trace.push_back(a(a(v(1), v(2)), v(3)));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -3307,10 +3307,10 @@ void test_app_normalize()
         l_expected_trace.push_back(v(9));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
@@ -3340,10 +3340,10 @@ void test_app_normalize()
         l_expected_trace.push_back(f(a(a(v(6), v(0)), a(v(7), v(0)))));
 
         size_t l_trace_index = 0;
-        auto l_trace = [&](const expr& a_expr)
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
         {
             assert(l_trace_index < l_expected_trace.size());
-            assert(a_expr.equals(l_expected_trace[l_trace_index]));
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
             ++l_trace_index;
         };
 
