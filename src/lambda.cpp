@@ -2502,6 +2502,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 1);
     }
 
     // app with lhs func and rhs func
@@ -2521,6 +2522,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 2);
     }
 
     // app with lhs func (without occurrences of var 0) and rhs func
@@ -2541,6 +2543,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 1);
     }
 
     // app with lhs (nested func with occurrences of var 0) and rhs func
@@ -2561,6 +2564,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 3);
     }
 
     // app with lhs (nested func without occurrences of var 0) and rhs func
@@ -2581,6 +2585,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 2);
     }
 
     // app with lhs (app that doesnt reduce to func) and rhs func
@@ -2601,6 +2606,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 6);
     }
 
     // app with lhs (app with lhs (func without occurrances), rhs local)
@@ -2621,6 +2627,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 4);
     }
 
     // app with lhs (app with lhs (func without occurrances), rhs func)
@@ -2642,6 +2649,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 4);
     }
 
     // app with lhs (app with lhs (func without occurrances), rhs func)
@@ -2669,6 +2677,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 1);
     }
 
     // app with lhs (app with lhs (func WITH occurrances), rhs func)
@@ -2691,6 +2700,7 @@ void test_app_reduce()
         assert(l_result->m_size == 2);
 
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 2);
     }
 
     // app with lhs (app with lhs (func WITH occurrances), rhs func)
@@ -2713,6 +2723,7 @@ void test_app_reduce()
         assert(l_result->m_size == 2);
 
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 2);
     }
 
     // Test reduction count with single reduction
@@ -2725,6 +2736,7 @@ void test_app_reduce()
         assert(l_result->m_size == 1);
 
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 1);
     }
 
     // Test reduction count with multiple reductions
@@ -2750,6 +2762,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 3); // 1 + 1 + 1
     }
 
     // Test reduction count with church numeral reduction
@@ -2780,6 +2793,7 @@ void test_app_reduce()
 
         // beta-normal
         assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 1);
     }
 
     // Test application in beta-normal form - no reduction possible
@@ -2793,158 +2807,78 @@ void test_app_reduce()
         assert(l_result->m_size == 3); // 1 + 1 + 1
     }
 
-    //     // Test limit of 1 - allows 1 reduction, blocks second
-    //     // ((λ.0) 5) ((λ.1) 6) needs 2 reductions total
-    //     {
-    //         auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
-    //         auto l_result = l_expr->normalize(1);
-    //         // Does 1 reduction, then hits limit
-    //         assert(l_result.m_step_excess == true);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         // After 1 reduction: (5 ((λ.1) 6)) - partially normalized
-    //         auto l_expected = a(v(5), a(f(v(1)), v(6)));
-    //         assert(l_result.m_expr->equals(l_expected));
-    //     }
+    // ((λ.0) 5) ((λ.1) 6) needs 2 reductions total
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
+        auto l_result = l_expr->clone();
 
-    //     // Test limit exactly at needed reductions (reaches normal form)
-    //     {
-    //         auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
-    //         auto l_result = l_expr->normalize(2);
-    //         // Needs 2 reductions, limit is 2, so reaches normal form
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 2);
-    //         // Peak is 6 (size after 1st reduction)
-    //         assert(l_result.m_size_peak == 6);
-    //         auto l_expected = a(v(5), v(0));
-    //         assert(l_result.m_expr->equals(l_expected));
-    //     }
+        assert(reduce_one_step(l_result));
 
-    //     // Test limit exceeds needed reductions
-    //     {
-    //         auto l_expr = a(f(v(0)), v(5));
-    //         auto l_result = l_expr->normalize(100);
-    //         // Only needs 1 reduction, limit is 100
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 1);
-    //         assert(l_result.m_expr->equals(v(5)));
-    //     }
+        assert(l_result->equals(a(v(5), a(f(v(1)), v(6)))));
+        assert(l_result->m_size == 6);
 
-    //     // Test N-2 scenario: expression needs 2 reductions, limit is 0
-    //     // Should do 0 reductions (blocked)
-    //     {
-    //         auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
-    //         auto l_result = l_expr->normalize(0);
-    //         assert(l_result.m_step_excess == true);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         assert(l_result.m_expr->equals(l_expr));
-    //     }
+        assert(reduce_one_step(l_result));
 
-    //     // Test count with limit that allows full normalization
-    //     {
-    //         auto l_expr = a(f(v(0)), v(5));
-    //         auto l_result = l_expr->normalize(100);
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 1);
-    //         assert(l_result.m_expr->equals(v(5)));
-    //     }
+        assert(l_result->equals(a(v(5), v(0))));
+        assert(l_result->m_size == 3);
 
-    //     // Test complex reduction with limit
-    //     // ((λ.λ.0) 5) 6 -> (λ.6) 6 -> 5 (2 reductions total)
-    //     // Note: v(6) in body is a free variable, so it decrements to v(5)
-    //     {
-    //         auto l_expr = a(a(f(f(v(0))), v(5)), v(6));
+        assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 3);
+    }
 
-    //         // Limit to 0: blocks first reduction
-    //         auto l_result0 = l_expr->normalize(0);
-    //         assert(l_result0.m_step_excess == true);
-    //         assert(l_result0.m_size_excess == false);
-    //         assert(l_result0.m_step_count == 0);
-    //         assert(l_result0.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         assert(l_result0.m_expr->equals(l_expr));
+    // Test complex reduction with limit
+    // ((λ.λ.0) 5) 6 -> (λ.6) 6 -> 5 (2 reductions total)
+    // Note: v(6) in body is a free variable, so it decrements to v(5)
+    {
+        auto l_expr = a(a(f(f(v(0))), v(5)), v(6));
+        assert(l_expr->m_size == 7);
 
-    //         // Limit to 1: allows 1 reduction
-    //         auto l_result1 = l_expr->normalize(1);
-    //         assert(l_result1.m_step_excess == true);
-    //         assert(l_result1.m_size_excess == false);
-    //         assert(l_result1.m_step_count == 1);
+        assert(reduce_one_step(l_expr));
+        assert(l_expr->equals(a(f(v(6)), v(6))));
+        assert(l_expr->m_size == 4);
 
-    //         // Limit to 2: allows 2 reductions (normal form)
-    //         auto l_result2 = l_expr->normalize(2);
-    //         assert(l_result2.m_step_excess == false);
-    //         assert(l_result2.m_size_excess == false);
-    //         assert(l_result2.m_step_count == 2);
-    //         // After 1st reduction: (λ.6) 6 has size 4, after 2nd: v(5) has
-    //         size
-    //         1
-    //         // Peak is 4
-    //         assert(l_result2.m_size_peak == 4);
-    //         assert(l_result2.m_expr->equals(v(5)));
+        assert(reduce_one_step(l_expr));
+        assert(l_expr->equals(v(5)));
+        assert(l_expr->m_size == 1);
 
-    //         // Full normalization
-    //         auto l_result_full = l_expr->normalize();
-    //         assert(l_result_full.m_step_excess == false);
-    //         assert(l_result_full.m_size_excess == false);
-    //         assert(l_result_full.m_step_count == 2);
-    //         // Peak is 4
-    //         assert(l_result_full.m_size_peak == 4);
-    //         assert(l_result_full.m_expr->equals(v(5)));
-    //     }
+        assert(!reduce_one_step(l_expr));
+        assert(l_expr->m_size == 1);
+    }
 
-    //     // Test identity combinator: (λ.0) applied to expression
-    //     // (λ.0) (λ.5) -> λ.5 (1 reduction)
-    //     {
-    //         auto l_identity = f(v(0));
-    //         auto l_arg = f(v(5));
-    //         auto l_expr = a(l_identity->clone(), l_arg->clone());
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 2);
-    //         assert(l_result.m_expr->equals(l_arg));
-    //     }
+    // Test identity combinator: (λ.0) applied to expression
+    // (λ.0) (λ.5) -> λ.5 (1 reduction)
+    {
+        auto l_identity = f(v(0));
+        auto l_arg = f(v(5));
+        auto l_expr = a(l_identity->clone(), l_arg->clone());
+        auto l_result = l_expr->clone();
 
-    //     // Test normal order with limit - should reduce leftmost-outermost
-    //     first
-    //     // ((λ.2) 3) ((λ.4) 5) needs 2 reductions, limit 0 blocks all
-    //     // Left side reduces: v(2) > 0 decrements to v(1)
-    //     {
-    //         auto l_lhs = a(f(v(2)), v(3));
-    //         auto l_rhs = a(f(v(4)), v(5));
-    //         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
-    //         auto l_result = l_expr->normalize(0);
-    //         assert(l_result.m_step_excess == true);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         assert(l_result.m_expr->equals(l_expr));
-    //     }
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(f(v(5))));
+        assert(l_result->m_size == 2);
 
-    //     // Test normal order continuation - reduce left, then right
-    //     // ((λ.2) 3) ((λ.4) 5) with limit 1 allows 1 reduction
-    //     {
-    //         auto l_lhs = a(f(v(2)), v(3));
-    //         auto l_rhs = a(f(v(4)), v(5));
-    //         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
-    //         auto l_result = l_expr->normalize(1);
-    //         assert(l_result.m_step_excess == true);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         // Left reduces first (normal order)
-    //         auto l_expected = a(v(1), a(f(v(4)), v(5)));
-    //         assert(l_result.m_expr->equals(l_expected));
-    //     }
+        assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 2);
+    }
+
+    // Test normal order
+    // ((λ.2) 3) ((λ.4) 5) needs 2 reductions
+    {
+        auto l_lhs = a(f(v(2)), v(3));
+        auto l_rhs = a(f(v(4)), v(5));
+        auto l_expr = a(l_lhs->clone(), l_rhs->clone());
+        auto l_result = l_expr->clone();
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(a(v(1), a(f(v(4)), v(5)))));
+        assert(l_result->m_size == 6);
+
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(a(v(1), v(3))));
+        assert(l_result->m_size == 3);
+
+        assert(!reduce_one_step(l_result));
+        assert(l_result->m_size == 3);
+    }
 
     //     // Test self-application with limit to prevent infinite reduction
     //     // (λ.0 0) (λ.0 0) with limit 2 (omega combinator)
