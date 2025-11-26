@@ -2382,6 +2382,34 @@ void test_func_reduce()
         assert(l_trace_index == l_expected_trace.size());
         assert(l_result->equals(f(f(v(2)))));
     }
+
+    // Test trace callback on func with 2 reductions
+    // λ.λ.((λ.2) ((λ.2) 5)) -> λ.λ.((λ.2) 5) -> λ.λ.5
+    // Expected trace: [initial, after 1st reduction, after 2nd reduction]
+    {
+        auto l_expr = f(f(a(f(v(2)), a(f(v(2)), v(5)))));
+
+        // Expected trace: initial + intermediate + final
+        std::vector<std::unique_ptr<expr>> l_expected_trace;
+        l_expected_trace.push_back(f(f(a(f(v(2)), v(5)))));
+        l_expected_trace.push_back(f(f(v(5))));
+
+        size_t l_trace_index = 0;
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
+        {
+            assert(l_trace_index < l_expected_trace.size());
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
+            ++l_trace_index;
+        };
+
+        auto l_result = l_expr->clone();
+
+        while(reduce_one_step(l_result))
+            l_trace(l_result);
+
+        assert(l_trace_index == l_expected_trace.size());
+        assert(l_result->equals(f(f(v(5)))));
+    }
 }
 
 void test_app_reduce()
