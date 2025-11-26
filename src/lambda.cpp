@@ -2200,16 +2200,15 @@ void test_app_substitute()
     }
 }
 
-void test_var_normalize()
+void test_var_reduce()
 {
     // local with var 0
     {
         auto l_expr = v(0);
         auto l_result = l_expr->clone();
 
-        // normalize
-        while(reduce_one_step(l_result))
-            ;
+        // reduce
+        assert(!reduce_one_step(l_result));
 
         // cast the pointer
         const var* l_var = dynamic_cast<var*>(l_result.get());
@@ -2224,9 +2223,8 @@ void test_var_normalize()
         auto l_expr = v(1);
         auto l_result = l_expr->clone();
 
-        // normalize
-        while(reduce_one_step(l_result))
-            ;
+        // reduce
+        assert(!reduce_one_step(l_result));
 
         // cast the pointer
         const var* l_var = dynamic_cast<var*>(l_result.get());
@@ -2235,112 +2233,70 @@ void test_var_normalize()
         // make sure it has the same index
         assert(l_var->m_index == 1);
     }
-
-    // Test reduction count with no reductions (var cannot reduce)
-    {
-        auto l_expr = v(5);
-        auto l_result = l_expr->clone();
-        while(reduce_one_step(l_result))
-            ;
-
-        assert(l_result->equals(v(5)));
-    }
 }
 
-void test_func_normalize()
+void test_func_reduce()
 {
-    //     // func with body of a local
-    //     {
-    //         auto l_expr = f(v(0)->clone());
+    // func with body of a local
+    {
+        auto l_expr = f(v(0)->clone());
+        auto l_result = l_expr->clone();
 
-    //         const auto l_result = l_expr->normalize();
+        // no reductions to perform
+        assert(!reduce_one_step(l_result));
 
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
+        // make sure still a func
+        const auto* l_func = dynamic_cast<func*>(l_result.get());
+        assert(l_func != nullptr);
 
-    //         // make sure still a func
-    //         const auto* l_func = dynamic_cast<func*>(l_result.m_expr.get());
-    //         assert(l_func != nullptr);
+        // get body
+        const auto* l_body = dynamic_cast<var*>(l_func->m_body.get());
+        assert(l_body != nullptr);
 
-    //         // get body
-    //         const auto* l_body = dynamic_cast<var*>(l_func->m_body.get());
-    //         assert(l_body != nullptr);
+        // make sure body is still same thing
+        assert(l_body->m_index == 0);
+    }
 
-    //         // make sure body is still same thing
-    //         assert(l_body->index() == 0);
-    //     }
+    // Test reduction of func with no redex
+    {
+        auto l_expr = f(a(v(2), v(5)));
+        auto l_result = l_expr->clone();
+        assert(!reduce_one_step(l_result));
+        assert(l_result->equals(f(a(v(2), v(5)))));
+    }
 
-    //     // Test reduction count on func with no redex
-    //     {
-    //         auto l_expr = f(v(3));
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         assert(l_result.m_expr->equals(f(v(3))));
-    //     }
+    // Test reduction count with redex inside function body
+    // λ.((λ.0) 5) -> λ.0 (1 reduction inside body)
+    // Note: v(0) at depth 1 refers to outer lambda, so it's not replaced
+    {
+        auto l_expr = f(a(f(v(0)), v(5)));
+        auto l_result = l_expr->clone();
 
-    //     // Test reduction limit on func with no redex
-    //     {
-    //         auto l_expr = f(a(v(2), v(5)));
-    //         auto l_result = l_expr->normalize(0);
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         assert(l_result.m_expr->equals(f(a(v(2), v(5)))));
-    //     }
+        size_t l_step_count = 0;
 
-    //     // Test reduction count with redex inside function body
-    //     // λ.((λ.0) 5) -> λ.0 (1 reduction inside body)
-    //     // Note: v(0) at depth 1 refers to outer lambda, so it's not replaced
-    //     {
-    //         auto l_expr = f(a(f(v(0)), v(5)));
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 2); // λ.0 has size 2
-    //         auto l_expected = f(v(0));
-    //         assert(l_result.m_expr->equals(l_expected));
-    //     }
+        while(reduce_one_step(l_result))
+            ++l_step_count;
 
-    //     // Test reduction limit stopping reduction inside function body
-    //     // λ.((λ.1) 2) with limit 0 -> step limit reached after 0 steps
-    //     (first
-    //     // reduction blocked)
-    //     {
-    //         auto l_expr = f(a(f(v(1)), v(2)));
-    //         auto l_result = l_expr->normalize(0);
-    //         assert(l_result.m_step_excess == true); // Can reduce but hit
-    //         limit assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         assert(l_result.m_expr->equals(l_expr));
-    //     }
+        assert(l_step_count == 1);
 
-    //     // Test nested functions with multiple reductions
-    //     // λ.λ.((λ.2) ((λ.3) 5)) -> λ.λ.(2 4) (2 reductions)
-    //     {
-    //         auto l_expr = f(f(a(f(v(2)), a(f(v(3)), v(5)))));
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 2);
-    //         // First reduction: size 9 -> 6
-    //         // Second reduction: size 6 -> 3
-    //         // Peak is the max of intermediate result sizes = 6
-    //         assert(l_result.m_size_peak == 6);
-    //         auto l_expected = f(f(v(2)));
-    //         assert(l_result.m_expr->equals(l_expected));
-    //     }
+        assert(l_result->equals(f(v(0))));
+    }
+
+    // Test nested functions with multiple reductions
+    // λ.λ.((λ.2) ((λ.3) 5)) -> λ.λ.((λ.3) 5) -> λ.λ.2 (2 reductions)
+    {
+        auto l_expr = f(f(a(f(v(2)), a(f(v(3)), v(5)))));
+        auto l_result = l_expr->clone();
+
+        size_t l_step_count = 0;
+
+        while(reduce_one_step(l_result))
+            ++l_step_count;
+
+        assert(l_step_count == 2);
+
+        assert(l_result->equals(f(f(v(2)))));
+    }
 
     //     // Test size peak tracking on func with no reductions
     //     // λ.5 has size 2 and stays that way
@@ -2496,7 +2452,7 @@ void test_func_normalize()
     //     }
 }
 
-void test_app_normalize()
+void test_app_reduce()
 {
     //     // app with lhs and rhs both locals
     //     {
@@ -5638,9 +5594,9 @@ void lambda_test_main()
     TEST(test_func_substitute);
     TEST(test_app_substitute);
 
-    TEST(test_var_normalize);
-    TEST(test_func_normalize);
-    TEST(test_app_normalize);
+    TEST(test_var_reduce);
+    TEST(test_func_reduce);
+    TEST(test_app_reduce);
 
     // TEST(test_var_reduce_one_step);
     // TEST(test_func_reduce_one_step);
