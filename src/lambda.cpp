@@ -294,6 +294,7 @@ void test_var_constructor()
         const var* l_var_casted = dynamic_cast<var*>(l_var.get());
         assert(l_var_casted != nullptr);
         assert(l_var_casted->m_index == 0);
+        assert(l_var->m_size == 1);
     }
 
     // index 1
@@ -302,6 +303,7 @@ void test_var_constructor()
         const var* l_var_casted = dynamic_cast<var*>(l_var.get());
         assert(l_var_casted != nullptr);
         assert(l_var_casted->m_index == 1);
+        assert(l_var->m_size == 1);
     }
 }
 
@@ -310,6 +312,7 @@ void test_func_constructor()
     // local body
     {
         auto l_func = f(v(0));
+        assert(l_func->m_size == 2);
         // get body
         const func* l_func_casted = dynamic_cast<func*>(l_func.get());
         assert(l_func_casted != nullptr);
@@ -327,6 +330,7 @@ void test_app_constructor()
     // local application
     {
         auto l_app = a(v(0), v(1));
+        assert(l_app->m_size == 3);
         // get the lhs
         const app* l_app_casted = dynamic_cast<app*>(l_app.get());
         assert(l_app_casted != nullptr);
@@ -368,13 +372,6 @@ void test_var_equals()
         auto l_local_other = v(1);
         assert(l_var->equals(l_local_other));
     }
-
-    // var equals global
-    // {
-    //     auto l_var = l(0);
-    //     auto l_global = g(0);
-    //     assert(!l_var->equals(l_global));
-    // }
 
     // local equals func
     {
@@ -438,6 +435,673 @@ void test_app_equals()
         auto l_lhs = a(l_lhs_lhs->clone(), l_lhs_rhs->clone());
         auto l_rhs = a(l_rhs_lhs->clone(), l_rhs_rhs->clone());
         assert(!l_lhs->equals(l_rhs));
+    }
+}
+
+void test_var_clone()
+{
+    // basic clone - check index is preserved
+    {
+        auto l_var = v(0);
+        auto l_cloned = l_var->clone();
+        assert(l_var->equals(l_cloned));
+
+        const var* l_var_casted = dynamic_cast<var*>(l_cloned.get());
+        assert(l_var_casted != nullptr);
+        assert(l_var_casted->m_index == 0);
+    }
+
+    // clone with different index
+    {
+        auto l_var = v(5);
+        auto l_cloned = l_var->clone();
+        assert(l_var->equals(l_cloned));
+
+        const var* l_var_casted = dynamic_cast<var*>(l_cloned.get());
+        assert(l_var_casted != nullptr);
+        assert(l_var_casted->m_index == 5);
+    }
+
+    // ensure deep copy - modifying clone doesn't affect original
+    {
+        auto l_var = v(3);
+        auto l_cloned = l_var->clone();
+
+        // modify the clone
+        var* l_cloned_var = dynamic_cast<var*>(l_cloned.get());
+        assert(l_cloned_var != nullptr);
+        l_cloned_var->m_index = 10;
+
+        // check original is unchanged
+        const var* l_original_var = dynamic_cast<var*>(l_var.get());
+        assert(l_original_var != nullptr);
+        assert(l_original_var->m_index == 3);
+
+        // check they're no longer equal
+        assert(!l_var->equals(l_cloned));
+    }
+
+    // check size is preserved
+    {
+        auto l_var = v(42);
+        auto l_cloned = l_var->clone();
+        assert(l_var->m_size == l_cloned->m_size);
+        assert(l_cloned->m_size == 1);
+    }
+
+    // test with large index
+    {
+        auto l_var = v(999);
+        auto l_cloned = l_var->clone();
+        assert(l_var->equals(l_cloned));
+
+        const var* l_var_casted = dynamic_cast<var*>(l_cloned.get());
+        assert(l_var_casted != nullptr);
+        assert(l_var_casted->m_index == 999);
+    }
+
+    // verify distinct unique_ptr and independent m_size modification
+    {
+        auto l_var = v(7);
+        auto l_cloned = l_var->clone();
+
+        // verify pointers are different
+        assert(l_var.get() != l_cloned.get());
+
+        // verify initial sizes are equal
+        assert(l_var->m_size == l_cloned->m_size);
+        assert(l_var->m_size == 1);
+
+        // modify clone's m_size
+        l_cloned->m_size = 42;
+
+        // verify original's m_size is unchanged
+        assert(l_var->m_size == 1);
+        assert(l_cloned->m_size == 42);
+    }
+}
+
+void test_func_clone()
+{
+    // basic clone - simple body
+    {
+        auto l_func = f(v(0));
+        auto l_cloned = l_func->clone();
+        assert(l_func->equals(l_cloned));
+
+        const func* l_func_casted = dynamic_cast<func*>(l_cloned.get());
+        assert(l_func_casted != nullptr);
+        assert(l_func_casted->m_body != nullptr);
+    }
+
+    // clone with application body
+    {
+        auto l_func = f(a(v(0), v(1)));
+        auto l_cloned = l_func->clone();
+        assert(l_func->equals(l_cloned));
+
+        const func* l_func_casted = dynamic_cast<func*>(l_cloned.get());
+        assert(l_func_casted != nullptr);
+
+        const app* l_body_app = dynamic_cast<app*>(l_func_casted->m_body.get());
+        assert(l_body_app != nullptr);
+    }
+
+    // nested functions
+    {
+        auto l_func = f(f(v(0)));
+        auto l_cloned = l_func->clone();
+        assert(l_func->equals(l_cloned));
+
+        const func* l_outer = dynamic_cast<func*>(l_cloned.get());
+        assert(l_outer != nullptr);
+
+        const func* l_inner = dynamic_cast<func*>(l_outer->m_body.get());
+        assert(l_inner != nullptr);
+    }
+
+    // ensure deep copy - modifying clone doesn't affect original
+    {
+        auto l_func = f(v(2));
+        auto l_cloned = l_func->clone();
+
+        // modify the clone's body
+        func* l_cloned_func = dynamic_cast<func*>(l_cloned.get());
+        assert(l_cloned_func != nullptr);
+        l_cloned_func->m_body = v(99);
+
+        // check original is unchanged
+        const func* l_original_func = dynamic_cast<func*>(l_func.get());
+        assert(l_original_func != nullptr);
+        const var* l_original_body =
+            dynamic_cast<var*>(l_original_func->m_body.get());
+        assert(l_original_body != nullptr);
+        assert(l_original_body->m_index == 2);
+
+        // check they're no longer equal
+        assert(!l_func->equals(l_cloned));
+    }
+
+    // check size is preserved
+    {
+        auto l_func = f(a(v(0), v(1)));
+        auto l_cloned = l_func->clone();
+        assert(l_func->m_size == l_cloned->m_size);
+        assert(l_cloned->m_size == 4); // func + app + 2 vars
+    }
+
+    // complex nested structure
+    {
+        // λ.(λ.((0 1) 2))
+        auto l_func = f(f(a(a(v(0), v(1)), v(2))));
+        auto l_cloned = l_func->clone();
+        assert(l_func->equals(l_cloned));
+        assert(l_func->m_size == l_cloned->m_size);
+    }
+
+    // clone preserves structure after lift
+    {
+        auto l_func = f(v(5));
+        l_func->lift(3, 0);
+        auto l_cloned = l_func->clone();
+
+        const func* l_func_casted = dynamic_cast<func*>(l_cloned.get());
+        assert(l_func_casted != nullptr);
+        const var* l_body_var = dynamic_cast<var*>(l_func_casted->m_body.get());
+        assert(l_body_var != nullptr);
+        assert(l_body_var->m_index == 8); // 5 + 3
+    }
+
+    // verify distinct unique_ptr and independent m_size modification
+    {
+        auto l_func = f(a(v(0), v(1)));
+        auto l_cloned = l_func->clone();
+
+        // verify pointers are different
+        assert(l_func.get() != l_cloned.get());
+
+        // verify initial sizes are equal
+        assert(l_func->m_size == l_cloned->m_size);
+        assert(l_func->m_size == 4);
+
+        // modify clone's m_size
+        l_cloned->m_size = 999;
+
+        // verify original's m_size is unchanged
+        assert(l_func->m_size == 4);
+        assert(l_cloned->m_size == 999);
+    }
+}
+
+void test_app_clone()
+{
+    // basic clone - simple application
+    {
+        auto l_app = a(v(0), v(1));
+        auto l_cloned = l_app->clone();
+        assert(l_app->equals(l_cloned));
+
+        const app* l_app_casted = dynamic_cast<app*>(l_cloned.get());
+        assert(l_app_casted != nullptr);
+        assert(l_app_casted->m_lhs != nullptr);
+        assert(l_app_casted->m_rhs != nullptr);
+    }
+
+    // clone with function on lhs
+    {
+        auto l_app = a(f(v(0)), v(1));
+        auto l_cloned = l_app->clone();
+        assert(l_app->equals(l_cloned));
+
+        const app* l_app_casted = dynamic_cast<app*>(l_cloned.get());
+        assert(l_app_casted != nullptr);
+
+        const func* l_lhs_func = dynamic_cast<func*>(l_app_casted->m_lhs.get());
+        assert(l_lhs_func != nullptr);
+    }
+
+    // clone with function on rhs
+    {
+        auto l_app = a(v(0), f(v(1)));
+        auto l_cloned = l_app->clone();
+        assert(l_app->equals(l_cloned));
+
+        const app* l_app_casted = dynamic_cast<app*>(l_cloned.get());
+        assert(l_app_casted != nullptr);
+
+        const func* l_rhs_func = dynamic_cast<func*>(l_app_casted->m_rhs.get());
+        assert(l_rhs_func != nullptr);
+    }
+
+    // nested applications
+    {
+        auto l_app = a(a(v(0), v(1)), v(2));
+        auto l_cloned = l_app->clone();
+        assert(l_app->equals(l_cloned));
+
+        const app* l_outer = dynamic_cast<app*>(l_cloned.get());
+        assert(l_outer != nullptr);
+
+        const app* l_inner = dynamic_cast<app*>(l_outer->m_lhs.get());
+        assert(l_inner != nullptr);
+    }
+
+    // ensure deep copy - modifying clone doesn't affect original
+    {
+        auto l_app = a(v(3), v(4));
+        auto l_cloned = l_app->clone();
+
+        // modify the clone's lhs
+        app* l_cloned_app = dynamic_cast<app*>(l_cloned.get());
+        assert(l_cloned_app != nullptr);
+        l_cloned_app->m_lhs = v(99);
+
+        // check original is unchanged
+        const app* l_original_app = dynamic_cast<app*>(l_app.get());
+        assert(l_original_app != nullptr);
+        const var* l_original_lhs =
+            dynamic_cast<var*>(l_original_app->m_lhs.get());
+        assert(l_original_lhs != nullptr);
+        assert(l_original_lhs->m_index == 3);
+
+        // check they're no longer equal
+        assert(!l_app->equals(l_cloned));
+    }
+
+    // check size is preserved
+    {
+        auto l_app = a(f(v(0)), a(v(1), v(2)));
+        auto l_cloned = l_app->clone();
+        assert(l_app->m_size == l_cloned->m_size);
+        assert(l_cloned->m_size == 6); // app + func + var + app + var + var
+    }
+
+    // complex nested structure with multiple levels
+    {
+        // ((λ.(0 1)) (λ.2))
+        auto l_app = a(f(a(v(0), v(1))), f(v(2)));
+        auto l_cloned = l_app->clone();
+        assert(l_app->equals(l_cloned));
+        assert(l_app->m_size == l_cloned->m_size);
+    }
+
+    // right-nested applications
+    {
+        // (0 (1 (2 3)))
+        auto l_app = a(v(0), a(v(1), a(v(2), v(3))));
+        auto l_cloned = l_app->clone();
+        assert(l_app->equals(l_cloned));
+        assert(l_app->m_size == l_cloned->m_size);
+        assert(l_cloned->m_size == 7);
+    }
+
+    // clone preserves structure after lift
+    {
+        auto l_app = a(v(5), v(6));
+        l_app->lift(2, 0);
+        auto l_cloned = l_app->clone();
+
+        const app* l_app_casted = dynamic_cast<app*>(l_cloned.get());
+        assert(l_app_casted != nullptr);
+
+        const var* l_lhs_var = dynamic_cast<var*>(l_app_casted->m_lhs.get());
+        const var* l_rhs_var = dynamic_cast<var*>(l_app_casted->m_rhs.get());
+        assert(l_lhs_var != nullptr);
+        assert(l_rhs_var != nullptr);
+        assert(l_lhs_var->m_index == 7); // 5 + 2
+        assert(l_rhs_var->m_index == 8); // 6 + 2
+    }
+
+    // clone of redex structure (beta-reducible)
+    {
+        // ((λ.0) 5)
+        auto l_app = a(f(v(0)), v(5));
+        auto l_cloned = l_app->clone();
+        assert(l_app->equals(l_cloned));
+
+        const app* l_cloned_app = dynamic_cast<app*>(l_cloned.get());
+        assert(l_cloned_app != nullptr);
+
+        const func* l_lhs = dynamic_cast<func*>(l_cloned_app->m_lhs.get());
+        const var* l_rhs = dynamic_cast<var*>(l_cloned_app->m_rhs.get());
+        assert(l_lhs != nullptr);
+        assert(l_rhs != nullptr);
+        assert(l_rhs->m_index == 5);
+    }
+
+    // verify distinct unique_ptr and independent m_size modification
+    {
+        auto l_app = a(f(v(0)), a(v(1), v(2)));
+        auto l_cloned = l_app->clone();
+
+        // verify pointers are different
+        assert(l_app.get() != l_cloned.get());
+
+        // verify initial sizes are equal
+        assert(l_app->m_size == l_cloned->m_size);
+        assert(l_app->m_size == 6);
+
+        // modify clone's m_size
+        l_cloned->m_size = 12345;
+
+        // verify original's m_size is unchanged
+        assert(l_app->m_size == 6);
+        assert(l_cloned->m_size == 12345);
+    }
+}
+
+void test_var_update_size()
+{
+    // basic update - var size is always 1
+    {
+        auto l_var = v(0);
+        assert(l_var->m_size == 1);
+
+        l_var->update_size();
+        assert(l_var->m_size == 1);
+    }
+
+    // set m_size to garbage, then update
+    {
+        auto l_var = v(5);
+        assert(l_var->m_size == 1);
+
+        // corrupt the size
+        l_var->m_size = 999;
+        assert(l_var->m_size == 999);
+
+        // update_size should fix it
+        l_var->update_size();
+        assert(l_var->m_size == 1);
+    }
+
+    // different indices don't affect size
+    {
+        auto l_var = v(100);
+        assert(l_var->m_size == 1);
+
+        l_var->m_size = 42;
+        l_var->update_size();
+        assert(l_var->m_size == 1);
+    }
+
+    // multiple updates should be idempotent
+    {
+        auto l_var = v(7);
+        l_var->m_size = 12345;
+
+        l_var->update_size();
+        assert(l_var->m_size == 1);
+
+        l_var->update_size();
+        assert(l_var->m_size == 1);
+
+        l_var->update_size();
+        assert(l_var->m_size == 1);
+    }
+}
+
+void test_func_update_size()
+{
+    // basic update - simple body
+    {
+        auto l_func = f(v(0));
+        assert(l_func->m_size == 2); // func + var
+
+        l_func->update_size();
+        assert(l_func->m_size == 2);
+    }
+
+    // replace body with smaller expression, verify size doesn't auto-update
+    {
+        auto l_func = f(a(v(0), v(1))); // size: 1 + 3 = 4
+        assert(l_func->m_size == 4);
+
+        // replace body with a single var (size 1)
+        func* l_func_casted = dynamic_cast<func*>(l_func.get());
+        assert(l_func_casted != nullptr);
+        l_func_casted->m_body = v(0);
+
+        // size should still be old value (4) - not auto-updated
+        assert(l_func->m_size == 4);
+
+        // now update_size should fix it
+        l_func->update_size();
+        assert(l_func->m_size == 2); // 1 + 1
+    }
+
+    // replace body with larger expression
+    {
+        auto l_func = f(v(0)); // size: 1 + 1 = 2
+        assert(l_func->m_size == 2);
+
+        // replace body with nested application (size 5)
+        func* l_func_casted = dynamic_cast<func*>(l_func.get());
+        assert(l_func_casted != nullptr);
+        l_func_casted->m_body =
+            a(a(v(0), v(1)), v(2)); // size: 1 + (1 + 1 + 1) + 1 = 5
+
+        // size should still be old value (2)
+        assert(l_func->m_size == 2);
+
+        // now update_size should fix it
+        l_func->update_size();
+        assert(l_func->m_size == 6); // 1 + 5
+    }
+
+    // nested function - replace inner body
+    {
+        auto l_func = f(f(v(0))); // size: 1 + (1 + 1) = 3
+        assert(l_func->m_size == 3);
+
+        func* l_outer = dynamic_cast<func*>(l_func.get());
+        assert(l_outer != nullptr);
+        func* l_inner = dynamic_cast<func*>(l_outer->m_body.get());
+        assert(l_inner != nullptr);
+
+        // replace inner body with application (size 3)
+        l_inner->m_body = a(v(5), v(6)); // size 3
+
+        // outer size should still be 3
+        assert(l_func->m_size == 3);
+
+        // update inner first
+        l_inner->update_size();
+        assert(l_inner->m_size == 4); // 1 + 3
+
+        // outer still hasn't updated
+        assert(l_func->m_size == 3);
+
+        // now update outer
+        l_outer->update_size();
+        assert(l_func->m_size == 5); // 1 + 4
+    }
+
+    // set m_size to garbage, then update
+    {
+        auto l_func = f(a(v(0), v(1)));
+        l_func->m_size = 999;
+
+        l_func->update_size();
+        assert(l_func->m_size == 4); // 1 + 3
+    }
+
+    // complex body with multiple levels
+    {
+        // λ.(λ.((0 1) 2))
+        auto l_func = f(f(a(a(v(0), v(1)), v(2))));
+        // Inner app: 1 + 1 + 1 = 3
+        // Outer app: 1 + 3 + 1 = 5
+        // Inner func: 1 + 5 = 6
+        // Outer func: 1 + 6 = 7
+        assert(l_func->m_size == 7);
+
+        func* l_outer = dynamic_cast<func*>(l_func.get());
+        l_outer->m_body = v(42); // replace with single var
+
+        assert(l_func->m_size == 7); // still old size
+
+        l_func->update_size();
+        assert(l_func->m_size == 2); // 1 + 1
+    }
+}
+
+void test_app_update_size()
+{
+    // basic update - simple application
+    {
+        auto l_app = a(v(0), v(1));
+        assert(l_app->m_size == 3); // app + var + var
+
+        l_app->update_size();
+        assert(l_app->m_size == 3);
+    }
+
+    // replace lhs with smaller expression
+    {
+        auto l_app = a(f(v(0)), v(1)); // size: 1 + 2 + 1 = 4
+        assert(l_app->m_size == 4);
+
+        // replace lhs with a single var (size 1)
+        app* l_app_casted = dynamic_cast<app*>(l_app.get());
+        assert(l_app_casted != nullptr);
+        l_app_casted->m_lhs = v(5);
+
+        // size should still be old value (4) - not auto-updated
+        assert(l_app->m_size == 4);
+
+        // now update_size should fix it
+        l_app->update_size();
+        assert(l_app->m_size == 3); // 1 + 1 + 1
+    }
+
+    // replace rhs with larger expression
+    {
+        auto l_app = a(v(0), v(1)); // size: 1 + 1 + 1 = 3
+        assert(l_app->m_size == 3);
+
+        // replace rhs with application (size 3)
+        app* l_app_casted = dynamic_cast<app*>(l_app.get());
+        assert(l_app_casted != nullptr);
+        l_app_casted->m_rhs = a(v(2), v(3)); // size 3
+
+        // size should still be old value (3)
+        assert(l_app->m_size == 3);
+
+        // now update_size should fix it
+        l_app->update_size();
+        assert(l_app->m_size == 5); // 1 + 1 + 3
+    }
+
+    // replace both lhs and rhs
+    {
+        auto l_app = a(v(0), v(1)); // size: 3
+        assert(l_app->m_size == 3);
+
+        app* l_app_casted = dynamic_cast<app*>(l_app.get());
+        assert(l_app_casted != nullptr);
+
+        // replace lhs with func (size 2)
+        l_app_casted->m_lhs = f(v(0));
+        // replace rhs with application (size 5)
+        l_app_casted->m_rhs = a(a(v(1), v(2)), v(3));
+
+        // size should still be old value
+        assert(l_app->m_size == 3);
+
+        // now update_size should fix it
+        l_app->update_size();
+        assert(l_app->m_size == 8); // 1 + 2 + 5
+    }
+
+    // nested application - replace inner expression
+    {
+        auto l_app = a(a(v(0), v(1)), v(2)); // size: 1 + 3 + 1 = 5
+        assert(l_app->m_size == 5);
+
+        app* l_outer = dynamic_cast<app*>(l_app.get());
+        assert(l_outer != nullptr);
+        app* l_inner = dynamic_cast<app*>(l_outer->m_lhs.get());
+        assert(l_inner != nullptr);
+
+        // replace inner's lhs with function (size 2)
+        l_inner->m_lhs = f(v(10));
+
+        // outer size should still be 5
+        assert(l_app->m_size == 5);
+
+        // update inner first
+        l_inner->update_size();
+        assert(l_inner->m_size == 4); // 1 + 2 + 1
+
+        // outer still hasn't updated
+        assert(l_app->m_size == 5);
+
+        // now update outer
+        l_outer->update_size();
+        assert(l_app->m_size == 6); // 1 + 4 + 1
+    }
+
+    // set m_size to garbage, then update
+    {
+        auto l_app = a(f(v(0)), a(v(1), v(2)));
+        l_app->m_size = 12345;
+
+        l_app->update_size();
+        assert(l_app->m_size == 6); // 1 + 2 + 3
+    }
+
+    // complex nested structure
+    {
+        // ((λ.(0 1)) (λ.2))
+        auto l_app = a(f(a(v(0), v(1))), f(v(2)));
+        // Left app: 1 + 1 + 1 = 3
+        // Left func: 1 + 3 = 4
+        // Right func: 1 + 1 = 2
+        // Outer app: 1 + 4 + 2 = 7
+        assert(l_app->m_size == 7);
+
+        app* l_app_casted = dynamic_cast<app*>(l_app.get());
+        l_app_casted->m_lhs = v(99); // replace with single var
+
+        assert(l_app->m_size == 7); // still old size
+
+        l_app->update_size();
+        assert(l_app->m_size == 4); // 1 + 1 + 2
+    }
+
+    // deeply right-nested applications
+    {
+        // (0 (1 (2 3)))
+        auto l_app = a(v(0), a(v(1), a(v(2), v(3))));
+        // Innermost: 1 + 1 + 1 = 3
+        // Middle: 1 + 1 + 3 = 5
+        // Outer: 1 + 1 + 5 = 7
+        assert(l_app->m_size == 7);
+
+        app* l_outer = dynamic_cast<app*>(l_app.get());
+        l_outer->m_rhs = v(42); // replace with single var
+
+        assert(l_app->m_size == 7); // still old size
+
+        l_app->update_size();
+        assert(l_app->m_size == 3); // 1 + 1 + 1
+    }
+
+    // replace with same-sized but different structure
+    {
+        auto l_app = a(a(v(0), v(1)), v(2)); // size 5
+        assert(l_app->m_size == 5);
+
+        app* l_app_casted = dynamic_cast<app*>(l_app.get());
+        l_app_casted->m_lhs = v(99);         // replace with var (size 1)
+        l_app_casted->m_rhs = a(v(3), v(4)); // replace with app (size 3)
+
+        assert(l_app->m_size == 5); // still old size
+
+        l_app->update_size();
+        assert(l_app->m_size ==
+               5); // 1 + 1 + 3 (same size, different structure)
     }
 }
 
@@ -5083,6 +5747,14 @@ void lambda_test_main()
     TEST(test_var_equals);
     TEST(test_func_equals);
     TEST(test_app_equals);
+
+    TEST(test_var_clone);
+    TEST(test_func_clone);
+    TEST(test_app_clone);
+
+    TEST(test_var_update_size);
+    TEST(test_func_update_size);
+    TEST(test_app_update_size);
 
     TEST(test_var_lift);
     TEST(test_func_lift);
