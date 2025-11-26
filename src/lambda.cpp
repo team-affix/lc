@@ -1,21 +1,5 @@
 #include "../include/lambda.hpp"
 
-// #define VERBOSE_LOGS 1
-// #if VERBOSE_LOGS
-
-// #include <iostream>
-
-// #define LOG_EXPR(a_expr)                                                       \
-//     a_expr->print(std::cout);                                                  \
-//     std::cout << std::endl;
-
-// #else
-
-// // no-op
-// #define LOG_EXPR(a_expr)
-
-// #endif
-
 namespace lambda
 {
 
@@ -48,7 +32,7 @@ bool app::equals(const std::unique_ptr<expr>& a_other) const
     if(!l_casted)
         return false;
 
-    return lhs()->equals(l_casted->lhs()) && rhs()->equals(l_casted->rhs());
+    return m_lhs->equals(l_casted->m_lhs) && m_rhs->equals(l_casted->m_rhs);
 }
 
 // PRINT METHODS
@@ -74,211 +58,85 @@ void app::print(std::ostream& a_ostream) const
     a_ostream << ")";
 }
 
-// LIFT METHODS
+// EXPR CLONE METHOD
 
-std::unique_ptr<expr> var::lift(size_t a_lift_amount, size_t a_cutoff) const
+std::unique_ptr<expr> var::clone() const
 {
-    if(m_index < a_cutoff)
-        return v(m_index);
-
-    return v(m_index + a_lift_amount);
+    return v(m_index);
 }
 
-std::unique_ptr<expr> func::lift(size_t a_lift_amount, size_t a_cutoff) const
+std::unique_ptr<expr> func::clone() const
+{
+    return f(m_body->clone());
+}
+
+std::unique_ptr<expr> app::clone() const
+{
+    return a(m_lhs->clone(), m_rhs->clone());
+}
+
+// UPDATE SIZE METHODS
+
+void var::update_size()
+{
+    m_size = 1;
+}
+
+void func::update_size()
+{
+    m_size = 1 + m_body->m_size;
+}
+
+void app::update_size()
+{
+    m_size = 1 + m_lhs->m_size + m_rhs->m_size;
+}
+
+// LIFT METHODS
+
+void var::lift(size_t a_lift_amount, size_t a_cutoff)
+{
+    // the variable is bound, so don't lift it
+    if(m_index < a_cutoff)
+        return;
+
+    // lift the variable
+    m_index += a_lift_amount;
+}
+
+void func::lift(size_t a_lift_amount, size_t a_cutoff)
 {
     // we don't increment here, since the goal is to lift the WHOLE function
     // (all locals inside) by the same amount (provided they are >= cutoff).
-    return f(m_body->lift(a_lift_amount, a_cutoff));
+    m_body->lift(a_lift_amount, a_cutoff);
 }
 
-std::unique_ptr<expr> app::lift(size_t a_lift_amount, size_t a_cutoff) const
+void app::lift(size_t a_lift_amount, size_t a_cutoff)
 {
-    return a(m_lhs->lift(a_lift_amount, a_cutoff),
-             m_rhs->lift(a_lift_amount, a_cutoff));
-}
-
-// SUBSTITUTE METHODS
-
-std::unique_ptr<expr> var::substitute(size_t a_lift_amount, size_t a_var_index,
-                                      const std::unique_ptr<expr>& a_arg) const
-{
-    if(m_index > a_var_index)
-        // this var is defined inside the redex, so it is
-        //     now 1 level shallower.
-        return v(m_index - 1);
-
-    if(m_index < a_var_index)
-        // leave the var alone, it was declared outside the redex
-        return clone();
-
-    // this var is the one we are substituting, so we must substitute it
-    return a_arg->lift(a_lift_amount, a_var_index);
-}
-
-std::unique_ptr<expr> func::substitute(size_t a_lift_amount, size_t a_var_index,
-                                       const std::unique_ptr<expr>& a_arg) const
-{
-    // increment the binder depth
-    return f(m_body->substitute(a_lift_amount + 1, a_var_index, a_arg));
-}
-
-std::unique_ptr<expr> app::substitute(size_t a_lift_amount, size_t a_var_index,
-                                      const std::unique_ptr<expr>& a_arg) const
-{
-    // just substitute the function and argument
-    return a(m_lhs->substitute(a_lift_amount, a_var_index, a_arg),
-             m_rhs->substitute(a_lift_amount, a_var_index, a_arg));
-}
-
-// REDUCE METHODS
-
-std::unique_ptr<expr> var::reduce_one_step(size_t a_depth) const
-{
-    // variables cannot reduce
-    return nullptr;
-}
-
-std::unique_ptr<expr> func::reduce_one_step(size_t a_depth) const
-{
-    // check if body can reduce
-    auto l_reduced_body = m_body->reduce_one_step(a_depth + 1);
-
-    if(!l_reduced_body)
-        // body cannot reduce, so this function cannot reduce
-        return nullptr;
-
-    // return the new function with the reduced body
-    return f(std::move(l_reduced_body));
-}
-
-std::unique_ptr<expr> app::reduce_one_step(size_t a_depth) const
-{
-    // see if this app is a beta-redex
-    const func* l_lhs_func = dynamic_cast<const func*>(lhs().get());
-
-    // if the lhs is a function, beta-contract the body
-    if(l_lhs_func)
-        return l_lhs_func->body()->substitute(0, a_depth, rhs());
-
-    // try to reduce lhs
-    auto l_reduced_lhs = lhs()->reduce_one_step(a_depth);
-
-    // if lhs can reduce, leave rhs alone and return
-    if(l_reduced_lhs)
-        return a(std::move(l_reduced_lhs), rhs()->clone());
-
-    // try to reduce rhs
-    auto l_reduced_rhs = rhs()->reduce_one_step(a_depth);
-
-    // if rhs can reduce, leave lhs alone and return
-    if(l_reduced_rhs)
-        return a(lhs()->clone(), std::move(l_reduced_rhs));
-
-    // otherwise, return nullptr
-    return nullptr;
-}
-
-// EXPR CLONE METHOD
-std::unique_ptr<expr> expr::clone() const
-{
-    return lift(0, 0);
-}
-
-// EXPR NORMALIZE METHOD
-expr::normalize_result
-expr::normalize(size_t a_step_limit, size_t a_size_limit,
-                std::function<void(const std::unique_ptr<expr>&)> a_trace) const
-{
-    // initialize the result
-    normalize_result l_result{
-        .m_step_excess = false,
-        .m_size_excess = false,
-        .m_step_count = 0,
-        .m_size_peak = std::numeric_limits<size_t>::min(),
-        .m_expr = clone(),
-    };
-
-    // log the original expression
-    a_trace(l_result.m_expr);
-
-    // as long as we are within the limits, keep reducing
-    while(auto l_reduced = l_result.m_expr->reduce_one_step(0))
-    {
-        // check if the step limit has been exceeded
-        if(l_result.m_step_count == a_step_limit)
-        {
-            l_result.m_step_excess = true;
-            break;
-        }
-
-        // check if the size limit has been exceeded
-        if(l_reduced->size() > a_size_limit)
-        {
-            l_result.m_size_excess = true;
-            break;
-        }
-
-        // update the step count
-        ++l_result.m_step_count;
-
-        // update the peak size
-        l_result.m_size_peak =
-            std::max(l_result.m_size_peak, l_reduced->size());
-
-        // update the result to the reduced expression
-        l_result.m_expr = std::move(l_reduced);
-
-        // log the reduction
-        a_trace(l_result.m_expr);
-    }
-
-    return l_result;
-}
-
-// GETTER METHODS
-size_t expr::size() const
-{
-    return m_size;
-}
-
-size_t var::index() const
-{
-    return m_index;
-}
-
-const std::unique_ptr<expr>& func::body() const
-{
-    return m_body;
-}
-
-const std::unique_ptr<expr>& app::lhs() const
-{
-    return m_lhs;
-}
-
-const std::unique_ptr<expr>& app::rhs() const
-{
-    return m_rhs;
+    // lift the lhs and rhs
+    m_lhs->lift(a_lift_amount, a_cutoff);
+    m_rhs->lift(a_lift_amount, a_cutoff);
 }
 
 // CONSTRUCTORS
-expr::expr(size_t a_size) : m_size(a_size)
+expr::expr() : m_size(0)
 {
 }
 
-var::var(size_t a_index) : expr(1), m_index(a_index)
+var::var(size_t a_index) : expr(), m_index(a_index)
 {
+    update_size();
 }
 
-func::func(std::unique_ptr<expr>&& a_body)
-    : expr(1 + a_body->size()), m_body(std::move(a_body))
+func::func(std::unique_ptr<expr>&& a_body) : expr(), m_body(std::move(a_body))
 {
+    update_size();
 }
 
 app::app(std::unique_ptr<expr>&& a_lhs, std::unique_ptr<expr>&& a_rhs)
-    : expr(1 + a_lhs->size() + a_rhs->size()), m_lhs(std::move(a_lhs)),
-      m_rhs(std::move(a_rhs))
+    : expr(), m_lhs(std::move(a_lhs)), m_rhs(std::move(a_rhs))
 {
+    update_size();
 }
 
 // FACTORY FUNCTIONS
@@ -306,6 +164,118 @@ std::ostream& operator<<(std::ostream& a_ostream, const expr& a_expr)
     return a_ostream;
 }
 
+// REWRITING FUNCTIONS
+
+// between root of a_expr and the occurrance of the variable.
+void substitute(std::unique_ptr<expr>& a_expr, size_t a_lift_amount,
+                size_t a_var_index, const std::unique_ptr<expr>& a_arg)
+{
+    if(var* l_var = dynamic_cast<var*>(a_expr.get()))
+    {
+        if(l_var->m_index > a_var_index)
+        {
+            // this var is defined inside the redex (free), so it is
+            //     now 1 level shallower.
+            --l_var->m_index;
+            return;
+        }
+
+        if(l_var->m_index < a_var_index)
+        {
+            // leave the var alone, it was declared outside the redex
+            // (bound)
+            return;
+        }
+
+        // this var is the one we are substituting, so we must substitute it
+        a_expr = a_arg->clone();
+        a_expr->lift(a_lift_amount, a_var_index);
+
+        return;
+    }
+
+    if(func* l_func = dynamic_cast<func*>(a_expr.get()))
+    {
+        // increment the binder depth
+        substitute(l_func->m_body, a_lift_amount + 1, a_var_index, a_arg);
+
+        // update the size of the function
+        l_func->update_size();
+
+        return;
+    }
+
+    if(app* l_app = dynamic_cast<app*>(a_expr.get()))
+    {
+        // substitute the lhs and rhs
+        substitute(l_app->m_lhs, a_lift_amount, a_var_index, a_arg);
+        substitute(l_app->m_rhs, a_lift_amount, a_var_index, a_arg);
+
+        // update the size of the application
+        l_app->update_size();
+
+        return;
+    }
+
+    // if we get here, error
+    throw std::runtime_error("substitute: invalid expression type");
+}
+
+bool reduce_one_step(std::unique_ptr<expr>& a_expr, size_t a_depth)
+{
+    if(var* l_var = dynamic_cast<var*>(a_expr.get()))
+    {
+        // variables cannot reduce
+        return false;
+    }
+
+    if(func* l_func = dynamic_cast<func*>(a_expr.get()))
+    {
+        // just try to reduce the body by 1 step
+        if(reduce_one_step(l_func->m_body, a_depth + 1))
+        {
+            // update the size of the function
+            l_func->update_size();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    if(app* l_app = dynamic_cast<app*>(a_expr.get()))
+    {
+        // if this app is a beta-redex, beta-contract the body
+        if(func* l_lhs_func = dynamic_cast<func*>(l_app->m_lhs.get()))
+        {
+            // perform the beta-contraction
+            substitute(l_lhs_func->m_body, 0, a_depth, l_app->m_rhs);
+
+            // throw away the lambda binder
+            // NOTE: a_expr already knows its new size, so we don't need to
+            // update it here.
+            a_expr = std::move(l_lhs_func->m_body);
+
+            return true;
+        }
+
+        // try to reduce lhs IF FAIL, rhs (in that order)
+        if(reduce_one_step(l_app->m_lhs, a_depth) ||
+           reduce_one_step(l_app->m_rhs, a_depth))
+        {
+            // update the size of the application
+            l_app->update_size();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    // if we get here, error
+    throw std::runtime_error("reduce_one_step: invalid expression type");
+}
+
 } // namespace lambda
 
 #ifdef UNIT_TEST
@@ -323,7 +293,7 @@ void test_var_constructor()
         auto l_var = v(0);
         const var* l_var_casted = dynamic_cast<var*>(l_var.get());
         assert(l_var_casted != nullptr);
-        assert(l_var_casted->index() == 0);
+        assert(l_var_casted->m_index == 0);
     }
 
     // index 1
@@ -331,7 +301,7 @@ void test_var_constructor()
         auto l_var = v(1);
         const var* l_var_casted = dynamic_cast<var*>(l_var.get());
         assert(l_var_casted != nullptr);
-        assert(l_var_casted->index() == 1);
+        assert(l_var_casted->m_index == 1);
     }
 }
 
@@ -343,12 +313,12 @@ void test_func_constructor()
         // get body
         const func* l_func_casted = dynamic_cast<func*>(l_func.get());
         assert(l_func_casted != nullptr);
-        const auto& l_body = l_func_casted->body();
+        const auto& l_body = l_func_casted->m_body;
         // check if the body is a local
         const var* l_var = dynamic_cast<var*>(l_body.get());
         assert(l_var != nullptr);
         // check if the index is correct
-        assert(l_var->index() == 0);
+        assert(l_var->m_index == 0);
     }
 }
 
@@ -360,9 +330,9 @@ void test_app_constructor()
         // get the lhs
         const app* l_app_casted = dynamic_cast<app*>(l_app.get());
         assert(l_app_casted != nullptr);
-        const auto& l_lhs = l_app_casted->lhs();
+        const auto& l_lhs = l_app_casted->m_lhs;
         // get the rhs
-        const auto& l_rhs = l_app_casted->rhs();
+        const auto& l_rhs = l_app_casted->m_rhs;
 
         // make sure they both are locals
         const var* l_lhs_var = dynamic_cast<var*>(l_lhs.get());
@@ -371,8 +341,8 @@ void test_app_constructor()
         assert(l_rhs_var != nullptr);
 
         // make sure the indices are correct
-        assert(l_lhs_var->index() == 0);
-        assert(l_rhs_var->index() == 1);
+        assert(l_lhs_var->m_index == 0);
+        assert(l_rhs_var->m_index == 1);
     }
 }
 

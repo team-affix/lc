@@ -2,8 +2,6 @@
 #define LAMBDA_HPP
 
 #include <cstddef>
-#include <functional>
-#include <limits>
 #include <memory>
 #include <ostream>
 
@@ -12,100 +10,98 @@ namespace lambda
 
 struct expr
 {
-    // used for normalize() results:
-    struct normalize_result
-    {
-        bool m_step_excess;
-        bool m_size_excess;
-        size_t m_step_count;
-        size_t m_size_peak;
-        std::unique_ptr<expr> m_expr;
-    };
     virtual ~expr() = default;
+
+    // ACCESSOR METHODS
+    // checks if the expression is equal to another
     virtual bool equals(const std::unique_ptr<expr>&) const = 0;
+    // prints the expression to a_ostream
     virtual void print(std::ostream& a_ostream) const = 0;
-    virtual std::unique_ptr<expr> lift(size_t a_lift_amount,
-                                       size_t a_cutoff) const = 0;
-    virtual std::unique_ptr<expr>
-    substitute(size_t a_lift_amount, size_t a_var_index,
-               const std::unique_ptr<expr>& a_arg) const = 0;
-    virtual std::unique_ptr<expr> reduce_one_step(size_t a_depth) const = 0;
-    std::unique_ptr<expr> clone() const;
-    normalize_result normalize(
-        size_t a_step_limit = std::numeric_limits<size_t>::max(),
-        size_t a_size_limit = std::numeric_limits<size_t>::max(),
-        std::function<void(const std::unique_ptr<expr>&)> a_trace =
-            [](const std::unique_ptr<expr>&) {}) const;
-    size_t size() const;
-    expr(size_t a_size);
+    // creates a deep copy of the expression
+    virtual std::unique_ptr<expr> clone() const = 0;
+
+    // MUTATOR METHODS
+    // updates the size of the expression given the sizes of its children
+    virtual void update_size() = 0;
+    // lifts all free variables in a_expr by a_lift_amount,
+    // given that free variables are those whose level is >= a_cutoff.
+    virtual void lift(size_t a_lift_amount, size_t a_cutoff) = 0;
+
+    expr();
     expr(const expr& other) = delete;
     expr& operator=(const expr& other) = delete;
 
-  private:
-    const size_t m_size;
+    // MEMBER VARIABLES
+    size_t m_size;
 };
 
 struct var : expr
 {
     virtual ~var() = default;
+
+    // ACCESSOR METHODS
     bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
-    std::unique_ptr<expr> lift(size_t a_lift_amount,
-                               size_t a_cutoff) const override;
-    std::unique_ptr<expr>
-    substitute(size_t a_lift_amount, size_t a_var_index,
-               const std::unique_ptr<expr>& a_arg) const override;
-    std::unique_ptr<expr> reduce_one_step(size_t a_depth) const override;
-    size_t index() const;
+    std::unique_ptr<expr> clone() const override;
+
+    // MUTATOR METHODS
+    void update_size() override;
+    void lift(size_t a_lift_amount, size_t a_cutoff) override;
+
+    // MEMBER VARIABLES
+    size_t m_index;
 
   private:
     var(size_t a_index);
     friend std::unique_ptr<expr> v(size_t a_index);
-    const size_t m_index;
 };
 
 struct func : expr
 {
     virtual ~func() = default;
+
+    // ACCESSOR METHODS
     bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
-    std::unique_ptr<expr> lift(size_t a_lift_amount,
-                               size_t a_cutoff) const override;
-    std::unique_ptr<expr>
-    substitute(size_t a_lift_amount, size_t a_var_index,
-               const std::unique_ptr<expr>& a_arg) const override;
-    std::unique_ptr<expr> reduce_one_step(size_t a_depth) const override;
-    const std::unique_ptr<expr>& body() const;
+    std::unique_ptr<expr> clone() const override;
+
+    // MUTATOR METHODS
+    void update_size() override;
+    void lift(size_t a_lift_amount, size_t a_cutoff) override;
+
+    // MEMBER VARIABLES
+    std::unique_ptr<expr> m_body;
 
   private:
     func(std::unique_ptr<expr>&& a_body);
     friend std::unique_ptr<expr> f(std::unique_ptr<expr>&& a_body);
-    const std::unique_ptr<expr> m_body;
 };
 
 struct app : expr
 {
     virtual ~app() = default;
+
+    // ACCESSOR METHODS
     bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
-    std::unique_ptr<expr> lift(size_t a_lift_amount,
-                               size_t a_cutoff) const override;
-    std::unique_ptr<expr>
-    substitute(size_t a_lift_amount, size_t a_var_index,
-               const std::unique_ptr<expr>& a_arg) const override;
-    std::unique_ptr<expr> reduce_one_step(size_t a_depth) const override;
-    const std::unique_ptr<expr>& lhs() const;
-    const std::unique_ptr<expr>& rhs() const;
+    std::unique_ptr<expr> clone() const override;
+
+    // MUTATOR METHODS
+    void update_size() override;
+    void lift(size_t a_lift_amount, size_t a_cutoff) override;
+
+    // MEMBER VARIABLES
+    std::unique_ptr<expr> m_lhs;
+    std::unique_ptr<expr> m_rhs;
 
   private:
     app(std::unique_ptr<expr>&& a_lhs, std::unique_ptr<expr>&& a_rhs);
     friend std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_lhs,
                                    std::unique_ptr<expr>&& a_rhs);
-    const std::unique_ptr<expr> m_lhs;
-    const std::unique_ptr<expr> m_rhs;
 };
 
-// factory functions
+// FACTORY FUNCTIONS
+
 std::unique_ptr<expr> v(size_t a_index);
 std::unique_ptr<expr> f(std::unique_ptr<expr>&& a_body);
 std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_lhs,
@@ -113,6 +109,19 @@ std::unique_ptr<expr> a(std::unique_ptr<expr>&& a_lhs,
 
 // operator for printing expressions to ostreams
 std::ostream& operator<<(std::ostream& a_ostream, const expr& a_expr);
+
+// REWRITING FUNCTIONS
+
+// replaces all occurrances of the variable with index a_var_index in
+// a_expr with a_arg, lifted by a_lift_amount plus the number of binders
+// between root of a_expr and the occurrance of the variable.
+// Returns the size increase due to the substitution.
+void substitute(std::unique_ptr<expr>& a_expr, size_t a_lift_amount,
+                size_t a_var_index, const std::unique_ptr<expr>& a_arg);
+
+// attempts to find and reduce the leftmost-outermost redex in a_expr.
+// returns true if a reduction was found and performed, false otherwise.
+bool reduce_one_step(std::unique_ptr<expr>& a_expr, size_t a_depth = 0);
 
 // construct_program: builds a tower of lambda abstractions to emulate delta
 // reductions through beta-reductions.
