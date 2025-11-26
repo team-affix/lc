@@ -2217,6 +2217,7 @@ void test_var_reduce()
 
         // make sure it has the same index
         assert(l_var->m_index == 0);
+        assert(l_result->m_size == 1);
     }
 
     // local with var 1
@@ -2233,6 +2234,7 @@ void test_var_reduce()
 
         // make sure it has the same index
         assert(l_var->m_index == 1);
+        assert(l_result->m_size == 1);
     }
 }
 
@@ -2256,6 +2258,7 @@ void test_func_reduce()
 
         // make sure body is still same thing
         assert(l_body->m_index == 0);
+        assert(l_result->m_size == 2);
     }
 
     // Test reduction of func with no redex
@@ -2264,6 +2267,7 @@ void test_func_reduce()
         auto l_result = l_expr->clone();
         assert(!reduce_one_step(l_result));
         assert(l_result->equals(f(a(v(2), v(5)))));
+        assert(l_result->m_size == 4);
     }
 
     // Test reduction count with redex inside function body
@@ -2281,6 +2285,7 @@ void test_func_reduce()
         assert(l_step_count == 1);
 
         assert(l_result->equals(f(v(0))));
+        assert(l_result->m_size == 2);
     }
 
     // Test nested functions with multiple reductions
@@ -2297,6 +2302,7 @@ void test_func_reduce()
         assert(l_step_count == 2);
 
         assert(l_result->equals(f(f(v(2)))));
+        assert(l_result->m_size == 3);
     }
 
     // Test size peak tracking on func with reduction where size decreases
@@ -2313,6 +2319,7 @@ void test_func_reduce()
 
         assert(l_size_peak == 2);
         assert(l_result->equals(f(v(0))));
+        assert(l_result->m_size == 2);
     }
 
     // Test simple reduction inside lambda body
@@ -2327,6 +2334,7 @@ void test_func_reduce()
 
         assert(l_step_count == 1);
         assert(l_result->equals(f(v(2))));
+        assert(l_result->m_size == 2);
     }
 
     // Test trace callback on func with 1 reduction
@@ -2353,6 +2361,7 @@ void test_func_reduce()
 
         assert(l_trace_index == l_expected_trace.size());
         assert(l_result->equals(f(v(0))));
+        assert(l_result->m_size == 2);
     }
 
     // Test trace callback on func with 2 reductions
@@ -2381,6 +2390,7 @@ void test_func_reduce()
 
         assert(l_trace_index == l_expected_trace.size());
         assert(l_result->equals(f(f(v(2)))));
+        assert(l_result->m_size == 3);
     }
 
     // Test trace callback on func with 2 reductions
@@ -2409,64 +2419,61 @@ void test_func_reduce()
 
         assert(l_trace_index == l_expected_trace.size());
         assert(l_result->equals(f(f(v(5)))));
+        assert(l_result->m_size == 3);
     }
 }
 
 void test_app_reduce()
 {
-    //     // app with lhs and rhs both locals
-    //     {
-    //         auto l_lhs = v(0);
-    //         auto l_rhs = v(1);
-    //         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
+    // app with lhs and rhs both locals
+    {
+        auto l_lhs = v(0);
+        auto l_rhs = v(1);
+        auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
-    //         // reduce the app
+        // reduce the app
 
-    //         const auto l_result = l_expr->normalize();
+        auto l_result = l_expr->clone();
+        assert(!reduce_one_step(l_result));
 
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
+        const app* l_app = dynamic_cast<app*>(l_result.get());
+        assert(l_app != nullptr);
 
-    //         const app* l_app = dynamic_cast<app*>(l_result.m_expr.get());
-    //         assert(l_app != nullptr);
+        // lhs should be local
+        const var* l_reduced_lhs = dynamic_cast<var*>(l_app->m_lhs.get());
+        assert(l_reduced_lhs != nullptr);
 
-    //         // lhs should be local
-    //         const var* l_reduced_lhs =
-    //         dynamic_cast<var*>(l_app->lhs().get()); assert(l_reduced_lhs !=
-    //         nullptr);
+        // rhs should be local
+        const var* l_reduced_rhs = dynamic_cast<var*>(l_app->m_rhs.get());
+        assert(l_reduced_rhs != nullptr);
 
-    //         // rhs should be local
-    //         const var* l_reduced_rhs =
-    //         dynamic_cast<var*>(l_app->rhs().get()); assert(l_reduced_rhs !=
-    //         nullptr);
+        // same on both (no reduction occurred)
+        assert(l_reduced_lhs->m_index == 0);
+        assert(l_reduced_rhs->m_index == 1);
 
-    //         // same on both (no reduction occurred)
-    //         assert(l_reduced_lhs->index() == 0);
-    //         assert(l_reduced_rhs->index() == 1);
-    //     }
+        assert(l_result->m_size == 3);
+    }
 
-    //     // app with lhs func and rhs local
-    //     {
-    //         auto l_lhs = f(v(0)->clone());
-    //         auto l_rhs = v(1);
-    //         auto l_expr = a(l_lhs->clone(), l_rhs->clone());
+    // app with lhs func and rhs local
+    {
+        auto l_lhs = f(v(0)->clone());
+        auto l_rhs = v(1);
+        auto l_expr = a(l_lhs->clone(), l_rhs->clone());
 
-    //         // reduce the app
+        // reduce the app
 
-    //         const auto l_result = l_expr->normalize();
+        auto l_result = l_expr->clone();
+        assert(reduce_one_step(l_result));
 
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 1); // Result is v(1) with size 1
+        // make sure nothing changed
+        // (beta reduction did not occur since rhs is local)
+        assert(l_result->equals(v(1)));
 
-    //         // make sure nothing changed
-    //         // (beta reduction did not occur since rhs is local)
-    //         assert(l_result.m_expr->equals(v(1)));
-    //     }
+        assert(l_result->m_size == 1);
+
+        // beta-normal
+        assert(!reduce_one_step(l_result));
+    }
 
     //     // app with lhs func and rhs func
     //     {
