@@ -282,6 +282,7 @@ bool reduce_one_step(std::unique_ptr<expr>& a_expr, size_t a_depth)
 
 #include "../testing/test_utils.hpp"
 #include <iostream>
+#include <limits>
 #include <list>
 
 using namespace lambda;
@@ -2298,158 +2299,89 @@ void test_func_reduce()
         assert(l_result->equals(f(f(v(2)))));
     }
 
-    //     // Test size peak tracking on func with no reductions
-    //     // λ.5 has size 2 and stays that way
-    //     {
-    //         auto l_expr = f(v(5));
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         assert(l_result.m_expr->equals(f(v(5))));
-    //     }
+    // Test size peak tracking on func with reduction where size decreases
+    // λ.((λ.0) 5) has size 5, reduces to λ.0 with size 2
+    // Peak should be 2 (size after reduction)
+    {
+        auto l_expr = f(a(f(v(0)), v(5)));
+        auto l_result = l_expr->clone();
 
-    //     // Test size peak tracking on func with reduction where size
-    //     decreases
-    //     // λ.((λ.0) 5) has size 5, reduces to λ.0 with size 2
-    //     // Peak should be 2 (size after reduction)
-    //     {
-    //         auto l_expr = f(a(f(v(0)), v(5)));
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 2);
-    //         auto l_expected = f(v(0));
-    //         assert(l_result.m_expr->equals(l_expected));
-    //     }
+        size_t l_size_peak = std::numeric_limits<size_t>::min();
 
-    //     // Test size peak with step count on func with reduction
-    //     {
-    //         auto l_expr = f(a(f(v(1)), v(2)));
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 2); // λ.2 has size 2
-    //         assert(l_result.m_expr->equals(f(v(2))));
-    //     }
+        while(reduce_one_step(l_result))
+            l_size_peak = std::max(l_size_peak, l_result->m_size);
 
-    //     // Test size limit preventing reduction
-    //     // λ.((λ.3) 4) has size 5, result would be λ.2 with size 2
-    //     // If we set size limit to 1, the reduction's result (size 2) exceeds
-    //     it
-    //     {
-    //         auto l_expr = f(a(f(v(3)), v(4)));
-    //         auto l_result =
-    //             l_expr->normalize(std::numeric_limits<size_t>::max(), 1);
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == true); // Result would exceed
-    //         limit assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         assert(l_result.m_expr->equals(l_expr));
-    //     }
+        assert(l_size_peak == 2);
+        assert(l_result->equals(f(v(0))));
+    }
 
-    //     // Test size limit allowing reduction (limit >= result size)
-    //     // λ.((λ.3) 4) with size limit 2 -> can reduce to λ.2 (size 2)
-    //     {
-    //         auto l_expr = f(a(f(v(3)), v(4)));
-    //         auto l_result =
-    //             l_expr->normalize(std::numeric_limits<size_t>::max(), 2);
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 2);
-    //         assert(l_result.m_expr->equals(f(v(2))));
-    //     }
+    // Test simple reduction inside lambda body
+    {
+        auto l_expr = f(a(f(v(1)), v(2)));
+        auto l_result = l_expr->clone();
 
-    //     // Test all parameters together on func
-    //     {
-    //         auto l_expr = f(a(f(v(1)), v(2)));
-    //         auto l_result = l_expr->normalize(10, 100);
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 2);
-    //         assert(l_result.m_expr->equals(f(v(2))));
-    //     }
+        size_t l_step_count = 0;
 
-    //     // Test N-2 scenario for func: needs 2 reductions, limit 0 blocks all
-    //     // λ.((λ.1) ((λ.2) 3)) needs 2 reductions in body
-    //     {
-    //         auto l_expr = f(a(f(v(1)), a(f(v(2)), v(3))));
-    //         auto l_result = l_expr->normalize(0, 100);
-    //         assert(l_result.m_step_excess == true); // Can reduce but hit
-    //         limit assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         // No reductions performed, so still the original
-    //         assert(l_result.m_expr->equals(l_expr));
-    //     }
+        while(reduce_one_step(l_result))
+            ++l_step_count;
 
-    //     // Test trace callback on func with 1 reduction
-    //     // λ.((λ.0) 5) -> λ.0
-    //     // Expected trace: [λ.((λ.0) 5), λ.0]
-    //     {
-    //         auto l_expr = f(a(f(v(0)), v(5)));
+        assert(l_step_count == 1);
+        assert(l_result->equals(f(v(2))));
+    }
 
-    //         // Expected trace: initial expression + result after 1 reduction
-    //         std::vector<std::unique_ptr<expr>> l_expected_trace;
-    //         l_expected_trace.push_back(f(a(f(v(0)), v(5))));
-    //         l_expected_trace.push_back(f(v(0)));
+    // Test trace callback on func with 1 reduction
+    // λ.((λ.0) 5) -> λ.0
+    // Expected trace: [λ.((λ.0) 5), λ.0]
+    {
+        auto l_expr = f(a(f(v(0)), v(5)));
 
-    //         size_t l_trace_index = 0;
-    //         auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
-    //         {
-    //             assert(l_trace_index < l_expected_trace.size());
-    //             assert(a_expr->equals(l_expected_trace[l_trace_index]));
-    //             ++l_trace_index;
-    //         };
+        // Expected trace: initial expression + result after 1 reduction
+        std::vector<std::unique_ptr<expr>> l_expected_trace;
+        l_expected_trace.push_back(f(v(0)));
 
-    //         auto l_result =
-    //             l_expr->normalize(std::numeric_limits<size_t>::max(),
-    //                               std::numeric_limits<size_t>::max(),
-    //                               l_trace);
+        size_t l_trace_index = 0;
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
+        {
+            assert(l_trace_index < l_expected_trace.size());
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
+            ++l_trace_index;
+        };
 
-    //         assert(l_trace_index == l_expected_trace.size());
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_expr->equals(f(v(0))));
-    //     }
+        auto l_result = l_expr->clone();
+        while(reduce_one_step(l_result))
+            l_trace(l_result);
 
-    //     // Test trace callback on func with 2 reductions
-    //     // λ.λ.((λ.2) ((λ.3) 5)) -> λ.λ.((λ.3) 5) -> λ.λ.2
-    //     // Expected trace: [initial, after 1st reduction, after 2nd
-    //     reduction]
-    //     {
-    //         auto l_expr = f(f(a(f(v(2)), a(f(v(3)), v(5)))));
+        assert(l_trace_index == l_expected_trace.size());
+        assert(l_result->equals(f(v(0))));
+    }
 
-    //         // Expected trace: initial + intermediate + final
-    //         std::vector<std::unique_ptr<expr>> l_expected_trace;
-    //         l_expected_trace.push_back(f(f(a(f(v(2)), a(f(v(3)), v(5))))));
-    //         l_expected_trace.push_back(f(f(a(f(v(3)), v(5)))));
-    //         l_expected_trace.push_back(f(f(v(2))));
+    // Test trace callback on func with 2 reductions
+    // λ.λ.((λ.2) ((λ.3) 5)) -> λ.λ.((λ.3) 5) -> λ.λ.2
+    // Expected trace: [initial, after 1st reduction, after 2nd reduction]
+    {
+        auto l_expr = f(f(a(f(v(2)), a(f(v(3)), v(5)))));
 
-    //         size_t l_trace_index = 0;
-    //         auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
-    //         {
-    //             assert(l_trace_index < l_expected_trace.size());
-    //             assert(a_expr->equals(l_expected_trace[l_trace_index]));
-    //             ++l_trace_index;
-    //         };
+        // Expected trace: initial + intermediate + final
+        std::vector<std::unique_ptr<expr>> l_expected_trace;
+        l_expected_trace.push_back(f(f(a(f(v(3)), v(5)))));
+        l_expected_trace.push_back(f(f(v(2))));
 
-    //         auto l_result =
-    //             l_expr->normalize(std::numeric_limits<size_t>::max(),
-    //                               std::numeric_limits<size_t>::max(),
-    //                               l_trace);
+        size_t l_trace_index = 0;
+        auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
+        {
+            assert(l_trace_index < l_expected_trace.size());
+            assert(a_expr->equals(l_expected_trace[l_trace_index]));
+            ++l_trace_index;
+        };
 
-    //         assert(l_trace_index == l_expected_trace.size());
-    //         assert(l_result.m_step_count == 2);
-    //         assert(l_result.m_expr->equals(f(f(v(2)))));
-    //     }
+        auto l_result = l_expr->clone();
+
+        while(reduce_one_step(l_result))
+            l_trace(l_result);
+
+        assert(l_trace_index == l_expected_trace.size());
+        assert(l_result->equals(f(f(v(2)))));
+    }
 }
 
 void test_app_reduce()
