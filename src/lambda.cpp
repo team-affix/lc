@@ -2715,62 +2715,83 @@ void test_app_reduce()
         assert(!reduce_one_step(l_result));
     }
 
-    //     // Test reduction count with single reduction
-    //     // (λ.0) 5 -> 5 (1 reduction)
-    //     {
-    //         auto l_expr = a(f(v(0)), v(5));
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 1);
-    //         assert(l_result.m_size_peak == 1);
-    //         assert(l_result.m_expr->equals(v(5)));
-    //     }
+    // Test reduction count with single reduction
+    // (λ.0) 5 -> 5 (1 reduction)
+    {
+        auto l_expr = a(f(v(0)), v(5));
+        auto l_result = l_expr->clone();
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(v(5)));
+        assert(l_result->m_size == 1);
 
-    //     // Test reduction count with multiple reductions
-    //     // ((λ.0) 5) ((λ.1) 6) -> (5 ((λ.1) 6)) -> (5 0) (2 reductions)
-    //     // Note: v(1) is a free variable, so it decrements to v(0)
-    //     {
-    //         auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 2);
-    //         // After 1st reduction: (5 ((λ.1) 6)) has size 6 (1+1+(1+2+1)=6)
-    //         // After 2nd reduction: (5 0) has size 3
-    //         // Peak is max of intermediate results = 6
-    //         assert(l_result.m_size_peak == 6);
-    //         auto l_expected = a(v(5), v(0));
-    //         assert(l_result.m_expr->equals(l_expected));
-    //     }
+        assert(!reduce_one_step(l_result));
+    }
 
-    //     // Test reduction count with church numeral reduction
-    //     // Church numeral 2 applied: many reductions
-    //     {
-    //         auto l_two = f(f(a(v(0), a(v(0), v(1)))));
-    //         auto l_f = f(v(10));
-    //         auto l_x = v(5);
-    //         auto l_expr = a(a(l_two->clone(), l_f->clone()), l_x->clone());
-    //         auto l_result = l_expr->normalize();
-    //         assert(l_result.m_step_excess == false);
-    //         assert(l_result.m_size_excess == false);
-    //         // Should have multiple reductions
-    //         assert(l_result.m_step_count > 0);
-    //         assert(l_result.m_size_peak > 0);
-    //     }
+    // Test reduction count with multiple reductions
+    // ((λ.0) 5) ((λ.1) 6) -> (5 ((λ.1) 6)) -> (5 0) (2 reductions)
+    // Note: v(1) is a free variable, so it decrements to v(0)
+    {
+        auto l_expr = a(a(f(v(0)), v(5)), a(f(v(1)), v(6)));
 
-    //     // Test limit of 0 - blocks first reduction
-    //     {
-    //         auto l_expr = a(f(v(0)), v(5));
-    //         auto l_result = l_expr->normalize(0);
-    //         // Cannot do any reductions with limit 0
-    //         assert(l_result.m_step_excess == true);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 0);
-    //         assert(l_result.m_size_peak ==
-    //         std::numeric_limits<size_t>::min());
-    //         assert(l_result.m_expr->equals(l_expr));
-    //     }
+        // First reduction: left-outermost redex reduces
+        auto l_result = l_expr->clone();
+        assert(reduce_one_step(l_result));
+
+        // After 1st reduction: (5 ((λ.1) 6))
+        assert(l_result->equals(a(v(5), a(f(v(1)), v(6)))));
+        assert(l_result->m_size == 6); // 1 + 1 + (1+2+1)
+
+        // Second reduction: right side reduces
+        assert(reduce_one_step(l_result));
+
+        // After 2nd reduction: (5 0)
+        assert(l_result->equals(a(v(5), v(0))));
+        assert(l_result->m_size == 3); // 1 + 1 + 1
+
+        // beta-normal
+        assert(!reduce_one_step(l_result));
+    }
+
+    // Test reduction count with church numeral reduction
+    // Church numeral 2 applied: many reductions
+    // ((λ.λ.(0 (0 1))) (λ.10)) 5
+    {
+        auto l_two = f(f(a(v(0), a(v(0), v(1)))));
+        auto l_f = f(v(10));
+        auto l_x = v(5);
+        auto l_expr = a(a(l_two->clone(), l_f->clone()), l_x->clone());
+
+        auto l_result = l_expr->clone();
+
+        // First reduction: apply first argument (λ.10) to church 2
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(a(f(a(f(v(11)), a(f(v(11)), v(0)))), v(5))));
+        assert(l_result->m_size == 10);
+
+        // Second reduction: apply second argument 5
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(a(f(v(10)), a(f(v(10)), v(5)))));
+        assert(l_result->m_size == 7);
+
+        // Third reduction: reduce outer application
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(v(9)));
+        assert(l_result->m_size == 1);
+
+        // beta-normal
+        assert(!reduce_one_step(l_result));
+    }
+
+    // Test application in beta-normal form - no reduction possible
+    {
+        auto l_expr = a(v(3), v(7));
+        auto l_result = l_expr->clone();
+
+        // Already in beta-normal form - cannot reduce
+        assert(!reduce_one_step(l_result));
+        assert(l_result->equals(a(v(3), v(7))));
+        assert(l_result->m_size == 3); // 1 + 1 + 1
+    }
 
     //     // Test limit of 1 - allows 1 reduction, blocks second
     //     // ((λ.0) 5) ((λ.1) 6) needs 2 reductions total
