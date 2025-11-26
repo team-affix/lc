@@ -2219,143 +2219,32 @@ void test_var_normalize()
         assert(l_var->m_index == 0);
     }
 
-    // // local with var 1
-    // {
-    //     auto l_expr = v(1);
-    //     const auto l_result = l_expr->normalize();
+    // local with var 1
+    {
+        auto l_expr = v(1);
+        auto l_result = l_expr->clone();
 
-    //     assert(l_result.m_step_excess == false);
-    //     assert(l_result.m_size_excess == false);
-    //     assert(l_result.m_step_count == 0);
-    //     assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
+        // normalize
+        while(reduce_one_step(l_result))
+            ;
 
-    //     // cast the pointer
-    //     const var* l_var = dynamic_cast<var*>(l_result.m_expr.get());
-    //     assert(l_var != nullptr);
+        // cast the pointer
+        const var* l_var = dynamic_cast<var*>(l_result.get());
+        assert(l_var != nullptr);
 
-    //     // make sure it has the same index
-    //     assert(l_var->index() == 1);
-    // }
+        // make sure it has the same index
+        assert(l_var->m_index == 1);
+    }
 
-    // // Test reduction count with no reductions (var cannot reduce)
-    // {
-    //     auto l_expr = v(5);
-    //     auto l_result = l_expr->normalize();
-    //     assert(l_result.m_step_excess == false);
-    //     assert(l_result.m_size_excess == false);
-    //     assert(l_result.m_step_count == 0);
-    //     assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-    //     assert(l_result.m_expr->equals(v(5)));
-    // }
+    // Test reduction count with no reductions (var cannot reduce)
+    {
+        auto l_expr = v(5);
+        auto l_result = l_expr->clone();
+        while(reduce_one_step(l_result))
+            ;
 
-    // // Test reduction limit on var (no effect since vars don't reduce)
-    // {
-    //     auto l_expr = v(7);
-    //     auto l_result = l_expr->normalize(0);
-    //     assert(l_result.m_step_excess == false);
-    //     assert(l_result.m_size_excess == false);
-    //     assert(l_result.m_step_count == 0);
-    //     assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-    //     assert(l_result.m_expr->equals(v(7)));
-    // }
-
-    // // Test size peak tracking on var (size should stay at min since no
-    // // reductions)
-    // {
-    //     auto l_expr = v(10);
-    //     auto l_result = l_expr->normalize(std::numeric_limits<size_t>::max(),
-    //                                       std::numeric_limits<size_t>::max());
-    //     assert(l_result.m_step_excess == false);
-    //     assert(l_result.m_size_excess == false);
-    //     assert(l_result.m_step_count == 0);
-    //     assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-    //     assert(l_result.m_expr->equals(v(10)));
-    // }
-
-    // // Test size peak with default parameters (should work without tracking)
-    // {
-    //     auto l_expr = v(5);
-    //     auto l_result = l_expr->normalize();
-    //     assert(l_result.m_step_excess == false);
-    //     assert(l_result.m_size_excess == false);
-    //     assert(l_result.m_step_count == 0);
-    //     assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-    //     assert(l_result.m_expr->equals(v(5)));
-    // }
-
-    // // Test size limit on var (no effect since size stays at 1 and never
-    // // reduces)
-    // {
-    //     auto l_expr = v(3);
-    //     auto l_result =
-    //         l_expr->normalize(std::numeric_limits<size_t>::max(), 1);
-    //     assert(l_result.m_step_excess == false);
-    //     assert(l_result.m_size_excess == false);
-    //     assert(l_result.m_step_count == 0);
-    //     assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-    //     assert(l_result.m_expr->equals(v(3)));
-    // }
-
-    // // Test size limit smaller than var size (no reductions happen so no
-    // excess)
-    // {
-    //     auto l_expr = v(5);
-    //     auto l_result =
-    //         l_expr->normalize(std::numeric_limits<size_t>::max(), 0);
-    //     assert(l_result.m_step_excess == false);
-    //     assert(l_result.m_size_excess == false);
-    //     assert(l_result.m_step_count == 0);
-    //     assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-    //     assert(l_result.m_expr->equals(v(5)));
-    // }
-
-    // // Test both step count and size peak together
-    // {
-    //     auto l_expr = v(8);
-    //     auto l_result = l_expr->normalize(std::numeric_limits<size_t>::max(),
-    //                                       std::numeric_limits<size_t>::max());
-    //     assert(l_result.m_step_excess == false);
-    //     assert(l_result.m_size_excess == false);
-    //     assert(l_result.m_step_count == 0);
-    //     assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-    //     assert(l_result.m_expr->equals(v(8)));
-    // }
-
-    // // Test all parameters together
-    // {
-    //     auto l_expr = v(12);
-    //     auto l_result = l_expr->normalize(100, 10);
-    //     assert(l_result.m_step_excess == false);
-    //     assert(l_result.m_size_excess == false);
-    //     assert(l_result.m_step_count == 0);
-    //     assert(l_result.m_size_peak == std::numeric_limits<size_t>::min());
-    //     assert(l_result.m_expr->equals(v(12)));
-    // }
-
-    // // Test trace callback on var (no reductions)
-    // // v(5) should trace only once: [v(5)]
-    // {
-    //     auto l_expr = v(5);
-
-    //     // Expected trace: only the initial expression (no reductions)
-    //     std::vector<std::unique_ptr<expr>> l_expected_trace;
-    //     l_expected_trace.push_back(v(5));
-
-    //     size_t l_trace_index = 0;
-    //     auto l_trace = [&](const std::unique_ptr<expr>& a_expr)
-    //     {
-    //         assert(l_trace_index < l_expected_trace.size());
-    //         assert(a_expr->equals(l_expected_trace[l_trace_index]));
-    //         ++l_trace_index;
-    //     };
-
-    //     auto l_result =
-    //         l_expr->normalize(std::numeric_limits<size_t>::max(),
-    //                           std::numeric_limits<size_t>::max(), l_trace);
-
-    //     assert(l_trace_index == l_expected_trace.size());
-    //     assert(l_result.m_step_count == 0);
-    // }
+        assert(l_result->equals(v(5)));
+    }
 }
 
 void test_func_normalize()
