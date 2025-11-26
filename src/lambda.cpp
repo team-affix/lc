@@ -1054,7 +1054,7 @@ void test_func_substitute()
         assert(l_subbed_var != nullptr);
 
         // the index of the substitute is lifted by 2 (two binders)
-        assert(l_subbed_var->index() == 13);
+        assert(l_subbed_var->m_index == 13);
     }
 
     // single composition lambda, outer depth 0, occurrance NOT found,
@@ -1087,7 +1087,7 @@ void test_func_substitute()
 
         // the local is unchanged as it was not replaced and it was bound
         // before cutoff (a_var_index == 1) so no lifting occurred.
-        assert(l_subbed_var->index() == 0);
+        assert(l_subbed_var->m_index == 0);
     }
 
     // doublle composition lambda, outer depth 0, occurrance not found,
@@ -1144,7 +1144,7 @@ void test_func_substitute()
         const var* l_subbed_var =
             dynamic_cast<var*>(l_subbed_func->m_body.get());
         assert(l_subbed_var != nullptr);
-        assert(l_subbed_var->index() == 13);
+        assert(l_subbed_var->m_index == 13);
     }
 
     // func with app body containing mixed locals, var_index=3
@@ -1217,20 +1217,20 @@ void test_app_substitute()
         assert(l_subbed_app != nullptr);
 
         // get lhs
-        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->lhs().get());
+        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->m_lhs.get());
 
         // make sure lhs is a local
         assert(l_subbed_lhs != nullptr);
 
         // get rhs
-        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->rhs().get());
+        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->m_rhs.get());
 
         // make sure rhs is a local
         assert(l_subbed_rhs != nullptr);
 
         // make sure they have correct indices
-        assert(l_subbed_lhs->index() == 11);
-        assert(l_subbed_rhs->index() == 11);
+        assert(l_subbed_lhs->m_index == 11);
+        assert(l_subbed_rhs->m_index == 11);
     }
 
     // app of locals, lhs is an occurrance
@@ -1249,20 +1249,20 @@ void test_app_substitute()
         assert(l_subbed_app != nullptr);
 
         // get lhs
-        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->lhs().get());
+        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->m_lhs.get());
 
         // make sure lhs is a local
         assert(l_subbed_lhs != nullptr);
 
         // get rhs
-        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->rhs().get());
+        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->m_rhs.get());
 
         // make sure rhs is a local
         assert(l_subbed_rhs != nullptr);
 
         // make sure they have correct indices
-        assert(l_subbed_lhs->index() == 11);
-        assert(l_subbed_rhs->index() == 0);
+        assert(l_subbed_lhs->m_index == 11);
+        assert(l_subbed_rhs->m_index == 0);
     }
 
     // app of locals, rhs is an occurrance
@@ -1281,20 +1281,20 @@ void test_app_substitute()
         assert(l_subbed_app != nullptr);
 
         // get lhs
-        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->lhs().get());
+        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->m_lhs.get());
 
         // make sure lhs is a local
         assert(l_subbed_lhs != nullptr);
 
         // get rhs
-        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->rhs().get());
+        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->m_rhs.get());
 
         // make sure rhs is a local
         assert(l_subbed_rhs != nullptr);
 
         // make sure they have correct indices
-        assert(l_subbed_lhs->index() == 0);
-        assert(l_subbed_rhs->index() == 11);
+        assert(l_subbed_lhs->m_index == 0);
+        assert(l_subbed_rhs->m_index == 11);
     }
 
     // app of locals, neither are occurrances
@@ -1313,20 +1313,20 @@ void test_app_substitute()
         assert(l_subbed_app != nullptr);
 
         // get lhs
-        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->lhs().get());
+        const var* l_subbed_lhs = dynamic_cast<var*>(l_subbed_app->m_lhs.get());
 
         // make sure lhs is a local
         assert(l_subbed_lhs != nullptr);
 
         // get rhs
-        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->rhs().get());
+        const var* l_subbed_rhs = dynamic_cast<var*>(l_subbed_app->m_rhs.get());
 
         // make sure rhs is a local
         assert(l_subbed_rhs != nullptr);
 
         // make sure they have correct indices
-        assert(l_subbed_lhs->index() == 0);
-        assert(l_subbed_rhs->index() == 0);
+        assert(l_subbed_lhs->m_index == 0);
+        assert(l_subbed_rhs->m_index == 0);
     }
 
     // app of funcs, both with occurrances
@@ -1346,14 +1346,14 @@ void test_app_substitute()
 
         // get lhs
         const func* l_subbed_lhs =
-            dynamic_cast<func*>(l_subbed_app->lhs().get());
+            dynamic_cast<func*>(l_subbed_app->m_lhs.get());
 
         // make sure lhs is a func
         assert(l_subbed_lhs != nullptr);
 
         // get rhs
         const func* l_subbed_rhs =
-            dynamic_cast<func*>(l_subbed_app->rhs().get());
+            dynamic_cast<func*>(l_subbed_app->m_rhs.get());
 
         // make sure rhs is a func
         assert(l_subbed_rhs != nullptr);
@@ -1369,8 +1369,8 @@ void test_app_substitute()
         assert(l_rhs_var != nullptr);
 
         // make sure they have correct indices (lifted by 1 due to binders)
-        assert(l_lhs_var->index() == 12);
-        assert(l_rhs_var->index() == 12);
+        assert(l_lhs_var->m_index == 12);
+        assert(l_rhs_var->m_index == 12);
     }
 
     ////////////////////////////////////
