@@ -3361,534 +3361,498 @@ void construct_program_test()
     }
 }
 
-// void generic_use_case_test()
-// {
-//     using namespace lambda;
-//     std::list<std::unique_ptr<expr>> l_helpers{};
+void generic_use_case_test()
+{
+    using namespace lambda;
+    std::list<std::unique_ptr<expr>> l_helpers{};
 
-//     auto l = [&l_helpers](size_t a_local_index)
-//     { return v(l_helpers.size() + a_local_index); };
+    auto l = [&l_helpers](size_t a_local_index)
+    { return v(l_helpers.size() + a_local_index); };
 
-//     auto g = [&l_helpers](size_t a_global_index) { return
-//     v(a_global_index);
-//     };
+    auto g = [&l_helpers](size_t a_global_index) { return v(a_global_index); };
 
-//     // church booleans
+    // church booleans
 
-//     // true
-//     const auto TRUE = g(l_helpers.size());
-//     l_helpers.emplace_back(f(f(l(0))));
-//     // false
-//     const auto FALSE = g(l_helpers.size());
-//     l_helpers.emplace_back(f(f(l(1))));
+    // true
+    const auto TRUE = g(l_helpers.size());
+    l_helpers.emplace_back(f(f(l(0))));
+    // false
+    const auto FALSE = g(l_helpers.size());
+    l_helpers.emplace_back(f(f(l(1))));
 
-//     // test the church bools
-//     {
-//         // true case
-//         const auto l_true_case = f(l(10));
+    // test the church bools
+    {
+        // true case
+        const auto l_true_case = f(l(10));
 
-//         // false case
-//         const auto l_false_case = f(l(11));
+        // false case
+        const auto l_false_case = f(l(11));
 
-//         // test the true case
-//         const auto l_true_case_main =
-//             a(a(TRUE->clone(), l_true_case->clone()),
-//             l_false_case->clone());
+        // test the true case
+        const auto l_true_case_main =
+            a(a(TRUE->clone(), l_true_case->clone()), l_false_case->clone());
 
-//         // test the false case
-//         const auto l_false_case_main =
-//             a(a(FALSE->clone(), l_true_case->clone()),
-//             l_false_case->clone());
+        // test the false case
+        const auto l_false_case_main =
+            a(a(FALSE->clone(), l_true_case->clone()), l_false_case->clone());
 
-//         // construct the program
-//         const auto l_true_program = construct_program(
-//             l_helpers.begin(), l_helpers.end(), l_true_case_main);
+        // construct the program
+        auto l_true_program = construct_program(
+            l_helpers.begin(), l_helpers.end(), l_true_case_main);
 
-//         // construct the program
-//         const auto l_false_program = construct_program(
-//             l_helpers.begin(), l_helpers.end(), l_false_case_main);
+        // construct the program
+        auto l_false_program = construct_program(
+            l_helpers.begin(), l_helpers.end(), l_false_case_main);
 
-//         // reduce the programs
-//         const auto l_true_result = l_true_program->normalize();
-//         const auto l_false_result = l_false_program->normalize();
+        // reduce the programs
+        while(reduce_one_step(l_true_program))
+            ;
+        while(reduce_one_step(l_false_program))
+            ;
 
-//         assert(l_true_result.m_step_excess == false);
-//         assert(l_true_result.m_size_excess == false);
-//         assert(l_false_result.m_step_excess == false);
-//         assert(l_false_result.m_size_excess == false);
+        std::cout << "true reduced: ";
+        l_true_program->print(std::cout);
+        std::cout << std::endl;
 
-//         std::cout << "true reduced: ";
-//         l_true_result.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        std::cout << "false reduced: ";
+        l_false_program->print(std::cout);
+        std::cout << std::endl;
 
-//         std::cout << "false reduced: ";
-//         l_false_result.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        // test the reductions.
+        // NOTE: after reduction of a program, the main function's locals BECOME
+        // globals.
+        assert(l_true_program->equals(f(g(10))));
+        assert(l_false_program->equals(f(g(11))));
+    }
 
-//         // test the reductions.
-//         // NOTE: after reduction of a program, the main function's locals
-//         BECOME
-//         // globals.
-//         assert(l_true_result.m_expr->equals(f(g(10))));
-//         assert(l_false_result.m_expr->equals(f(g(11))));
-//     }
+    // add church numerals
 
-//     // add church numerals
+    // 0
+    const auto ZERO = g(l_helpers.size());
+    l_helpers.emplace_back(f(f(l(1))));
 
-//     // 0
-//     const auto ZERO = g(l_helpers.size());
-//     l_helpers.emplace_back(f(f(l(1))));
+    // succ
+    const auto SUCC = g(l_helpers.size());
+    l_helpers.emplace_back(f(f(f(a(l(1), a(a(l(0), l(1)), l(2)))))));
 
-//     // succ
-//     const auto SUCC = g(l_helpers.size());
-//     l_helpers.emplace_back(f(f(f(a(l(1), a(a(l(0), l(1)), l(2)))))));
+    // test succ church numerals
+    {
+        // construct 1 - 5
 
-//     // test succ church numerals
-//     {
-//         // construct 1 - 5
+        const auto ONE = a(SUCC->clone(), ZERO->clone());
+        const auto TWO = a(SUCC->clone(), ONE->clone());
+        const auto THREE = a(SUCC->clone(), TWO->clone());
+        const auto FOUR = a(SUCC->clone(), THREE->clone());
+        const auto FIVE = a(SUCC->clone(), FOUR->clone());
 
-//         const auto ONE = a(SUCC->clone(), ZERO->clone());
-//         const auto TWO = a(SUCC->clone(), ONE->clone());
-//         const auto THREE = a(SUCC->clone(), TWO->clone());
-//         const auto FOUR = a(SUCC->clone(), THREE->clone());
-//         const auto FIVE = a(SUCC->clone(), FOUR->clone());
+        // construct the programs
+        auto ZERO_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), ZERO);
+        auto ONE_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), ONE);
+        auto TWO_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), TWO);
+        auto THREE_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), THREE);
+        auto FOUR_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), FOUR);
+        auto FIVE_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), FIVE);
 
-//         // construct the programs
-//         const auto ZERO_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(), ZERO);
-//         const auto ONE_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(), ONE);
-//         const auto TWO_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(), TWO);
-//         const auto THREE_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(), THREE);
-//         const auto FOUR_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(), FOUR);
-//         const auto FIVE_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(), FIVE);
+        // reduce zero
+        while(reduce_one_step(ZERO_PROGRAM))
+            ;
+        std::cout << "zero reduced: ";
+        ZERO_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         // reduce zero
-//         const auto ZERO_RESULT = ZERO_PROGRAM->normalize();
-//         assert(ZERO_RESULT.m_step_excess == false);
-//         assert(ZERO_RESULT.m_size_excess == false);
-//         std::cout << "zero reduced: ";
-//         ZERO_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        // reduce one
+        while(reduce_one_step(ONE_PROGRAM))
+            ;
+        std::cout << "one reduced: ";
+        ONE_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         // define one
-//         const auto ONE_RESULT = ONE_PROGRAM->normalize();
-//         assert(ONE_RESULT.m_step_excess == false);
-//         assert(ONE_RESULT.m_size_excess == false);
-//         std::cout << "one reduced: ";
-//         ONE_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        // reduce two
+        while(reduce_one_step(TWO_PROGRAM))
+            ;
+        std::cout << "two reduced: ";
+        TWO_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         // define two
-//         const auto TWO_RESULT = TWO_PROGRAM->normalize();
-//         assert(TWO_RESULT.m_step_excess == false);
-//         assert(TWO_RESULT.m_size_excess == false);
-//         std::cout << "two reduced: ";
-//         TWO_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        // reduce three
+        while(reduce_one_step(THREE_PROGRAM))
+            ;
+        std::cout << "three reduced: ";
+        THREE_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         // define three
-//         const auto THREE_RESULT = THREE_PROGRAM->normalize();
-//         assert(THREE_RESULT.m_step_excess == false);
-//         assert(THREE_RESULT.m_size_excess == false);
-//         std::cout << "three reduced: ";
-//         THREE_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        // reduce four
+        while(reduce_one_step(FOUR_PROGRAM))
+            ;
+        std::cout << "four reduced: ";
+        FOUR_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         // define four
-//         const auto FOUR_RESULT = FOUR_PROGRAM->normalize();
-//         assert(FOUR_RESULT.m_step_excess == false);
-//         assert(FOUR_RESULT.m_size_excess == false);
-//         std::cout << "four reduced: ";
-//         FOUR_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
-//         // define five
-//         const auto FIVE_RESULT = FIVE_PROGRAM->normalize();
-//         assert(FIVE_RESULT.m_step_excess == false);
-//         assert(FIVE_RESULT.m_size_excess == false);
-//         std::cout << "five reduced: ";
-//         FIVE_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        // reduce five
+        while(reduce_one_step(FIVE_PROGRAM))
+            ;
+        std::cout << "five reduced: ";
+        FIVE_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         assert(ONE_RESULT.m_expr->equals(f(f(a(g(0), g(1))))));
-//         assert(TWO_RESULT.m_expr->equals(f(f(a(g(0), a(g(0), g(1)))))));
-//         assert(
-//             THREE_RESULT.m_expr->equals(f(f(a(g(0), a(g(0), a(g(0),
-//             g(1))))))));
-//         assert(FOUR_RESULT.m_expr->equals(
-//             f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
-//         assert(FIVE_RESULT.m_expr->equals(
-//             f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1))))))))));
-//     }
+        assert(ONE_PROGRAM->equals(f(f(a(g(0), g(1))))));
+        assert(TWO_PROGRAM->equals(f(f(a(g(0), a(g(0), g(1)))))));
+        assert(THREE_PROGRAM->equals(f(f(a(g(0), a(g(0), a(g(0), g(1))))))));
+        assert(FOUR_PROGRAM->equals(
+            f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
+        assert(FIVE_PROGRAM->equals(
+            f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1))))))))));
+    }
 
-//     // add
-//     const auto ADD = g(l_helpers.size());
-//     l_helpers.emplace_back(
-//         f(f(f(f(a(a(l(0), l(2)), a(a(l(1), l(2)), l(3))))))));
+    // add
+    const auto ADD = g(l_helpers.size());
+    l_helpers.emplace_back(
+        f(f(f(f(a(a(l(0), l(2)), a(a(l(1), l(2)), l(3))))))));
 
-//     // test add church numerals
-//     {
-//         // construct 1 - 5
+    // test add church numerals
+    {
+        // construct 1 - 5
 
-//         const auto ONE = a(SUCC->clone(), ZERO->clone());
-//         const auto TWO = a(SUCC->clone(), ONE->clone());
-//         const auto THREE = a(SUCC->clone(), TWO->clone());
-//         const auto FOUR = a(SUCC->clone(), THREE->clone());
-//         const auto FIVE = a(SUCC->clone(), FOUR->clone());
+        const auto ONE = a(SUCC->clone(), ZERO->clone());
+        const auto TWO = a(SUCC->clone(), ONE->clone());
+        const auto THREE = a(SUCC->clone(), TWO->clone());
+        const auto FOUR = a(SUCC->clone(), THREE->clone());
+        const auto FIVE = a(SUCC->clone(), FOUR->clone());
 
-//         // add one and one
-//         const auto ADD_ONE_ONE = a(a(ADD->clone(), ONE->clone()),
-//         ONE->clone());
+        // add one and one
+        const auto ADD_ONE_ONE = a(a(ADD->clone(), ONE->clone()), ONE->clone());
 
-//         // add one and two
-//         const auto ADD_ONE_TWO = a(a(ADD->clone(), ONE->clone()),
-//         TWO->clone());
+        // add one and two
+        const auto ADD_ONE_TWO = a(a(ADD->clone(), ONE->clone()), TWO->clone());
 
-//         // add two and two
-//         const auto ADD_TWO_TWO = a(a(ADD->clone(), TWO->clone()),
-//         TWO->clone());
+        // add two and two
+        const auto ADD_TWO_TWO = a(a(ADD->clone(), TWO->clone()), TWO->clone());
 
-//         // add three and two
-//         const auto ADD_THREE_TWO =
-//             a(a(ADD->clone(), THREE->clone()), TWO->clone());
+        // add three and two
+        const auto ADD_THREE_TWO =
+            a(a(ADD->clone(), THREE->clone()), TWO->clone());
 
-//         // add five and five
-//         const auto ADD_FIVE_FIVE =
-//             a(a(ADD->clone(), FIVE->clone()), FIVE->clone());
+        // add five and five
+        const auto ADD_FIVE_FIVE =
+            a(a(ADD->clone(), FIVE->clone()), FIVE->clone());
 
-//         const auto ADD_ONE_ONE_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(),
-//             ADD_ONE_ONE);
-//         const auto ADD_ONE_TWO_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(),
-//             ADD_ONE_TWO);
-//         const auto ADD_TWO_TWO_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(),
-//             ADD_TWO_TWO);
-//         const auto ADD_THREE_TWO_PROGRAM = construct_program(
-//             l_helpers.begin(), l_helpers.end(), ADD_THREE_TWO);
-//         const auto ADD_FIVE_FIVE_PROGRAM = construct_program(
-//             l_helpers.begin(), l_helpers.end(), ADD_FIVE_FIVE);
+        auto ADD_ONE_ONE_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), ADD_ONE_ONE);
+        auto ADD_ONE_TWO_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), ADD_ONE_TWO);
+        auto ADD_TWO_TWO_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), ADD_TWO_TWO);
+        auto ADD_THREE_TWO_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), ADD_THREE_TWO);
+        auto ADD_FIVE_FIVE_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), ADD_FIVE_FIVE);
 
-//         // reduce the programs
-//         const auto ADD_ONE_ONE_RESULT = ADD_ONE_ONE_PROGRAM->normalize();
-//         const auto ADD_ONE_TWO_RESULT = ADD_ONE_TWO_PROGRAM->normalize();
-//         const auto ADD_TWO_TWO_RESULT = ADD_TWO_TWO_PROGRAM->normalize();
-//         const auto ADD_THREE_TWO_RESULT =
-//         ADD_THREE_TWO_PROGRAM->normalize(); const auto
-//         ADD_FIVE_FIVE_RESULT = ADD_FIVE_FIVE_PROGRAM->normalize();
+        // reduce the programs
+        while(reduce_one_step(ADD_ONE_ONE_PROGRAM))
+            ;
+        while(reduce_one_step(ADD_ONE_TWO_PROGRAM))
+            ;
+        while(reduce_one_step(ADD_TWO_TWO_PROGRAM))
+            ;
+        while(reduce_one_step(ADD_THREE_TWO_PROGRAM))
+            ;
+        while(reduce_one_step(ADD_FIVE_FIVE_PROGRAM))
+            ;
 
-//         assert(ADD_ONE_ONE_RESULT.m_step_excess == false);
-//         assert(ADD_ONE_ONE_RESULT.m_size_excess == false);
-//         assert(ADD_ONE_TWO_RESULT.m_step_excess == false);
-//         assert(ADD_ONE_TWO_RESULT.m_size_excess == false);
-//         assert(ADD_TWO_TWO_RESULT.m_step_excess == false);
-//         assert(ADD_TWO_TWO_RESULT.m_size_excess == false);
-//         assert(ADD_THREE_TWO_RESULT.m_step_excess == false);
-//         assert(ADD_THREE_TWO_RESULT.m_size_excess == false);
-//         assert(ADD_FIVE_FIVE_RESULT.m_step_excess == false);
-//         assert(ADD_FIVE_FIVE_RESULT.m_size_excess == false);
+        std::cout << "add one one: ";
+        ADD_ONE_ONE_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         std::cout << "add one one: ";
-//         ADD_ONE_ONE_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        std::cout << "add one two: ";
+        ADD_ONE_TWO_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         std::cout << "add one two: ";
-//         ADD_ONE_TWO_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        std::cout << "add two two: ";
+        ADD_TWO_TWO_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         std::cout << "add two two: ";
-//         ADD_TWO_TWO_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        std::cout << "add three two: ";
+        ADD_THREE_TWO_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         std::cout << "add three two: ";
-//         ADD_THREE_TWO_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        std::cout << "add five five: ";
+        ADD_FIVE_FIVE_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         std::cout << "add five five: ";
-//         ADD_FIVE_FIVE_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        // assertions
+        assert(ADD_ONE_ONE_PROGRAM->equals(f(f(a(g(0), a(g(0), g(1)))))));
+        assert(
+            ADD_ONE_TWO_PROGRAM->equals(f(f(a(g(0), a(g(0), a(g(0), g(1))))))));
+        assert(ADD_TWO_TWO_PROGRAM->equals(
+            f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
+        assert(ADD_THREE_TWO_PROGRAM->equals(
+            f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1))))))))));
+        assert(ADD_FIVE_FIVE_PROGRAM->equals(f(f(a(
+            g(0),
+            a(g(0),
+              a(g(0),
+                a(g(0),
+                  a(g(0),
+                    a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))))))))));
+    }
 
-//         // assertions
-//         assert(ADD_ONE_ONE_RESULT.m_expr->equals(f(f(a(g(0), a(g(0),
-//         g(1))))))); assert(ADD_ONE_TWO_RESULT.m_expr->equals(
-//             f(f(a(g(0), a(g(0), a(g(0), g(1))))))));
-//         assert(ADD_TWO_TWO_RESULT.m_expr->equals(
-//             f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
-//         assert(ADD_THREE_TWO_RESULT.m_expr->equals(
-//             f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1))))))))));
-//         assert(ADD_FIVE_FIVE_RESULT.m_expr->equals(f(f(a(
-//             g(0),
-//             a(g(0),
-//               a(g(0),
-//                 a(g(0),
-//                   a(g(0),
-//                     a(g(0), a(g(0), a(g(0), a(g(0), a(g(0),
-//                     g(1)))))))))))))));
-//     }
+    // define MULT
+    const auto MULT = g(l_helpers.size());
+    l_helpers.emplace_back(f(f(f(f(a(a(l(0), a(l(1), l(2))), l(3)))))));
 
-//     // define MULT
-//     const auto MULT = g(l_helpers.size());
-//     l_helpers.emplace_back(f(f(f(f(a(a(l(0), a(l(1), l(2))), l(3)))))));
+    // test mult church numerals
+    {
+        // construct 1 - 5
+        const auto ONE = a(SUCC->clone(), ZERO->clone());
+        const auto TWO = a(SUCC->clone(), ONE->clone());
+        const auto THREE = a(SUCC->clone(), TWO->clone());
+        const auto FOUR = a(SUCC->clone(), THREE->clone());
+        const auto FIVE = a(SUCC->clone(), FOUR->clone());
 
-//     // test mult church numerals
-//     {
-//         // construct 1 - 5
-//         const auto ONE = a(SUCC->clone(), ZERO->clone());
-//         const auto TWO = a(SUCC->clone(), ONE->clone());
-//         const auto THREE = a(SUCC->clone(), TWO->clone());
-//         const auto FOUR = a(SUCC->clone(), THREE->clone());
-//         const auto FIVE = a(SUCC->clone(), FOUR->clone());
+        // construct unreduced main functions
+        const auto MULT_ZERO_ZERO =
+            a(a(MULT->clone(), ZERO->clone()), ZERO->clone());
+        const auto MULT_ZERO_ONE =
+            a(a(MULT->clone(), ZERO->clone()), ONE->clone());
+        const auto MULT_ONE_ONE =
+            a(a(MULT->clone(), ONE->clone()), ONE->clone());
+        const auto MULT_ONE_TWO =
+            a(a(MULT->clone(), ONE->clone()), TWO->clone());
+        const auto MULT_TWO_TWO =
+            a(a(MULT->clone(), TWO->clone()), TWO->clone());
+        const auto MULT_THREE_TWO =
+            a(a(MULT->clone(), THREE->clone()), TWO->clone());
+        const auto MULT_FIVE_FIVE =
+            a(a(MULT->clone(), FIVE->clone()), FIVE->clone());
 
-//         // construct unreduced main functions
-//         const auto MULT_ZERO_ZERO =
-//             a(a(MULT->clone(), ZERO->clone()), ZERO->clone());
-//         const auto MULT_ZERO_ONE =
-//             a(a(MULT->clone(), ZERO->clone()), ONE->clone());
-//         const auto MULT_ONE_ONE =
-//             a(a(MULT->clone(), ONE->clone()), ONE->clone());
-//         const auto MULT_ONE_TWO =
-//             a(a(MULT->clone(), ONE->clone()), TWO->clone());
-//         const auto MULT_TWO_TWO =
-//             a(a(MULT->clone(), TWO->clone()), TWO->clone());
-//         const auto MULT_THREE_TWO =
-//             a(a(MULT->clone(), THREE->clone()), TWO->clone());
-//         const auto MULT_FIVE_FIVE =
-//             a(a(MULT->clone(), FIVE->clone()), FIVE->clone());
+        // construct programs
+        auto MULT_ZERO_ZERO_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), MULT_ZERO_ZERO);
+        auto MULT_ZERO_ONE_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), MULT_ZERO_ONE);
+        auto MULT_ONE_ONE_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), MULT_ONE_ONE);
+        auto MULT_ONE_TWO_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), MULT_ONE_TWO);
+        auto MULT_TWO_TWO_PROGRAM =
+            construct_program(l_helpers.begin(), l_helpers.end(), MULT_TWO_TWO);
+        auto MULT_THREE_TWO_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), MULT_THREE_TWO);
+        auto MULT_FIVE_FIVE_PROGRAM = construct_program(
+            l_helpers.begin(), l_helpers.end(), MULT_FIVE_FIVE);
 
-//         // construct programs
-//         const auto MULT_ZERO_ZERO_PROGRAM = construct_program(
-//             l_helpers.begin(), l_helpers.end(), MULT_ZERO_ZERO);
-//         const auto MULT_ZERO_ONE_PROGRAM = construct_program(
-//             l_helpers.begin(), l_helpers.end(), MULT_ZERO_ONE);
-//         const auto MULT_ONE_ONE_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(),
-//             MULT_ONE_ONE);
-//         const auto MULT_ONE_TWO_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(),
-//             MULT_ONE_TWO);
-//         const auto MULT_TWO_TWO_PROGRAM =
-//             construct_program(l_helpers.begin(), l_helpers.end(),
-//             MULT_TWO_TWO);
-//         const auto MULT_THREE_TWO_PROGRAM = construct_program(
-//             l_helpers.begin(), l_helpers.end(), MULT_THREE_TWO);
-//         const auto MULT_FIVE_FIVE_PROGRAM = construct_program(
-//             l_helpers.begin(), l_helpers.end(), MULT_FIVE_FIVE);
+        // reduce the programs (with printing in between)
+        while(reduce_one_step(MULT_ZERO_ZERO_PROGRAM))
+            ;
+        std::cout << "mult zero zero: ";
+        MULT_ZERO_ZERO_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         // reduce the programs (with printing in between)
-//         const auto MULT_ZERO_ZERO_RESULT =
-//         MULT_ZERO_ZERO_PROGRAM->normalize();
-//         assert(MULT_ZERO_ZERO_RESULT.m_step_excess == false);
-//         assert(MULT_ZERO_ZERO_RESULT.m_size_excess == false);
-//         std::cout << "mult zero zero: ";
-//         MULT_ZERO_ZERO_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
-//         const auto MULT_ZERO_ONE_RESULT =
-//         MULT_ZERO_ONE_PROGRAM->normalize();
-//         assert(MULT_ZERO_ONE_RESULT.m_step_excess == false);
-//         assert(MULT_ZERO_ONE_RESULT.m_size_excess == false);
-//         std::cout << "mult zero one: ";
-//         MULT_ZERO_ONE_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
-//         const auto MULT_ONE_ONE_RESULT =
-//         MULT_ONE_ONE_PROGRAM->normalize();
-//         assert(MULT_ONE_ONE_RESULT.m_step_excess == false);
-//         assert(MULT_ONE_ONE_RESULT.m_size_excess == false);
-//         std::cout << "mult one one: ";
-//         MULT_ONE_ONE_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
-//         const auto MULT_ONE_TWO_RESULT =
-//         MULT_ONE_TWO_PROGRAM->normalize();
-//         assert(MULT_ONE_TWO_RESULT.m_step_excess == false);
-//         assert(MULT_ONE_TWO_RESULT.m_size_excess == false);
-//         std::cout << "mult one two: ";
-//         MULT_ONE_TWO_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
-//         const auto MULT_TWO_TWO_RESULT =
-//         MULT_TWO_TWO_PROGRAM->normalize();
-//         assert(MULT_TWO_TWO_RESULT.m_step_excess == false);
-//         assert(MULT_TWO_TWO_RESULT.m_size_excess == false);
-//         std::cout << "mult two two: ";
-//         MULT_TWO_TWO_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
-//         const auto MULT_THREE_TWO_RESULT =
-//         MULT_THREE_TWO_PROGRAM->normalize();
-//         assert(MULT_THREE_TWO_RESULT.m_step_excess == false);
-//         assert(MULT_THREE_TWO_RESULT.m_size_excess == false);
-//         std::cout << "mult three two: ";
-//         MULT_THREE_TWO_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
-//         const auto MULT_FIVE_FIVE_RESULT =
-//         MULT_FIVE_FIVE_PROGRAM->normalize();
-//         assert(MULT_FIVE_FIVE_RESULT.m_step_excess == false);
-//         assert(MULT_FIVE_FIVE_RESULT.m_size_excess == false);
-//         std::cout << "mult five five: ";
-//         MULT_FIVE_FIVE_RESULT.m_expr->print(std::cout);
-//         std::cout << std::endl;
+        while(reduce_one_step(MULT_ZERO_ONE_PROGRAM))
+            ;
+        std::cout << "mult zero one: ";
+        MULT_ZERO_ONE_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         assert(MULT_ZERO_ZERO_RESULT.m_expr->equals(f(f(g(1)))));
-//         assert(MULT_ZERO_ONE_RESULT.m_expr->equals(f(f(g(1)))));
-//         assert(MULT_ONE_ONE_RESULT.m_expr->equals(f(f(a(g(0), g(1))))));
-//         assert(
-//             MULT_ONE_TWO_RESULT.m_expr->equals(f(f(a(g(0), a(g(0),
-//             g(1)))))));
-//         assert(MULT_TWO_TWO_RESULT.m_expr->equals(
-//             f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
-//         assert(MULT_THREE_TWO_RESULT.m_expr->equals(
-//             f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), a(g(0),
-//             g(1)))))))))));
+        while(reduce_one_step(MULT_ONE_ONE_PROGRAM))
+            ;
+        std::cout << "mult one one: ";
+        MULT_ONE_ONE_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         const auto TWENTY_FIVE = f(f(a(
-//             g(0),
-//             a(g(0),
-//               a(g(0),
-//                 a(g(0),
-//                   a(g(0),
-//                     a(g(0),
-//                       a(g(0),
-//                         a(g(0),
-//                           a(g(0),
-//                             a(g(0),
-//                               a(g(0),
-//                                 a(g(0),
-//                                   a(g(0),
-//                                     a(g(0),
-//                                       a(g(0),
-//                                         a(g(0),
-//                                           a(g(0),
-//                                             a(g(0),
-//                                               a(g(0),
-//                                                 a(g(0),
-//                                                   a(g(0),
-//                                                     a(g(0),
-//                                                       a(g(0),
-//                                                         a(g(0),
-//                                                           a(g(0),
-//                                                             g(1))))))))))))))))))))))))))));
+        while(reduce_one_step(MULT_ONE_TWO_PROGRAM))
+            ;
+        std::cout << "mult one two: ";
+        MULT_ONE_TWO_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         assert(MULT_FIVE_FIVE_RESULT.m_expr->equals(TWENTY_FIVE->clone()));
-//     }
+        while(reduce_one_step(MULT_TWO_TWO_PROGRAM))
+            ;
+        std::cout << "mult two two: ";
+        MULT_TWO_TWO_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//     // test for fun
-//     {
-//         // this should never terminate -- omega combinator
-//         const auto OMEGA = a(f(a(v(0), v(0))), f(a(v(0), v(0))));
-//         auto l_result = OMEGA->normalize(999);
-//         // omega becomes itself forever
-//         // With limit 999, does 999 reductions (hits step limit)
-//         assert(l_result.m_step_excess == true);
-//         assert(l_result.m_size_excess == false);
-//         assert(l_result.m_step_count == 999);
-//         assert(l_result.m_expr->equals(OMEGA->clone()));
-//     }
+        while(reduce_one_step(MULT_THREE_TWO_PROGRAM))
+            ;
+        std::cout << "mult three two: ";
+        MULT_THREE_TWO_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//     // Test combinator identities (I, K, S)
-//     // These are very sensitive to capture/shifting bugs
-//     {
-//         // Define combinators
-//         // I = λx. x
-//         const auto I = f(v(0));
+        while(reduce_one_step(MULT_FIVE_FIVE_PROGRAM))
+            ;
+        std::cout << "mult five five: ";
+        MULT_FIVE_FIVE_PROGRAM->print(std::cout);
+        std::cout << std::endl;
 
-//         // K = λx. λy. x
-//         const auto K = f(f(v(0)));
+        assert(MULT_ZERO_ZERO_PROGRAM->equals(f(f(g(1)))));
+        assert(MULT_ZERO_ONE_PROGRAM->equals(f(f(g(1)))));
+        assert(MULT_ONE_ONE_PROGRAM->equals(f(f(a(g(0), g(1))))));
+        assert(MULT_ONE_TWO_PROGRAM->equals(f(f(a(g(0), a(g(0), g(1)))))));
+        assert(MULT_TWO_TWO_PROGRAM->equals(
+            f(f(a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))));
+        assert(MULT_THREE_TWO_PROGRAM->equals(
+            f(f(a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), a(g(0), g(1)))))))))));
 
-//         // S = λx. λy. λz. x z (y z)
-//         const auto S = f(f(f(a(a(v(0), v(2)), a(v(1), v(2))))));
+        const auto TWENTY_FIVE = f(f(a(
+            g(0),
+            a(g(0),
+              a(g(0),
+                a(g(0),
+                  a(g(0),
+                    a(g(0),
+                      a(g(0),
+                        a(g(0),
+                          a(g(0),
+                            a(g(0),
+                              a(g(0),
+                                a(g(0),
+                                  a(g(0),
+                                    a(g(0),
+                                      a(g(0),
+                                        a(g(0),
+                                          a(g(0),
+                                            a(g(0),
+                                              a(g(0),
+                                                a(g(0),
+                                                  a(g(0),
+                                                    a(g(0),
+                                                      a(g(0),
+                                                        a(g(0),
+                                                          a(g(0),
+                                                            g(1))))))))))))))))))))))))))));
 
-//         // Test I a → a
-//         {
-//             auto a_arg = v(5);
-//             auto expr = a(I->clone(), a_arg->clone());
-//             auto result = expr->normalize();
-//             assert(result.m_step_excess == false);
-//             assert(result.m_size_excess == false);
-//             std::cout << "I a: ";
-//             result.m_expr->print(std::cout);
-//             std::cout << std::endl;
-//             assert(result.m_expr->equals(a_arg));
-//         }
+        assert(MULT_FIVE_FIVE_PROGRAM->equals(TWENTY_FIVE->clone()));
+    }
 
-//         // Test K a b → a
-//         {
-//             auto a_arg = v(7);
-//             auto b_arg = v(8);
-//             auto expr = a(a(K->clone(), a_arg->clone()), b_arg->clone());
-//             auto result = expr->normalize();
-//             assert(result.m_step_excess == false);
-//             assert(result.m_size_excess == false);
-//             std::cout << "K a b: ";
-//             result.m_expr->print(std::cout);
-//             std::cout << std::endl;
-//             assert(result.m_expr->equals(a_arg));
-//         }
+    // test for fun
+    {
+        // this should never terminate -- omega combinator
+        const auto OMEGA = a(f(a(v(0), v(0))), f(a(v(0), v(0))));
+        auto l_omega_expr = OMEGA->clone();
 
-//         // Test S K K a → a
-//         {
-//             auto a_arg = v(10);
-//             auto expr =
-//                 a(a(a(S->clone(), K->clone()), K->clone()),
-//                 a_arg->clone());
-//             auto result = expr->normalize();
-//             assert(result.m_step_excess == false);
-//             assert(result.m_size_excess == false);
-//             std::cout << "S K K a: ";
-//             result.m_expr->print(std::cout);
-//             std::cout << std::endl;
-//             assert(result.m_expr->equals(a_arg));
-//         }
+        // omega becomes itself forever
+        // With limit 999, does 999 reductions (hits step limit)
+        size_t l_step_count = 0;
+        size_t l_step_limit = 999;
+        while(l_step_count < l_step_limit && reduce_one_step(l_omega_expr))
+            ++l_step_count;
 
-//         // Test S I I a → a a
-//         {
-//             auto a_arg = v(12);
-//             auto expr =
-//                 a(a(a(S->clone(), I->clone()), I->clone()),
-//                 a_arg->clone());
-//             auto result = expr->normalize();
-//             assert(result.m_step_excess == false);
-//             assert(result.m_size_excess == false);
-//             std::cout << "S I I a: ";
-//             result.m_expr->print(std::cout);
-//             std::cout << std::endl;
-//             auto expected = a(a_arg->clone(), a_arg->clone());
-//             assert(result.m_expr->equals(expected));
-//         }
+        assert(l_step_count == 999);
+        assert(l_omega_expr->equals(OMEGA->clone()));
+    }
 
-//         // Additional test: Use closed terms instead of free variables
-//         // Test K (λ.5) (λ.6) → λ.5
-//         {
-//             auto a_arg = f(v(5));
-//             auto b_arg = f(v(6));
-//             auto expr = a(a(K->clone(), a_arg->clone()), b_arg->clone());
-//             auto result = expr->normalize();
-//             assert(result.m_step_excess == false);
-//             assert(result.m_size_excess == false);
-//             std::cout << "K (λ.5) (λ.6): ";
-//             result.m_expr->print(std::cout);
-//             std::cout << std::endl;
-//             assert(result.m_expr->equals(a_arg));
-//         }
+    // Test combinator identities (I, K, S)
+    // These are very sensitive to capture/shifting bugs
+    {
+        // Define combinators
+        // I = λx. x
+        const auto I = f(v(0));
 
-//         // Test S I I (λ.7) → (λ.7) (λ.7) → 6
-//         {
-//             auto a_arg = f(v(7));
-//             auto expr =
-//                 a(a(a(S->clone(), I->clone()), I->clone()),
-//                 a_arg->clone());
-//             auto result = expr->normalize();
-//             assert(result.m_step_excess == false);
-//             assert(result.m_size_excess == false);
-//             std::cout << "S I I (λ.7): ";
-//             result.m_expr->print(std::cout);
-//             std::cout << std::endl;
-//             auto expected = v(6);
-//             assert(result.m_expr->equals(expected));
-//         }
-//     }
-// }
+        // K = λx. λy. x
+        const auto K = f(f(v(0)));
+
+        // S = λx. λy. λz. x z (y z)
+        const auto S = f(f(f(a(a(v(0), v(2)), a(v(1), v(2))))));
+
+        // Test I a → a
+        {
+            auto a_arg = v(5);
+            auto expr = a(I->clone(), a_arg->clone());
+
+            while(reduce_one_step(expr))
+                ;
+
+            std::cout << "I a: ";
+            expr->print(std::cout);
+            std::cout << std::endl;
+            assert(expr->equals(a_arg));
+        }
+
+        // Test K a b → a
+        {
+            auto a_arg = v(7);
+            auto b_arg = v(8);
+            auto expr = a(a(K->clone(), a_arg->clone()), b_arg->clone());
+
+            while(reduce_one_step(expr))
+                ;
+
+            std::cout << "K a b: ";
+            expr->print(std::cout);
+            std::cout << std::endl;
+            assert(expr->equals(a_arg));
+        }
+
+        // Test S K K a → a
+        {
+            auto a_arg = v(10);
+            auto expr =
+                a(a(a(S->clone(), K->clone()), K->clone()), a_arg->clone());
+
+            while(reduce_one_step(expr))
+                ;
+
+            std::cout << "S K K a: ";
+            expr->print(std::cout);
+            std::cout << std::endl;
+            assert(expr->equals(a_arg));
+        }
+
+        // Test S I I a → a a
+        {
+            auto a_arg = v(12);
+            auto expr =
+                a(a(a(S->clone(), I->clone()), I->clone()), a_arg->clone());
+
+            while(reduce_one_step(expr))
+                ;
+
+            std::cout << "S I I a: ";
+            expr->print(std::cout);
+            std::cout << std::endl;
+            auto expected = a(a_arg->clone(), a_arg->clone());
+            assert(expr->equals(expected));
+        }
+
+        // Additional test: Use closed terms instead of free variables
+        // Test K (λ.5) (λ.6) → λ.5
+        {
+            auto a_arg = f(v(5));
+            auto b_arg = f(v(6));
+            auto expr = a(a(K->clone(), a_arg->clone()), b_arg->clone());
+
+            while(reduce_one_step(expr))
+                ;
+
+            std::cout << "K (λ.5) (λ.6): ";
+            expr->print(std::cout);
+            std::cout << std::endl;
+            assert(expr->equals(a_arg));
+        }
+
+        // Test S I I (λ.7) → (λ.7) (λ.7) → 6
+        {
+            auto a_arg = f(v(7));
+            auto expr =
+                a(a(a(S->clone(), I->clone()), I->clone()), a_arg->clone());
+
+            while(reduce_one_step(expr))
+                ;
+
+            std::cout << "S I I (λ.7): ";
+            expr->print(std::cout);
+            std::cout << std::endl;
+            auto expected = v(6);
+            assert(expr->equals(expected));
+        }
+    }
+}
 
 void lambda_test_main()
 {
@@ -3932,7 +3896,7 @@ void lambda_test_main()
 
     TEST(construct_program_test);
 
-    // TEST(generic_use_case_test);
+    TEST(generic_use_case_test);
 }
 
 #endif
