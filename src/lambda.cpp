@@ -3886,14 +3886,6 @@ void lambda_test_main()
     TEST(test_func_reduce);
     TEST(test_app_reduce);
 
-    // TEST(test_var_reduce_one_step);
-    // TEST(test_func_reduce_one_step);
-    // TEST(test_app_reduce_one_step);
-
-    // TEST(test_var_size);
-    // TEST(test_func_size);
-    // TEST(test_app_size);
-
     TEST(construct_program_test);
 
     TEST(generic_use_case_test);
