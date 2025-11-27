@@ -2265,6 +2265,20 @@ void test_var_reduce()
         assert(l_var->m_index == 1);
         assert(l_result->m_size == 1);
     }
+
+    // var at depth 5 - cannot reduce
+    {
+        auto l_var = v(3);
+        auto l_reduced = reduce_one_step(l_var, 5);
+        assert(!l_reduced);
+    }
+
+    // var at depth 10 - cannot reduce
+    {
+        auto l_var = v(7);
+        auto l_reduced = reduce_one_step(l_var, 10);
+        assert(!l_reduced);
+    }
 }
 
 void test_func_reduce()
@@ -2449,6 +2463,22 @@ void test_func_reduce()
         assert(l_trace_index == l_expected_trace.size());
         assert(l_result->equals(f(f(v(5)))));
         assert(l_result->m_size == 3);
+    }
+
+    // func with beta-redex in body at depth 3 - inner func refs outer context
+    // λ.((λ.3) 2) -> λ.3
+    // Note: At depth 3, inner lambda is at depth 4, v(3) refs depth 3 (outer
+    // lambda)
+    {
+        auto l_func = f(a(f(v(3)), v(2)));
+        auto l_reduced = reduce_one_step(l_func, 3);
+        assert(l_reduced);
+        assert(l_func->equals(f(v(3))));
+        assert(l_func->m_size == 2);
+
+        assert(!reduce_one_step(l_func));
+        assert(l_func->equals(f(v(3))));
+        assert(l_func->m_size == 2);
     }
 }
 
@@ -3041,52 +3071,22 @@ void test_app_reduce()
         assert(l_result->equals(a(a(a(a(v(1), v(2)), v(3)), v(4)), v(5))));
         assert(l_result->m_size == 9);
     }
+
+    // func with beta-redex in body at depth 3 - inner func refs outer context
+    // ((λ.3) 2) -> 2
+    // Note: At depth 3, the var v(3) is referencing the binder in the lhs
+    {
+        auto l_func = a(f(v(3)), v(2));
+        auto l_reduced = reduce_one_step(l_func, 3);
+        assert(l_reduced);
+        assert(l_func->equals(v(2)));
+        assert(l_func->m_size == 1);
+
+        assert(!reduce_one_step(l_func));
+        assert(l_func->equals(v(2)));
+        assert(l_func->m_size == 1);
+    }
 }
-
-// void test_var_reduce_one_step()
-// {
-//     // var at index 0 - cannot reduce
-//     {
-//         auto l_var = v(0);
-//         auto l_reduced = l_var->reduce_one_step(0);
-//         assert(l_reduced == nullptr);
-//     }
-
-//     // var at index 1 - cannot reduce
-//     {
-//         auto l_var = v(1);
-//         auto l_reduced = l_var->reduce_one_step(0);
-//         assert(l_reduced == nullptr);
-//     }
-
-//     // var at index 5 - cannot reduce
-//     {
-//         auto l_var = v(5);
-//         auto l_reduced = l_var->reduce_one_step(0);
-//         assert(l_reduced == nullptr);
-//     }
-
-//     // var at depth 0 - cannot reduce
-//     {
-//         auto l_var = v(3);
-//         auto l_reduced = l_var->reduce_one_step(0);
-//         assert(l_reduced == nullptr);
-//     }
-
-//     // var at depth 5 - cannot reduce
-//     {
-//         auto l_var = v(3);
-//         auto l_reduced = l_var->reduce_one_step(5);
-//         assert(l_reduced == nullptr);
-//     }
-
-//     // var at depth 10 - cannot reduce
-//     {
-//         auto l_var = v(7);
-//         auto l_reduced = l_var->reduce_one_step(10);
-//         assert(l_reduced == nullptr);
-//     }
-// }
 
 // void test_func_reduce_one_step()
 // {
@@ -3125,9 +3125,9 @@ void test_app_reduce()
 
 //     // func with beta-redex in body where inner func uses its own bound
 //     var
-//     // λ.((λ.1) 2) -> λ.2
-//     // Note: v(1) inside inner lambda at depth 1 refers to inner lambda's
-//     bound
+//         // λ.((λ.1) 2) -> λ.2
+//         // Note: v(1) inside inner lambda at depth 1 refers to inner lambda's
+//         bound
 //     // var
 //     {
 //         auto l_func = f(a(f(v(1)), v(2)));
@@ -3137,25 +3137,11 @@ void test_app_reduce()
 //         assert(l_reduced->equals(l_expected));
 //     }
 
-//     // func with beta-redex in body at depth 3 - inner func refs outer
-//     context
-//     // λ.((λ.3) 2) -> λ.3
-//     // Note: At depth 3, inner lambda is at depth 4, v(3) refs depth 3
-//     (outer
-//     // lambda)
-//     {
-//         auto l_func = f(a(f(v(3)), v(2)));
-//         auto l_reduced = l_func->reduce_one_step(3);
-//         assert(l_reduced != nullptr);
-//         auto l_expected = f(v(3));
-//         assert(l_reduced->equals(l_expected));
-//     }
-
 //     // func with beta-redex where inner func uses its bound var at depth
 //     3
-//     // λ.((λ.4) 2) -> λ.2
-//     // Note: At depth 3, inner lambda is at depth 4, v(4) is the inner
-//     lambda's
+//         // λ.((λ.4) 2) -> λ.2
+//         // Note: At depth 3, inner lambda is at depth 4, v(4) is the inner
+//         lambda's
 //     // bound var
 //     {
 //         auto l_func = f(a(f(v(4)), v(2)));
@@ -3179,8 +3165,8 @@ void test_app_reduce()
 
 //     // func with nested beta-redex where inner function uses the bound
 //     var being
-//     // reduced λ.((λ.(λ.1)) 5) -> λ.(λ.6) Note: v(1) refs the lambda at
-//     depth 1,
+//         // reduced λ.((λ.(λ.1)) 5) -> λ.(λ.6) Note: v(1) refs the lambda at
+//         depth 1,
 //     // which gets substituted with v(5) and lifted
 //     {
 //         auto l_func = f(a(f(f(v(1))), v(5)));
@@ -3207,8 +3193,8 @@ void test_app_reduce()
 //         auto l_func = f(a(a(f(v(1)), v(2)), v(3)));
 //         auto l_reduced = l_func->reduce_one_step(0);
 //         assert(l_reduced != nullptr);
-//         // After reducing inner app at depth 1: v(1) replaced with v(2),
-//         result:
+//     // After reducing inner app at depth 1: v(1) replaced with v(2),
+//     result:
 //         // λ.(2 3)
 //         auto l_expected = f(a(v(2), v(3)));
 //         assert(l_reduced->equals(l_expected));
@@ -3228,9 +3214,9 @@ void test_app_reduce()
 
 //     // func with nested func where inner function uses innermost bound
 //     var
-//     // λ.λ.((λ.2) 1) -> λ.λ.1
-//     // Note: At depth 2, v(2) refs the innermost lambda, gets replaced
-//     with v(1)
+//         // λ.λ.((λ.2) 1) -> λ.λ.1
+//         // Note: At depth 2, v(2) refs the innermost lambda, gets replaced
+//         with v(1)
 //     {
 //         auto l_func = f(f(a(f(v(2)), v(1))));
 //         auto l_reduced = l_func->reduce_one_step(0);
