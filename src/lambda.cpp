@@ -3088,261 +3088,278 @@ void test_app_reduce()
     }
 }
 
-// void construct_program_test()
-// {
-//     using namespace lambda;
+void construct_program_test()
+{
+    using namespace lambda;
 
-//     std::cout << "TEST STARTING: construct_program_test" << std::endl;
+    // Test 1: Empty helpers list
+    {
+        std::vector<std::unique_ptr<expr>> l_helpers{};
+        auto l_main = v(5);
+        auto l_program =
+            construct_program(l_helpers.begin(), l_helpers.end(), l_main);
 
-//     // Test 1: Empty helpers list
-//     {
-//         std::vector<std::unique_ptr<expr>> l_helpers{};
-//         auto l_main = v(5);
-//         auto l_program =
-//             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
-//         auto l_result = l_program->normalize();
-//         assert(l_result.m_expr->equals(v(5)));
-//         assert(l_result.m_step_count == 0);
-//     }
+        size_t l_step_count = 0;
+        while(reduce_one_step(l_program))
+            ++l_step_count;
 
-//     // Test 2: Single constant helper
-//     {
-//         std::list<std::unique_ptr<expr>> l_helpers{};
+        assert(l_program->equals(v(5)));
+        assert(l_step_count == 0);
+    }
 
-//         auto l = [&l_helpers](size_t a_local_index)
-//         { return v(l_helpers.size() + a_local_index); };
-//         auto g = [&l_helpers](size_t a_global_index)
-//         { return v(a_global_index); };
+    // Test 2: Single constant helper
+    {
+        std::list<std::unique_ptr<expr>> l_helpers{};
 
-//         // Helper 0: Returns v(100) regardless of input
-//         const auto CONST_100 = g(l_helpers.size());
-//         l_helpers.emplace_back(f(v(100)));
+        auto l = [&l_helpers](size_t a_local_index)
+        { return v(l_helpers.size() + a_local_index); };
+        auto g = [&l_helpers](size_t a_global_index)
+        { return v(a_global_index); };
 
-//         // Main: Apply helper to dummy value
-//         auto l_main = a(CONST_100->clone(), l(0)->clone());
+        // Helper 0: Returns v(100) regardless of input
+        const auto CONST_100 = g(l_helpers.size());
+        l_helpers.emplace_back(f(v(100)));
 
-//         auto l_program =
-//             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
-//         auto l_result = l_program->normalize();
+        // Main: Apply helper to dummy value
+        auto l_main = a(CONST_100->clone(), l(0)->clone());
 
-//         // After norm, returns v(99) (100 - 1 from removing one binding
-//         level) assert(l_result.m_expr->equals(v(99)));
-//     }
+        auto l_program =
+            construct_program(l_helpers.begin(), l_helpers.end(), l_main);
 
-//     // Test 3: Church booleans (TRUE and FALSE)
-//     {
-//         std::list<std::unique_ptr<expr>> l_helpers{};
+        while(reduce_one_step(l_program))
+            ;
 
-//         auto l = [&l_helpers](size_t a_local_index)
-//         { return v(l_helpers.size() + a_local_index); };
-//         auto g = [&l_helpers](size_t a_global_index)
-//         { return v(a_global_index); };
+        // After norm, returns v(99) (100 - 1 from removing one binding level)
+        assert(l_program->equals(v(99)));
+    }
 
-//         // Helper 0: TRUE = λ.λ.0 (returns first arg)
-//         const auto TRUE = g(l_helpers.size());
-//         l_helpers.emplace_back(f(f(l(0))));
+    // Test 3: Church booleans (TRUE and FALSE)
+    {
+        std::list<std::unique_ptr<expr>> l_helpers{};
 
-//         // Helper 1: FALSE = λ.λ.1 (returns second arg)
-//         const auto FALSE = g(l_helpers.size());
-//         l_helpers.emplace_back(f(f(l(1))));
+        auto l = [&l_helpers](size_t a_local_index)
+        { return v(l_helpers.size() + a_local_index); };
+        auto g = [&l_helpers](size_t a_global_index)
+        { return v(a_global_index); };
 
-//         // Test TRUE: ((TRUE branch_a) branch_b) → branch_a
-//         {
-//             auto l_main = a(a(TRUE->clone(), l(0)->clone()), l(1)->clone());
-//             auto l_program =
-//                 construct_program(l_helpers.begin(), l_helpers.end(),
-//                 l_main);
-//             auto l_result = l_program->normalize();
-//             // Returns first branch (after substitution and decrement)
-//             assert(l_result.m_expr->equals(v(0)));
-//         }
+        // Helper 0: TRUE = λ.λ.0 (returns first arg)
+        const auto TRUE = g(l_helpers.size());
+        l_helpers.emplace_back(f(f(l(0))));
 
-//         // Test FALSE: ((FALSE branch_a) branch_b) → branch_b
-//         {
-//             auto l_main = a(a(FALSE->clone(), l(0)->clone()), l(1)->clone());
-//             auto l_program =
-//                 construct_program(l_helpers.begin(), l_helpers.end(),
-//                 l_main);
-//             auto l_result = l_program->normalize();
-//             // Returns second branch (after substitution and decrement)
-//             assert(l_result.m_expr->equals(v(1)));
-//         }
-//     }
+        // Helper 1: FALSE = λ.λ.1 (returns second arg)
+        const auto FALSE = g(l_helpers.size());
+        l_helpers.emplace_back(f(f(l(1))));
 
-//     // Test 4: Helper depends on earlier helper
-//     {
-//         std::list<std::unique_ptr<expr>> l_helpers{};
+        // Test TRUE: ((TRUE branch_a) branch_b) → branch_a
+        {
+            auto l_main = a(a(TRUE->clone(), l(0)->clone()), l(1)->clone());
+            auto l_program =
+                construct_program(l_helpers.begin(), l_helpers.end(), l_main);
 
-//         auto l = [&l_helpers](size_t a_local_index)
-//         { return v(l_helpers.size() + a_local_index); };
-//         auto g = [&l_helpers](size_t a_global_index)
-//         { return v(a_global_index); };
+            while(reduce_one_step(l_program))
+                ;
 
-//         // Helper 0: TRUE
-//         const auto TRUE = g(l_helpers.size());
-//         l_helpers.emplace_back(f(f(l(0))));
+            // Returns first branch (after substitution and decrement)
+            assert(l_program->equals(v(0)));
+        }
 
-//         // Helper 1: FALSE
-//         const auto FALSE = g(l_helpers.size());
-//         l_helpers.emplace_back(f(f(l(1))));
+        // Test FALSE: ((FALSE branch_a) branch_b) → branch_b
+        {
+            auto l_main = a(a(FALSE->clone(), l(0)->clone()), l(1)->clone());
+            auto l_program =
+                construct_program(l_helpers.begin(), l_helpers.end(), l_main);
 
-//         // Helper 2: NOT = λ.((0 FALSE) TRUE)
-//         const auto NOT = g(l_helpers.size());
-//         l_helpers.emplace_back(
-//             f(a(a(l(0)->clone(), FALSE->clone()), TRUE->clone())));
+            while(reduce_one_step(l_program))
+                ;
 
-//         // Test: NOT TRUE → FALSE
-//         {
-//             auto l_main = a(NOT->clone(), TRUE->clone());
-//             auto l_program =
-//                 construct_program(l_helpers.begin(), l_helpers.end(),
-//                 l_main);
-//             auto l_result = l_program->normalize();
-//             // Result should be FALSE = λ.λ.1
-//             auto l_expected = f(f(v(1)));
-//             assert(l_result.m_expr->equals(l_expected));
-//         }
+            // Returns second branch (after substitution and decrement)
+            assert(l_program->equals(v(1)));
+        }
+    }
 
-//         // Test: NOT FALSE → TRUE
-//         {
-//             auto l_main = a(NOT->clone(), FALSE->clone());
-//             auto l_program =
-//                 construct_program(l_helpers.begin(), l_helpers.end(),
-//                 l_main);
-//             auto l_result = l_program->normalize();
-//             // Result should be TRUE = λ.λ.0
-//             auto l_expected = f(f(v(0)));
-//             assert(l_result.m_expr->equals(l_expected));
-//         }
-//     }
+    // Test 4: Helper depends on earlier helper
+    {
+        std::list<std::unique_ptr<expr>> l_helpers{};
 
-//     // Test 5: Church numerals with SUCC
-//     {
-//         std::list<std::unique_ptr<expr>> l_helpers{};
+        auto l = [&l_helpers](size_t a_local_index)
+        { return v(l_helpers.size() + a_local_index); };
+        auto g = [&l_helpers](size_t a_global_index)
+        { return v(a_global_index); };
 
-//         auto l = [&l_helpers](size_t a_local_index)
-//         { return v(l_helpers.size() + a_local_index); };
-//         auto g = [&l_helpers](size_t a_global_index)
-//         { return v(a_global_index); };
+        // Helper 0: TRUE
+        const auto TRUE = g(l_helpers.size());
+        l_helpers.emplace_back(f(f(l(0))));
 
-//         // Helper 0: ZERO = λ.λ.1
-//         const auto ZERO = g(l_helpers.size());
-//         l_helpers.emplace_back(f(f(l(1))));
+        // Helper 1: FALSE
+        const auto FALSE = g(l_helpers.size());
+        l_helpers.emplace_back(f(f(l(1))));
 
-//         // Helper 1: SUCC = λ.λ.λ.(1 ((0 1) 2))
-//         const auto SUCC = g(l_helpers.size());
-//         l_helpers.emplace_back(
-//             f(f(f(a(l(1)->clone(),
-//                     a(a(l(0)->clone(), l(1)->clone()), l(2)->clone()))))));
+        // Helper 2: NOT = λ.((0 FALSE) TRUE)
+        const auto NOT = g(l_helpers.size());
+        l_helpers.emplace_back(
+            f(a(a(l(0)->clone(), FALSE->clone()), TRUE->clone())));
 
-//         // Test: SUCC ZERO = ONE
-//         auto l_main = a(SUCC->clone(), ZERO->clone());
-//         auto l_program =
-//             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
-//         auto l_result = l_program->normalize();
+        // Test: NOT TRUE → FALSE
+        {
+            auto l_main = a(NOT->clone(), TRUE->clone());
+            auto l_program =
+                construct_program(l_helpers.begin(), l_helpers.end(), l_main);
 
-//         // ONE = λ.λ.(0 1)
-//         auto l_expected = f(f(a(v(0), v(1))));
-//         assert(l_result.m_expr->equals(l_expected));
-//     }
+            while(reduce_one_step(l_program))
+                ;
 
-//     // Test 6: Main function with lambdas using local variables
-//     {
-//         std::list<std::unique_ptr<expr>> l_helpers{};
+            // Result should be FALSE = λ.λ.1
+            auto l_expected = f(f(v(1)));
+            assert(l_program->equals(l_expected));
+        }
 
-//         auto l = [&l_helpers](size_t a_local_index)
-//         { return v(l_helpers.size() + a_local_index); };
-//         auto g = [&l_helpers](size_t a_global_index)
-//         { return v(a_global_index); };
+        // Test: NOT FALSE → TRUE
+        {
+            auto l_main = a(NOT->clone(), FALSE->clone());
+            auto l_program =
+                construct_program(l_helpers.begin(), l_helpers.end(), l_main);
 
-//         // Helper 0: TRUE
-//         const auto TRUE = g(l_helpers.size());
-//         l_helpers.emplace_back(f(f(l(0))));
+            while(reduce_one_step(l_program))
+                ;
 
-//         // Main: λ.λ.((TRUE l(0)) l(1))
-//         // Two-arg function that applies TRUE to its arguments
-//         // l(0) = v(1), l(1) = v(2)
-//         auto l_main = f(f(a(a(TRUE->clone(), l(0)->clone()),
-//         l(1)->clone())));
+            // Result should be TRUE = λ.λ.0
+            auto l_expected = f(f(v(0)));
+            assert(l_program->equals(l_expected));
+        }
+    }
 
-//         auto l_program =
-//             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
-//         auto l_result = l_program->normalize();
+    // Test 5: Church numerals with SUCC
+    {
+        std::list<std::unique_ptr<expr>> l_helpers{};
 
-//         // After normalization: helpers fall away, locals become globals
-//         // l(0) was v(1), becomes v(0) after 1 helper removed
-//         // Result: λ.λ.0 (TRUE returns first arg, which was l(0), now
-//         v(0)) auto l_expected = f(f(v(0)));
-//         assert(l_result.m_expr->equals(l_expected));
-//     }
+        auto l = [&l_helpers](size_t a_local_index)
+        { return v(l_helpers.size() + a_local_index); };
+        auto g = [&l_helpers](size_t a_global_index)
+        { return v(a_global_index); };
 
-//     // Test 7: Test with different iterator type (std::vector)
-//     {
-//         std::vector<std::unique_ptr<expr>> l_helpers{};
+        // Helper 0: ZERO = λ.λ.1
+        const auto ZERO = g(l_helpers.size());
+        l_helpers.emplace_back(f(f(l(1))));
 
-//         auto l = [&l_helpers](size_t a_local_index)
-//         { return v(l_helpers.size() + a_local_index); };
-//         auto g = [&l_helpers](size_t a_global_index)
-//         { return v(a_global_index); };
+        // Helper 1: SUCC = λ.λ.λ.(1 ((0 1) 2))
+        const auto SUCC = g(l_helpers.size());
+        l_helpers.emplace_back(
+            f(f(f(a(l(1)->clone(),
+                    a(a(l(0)->clone(), l(1)->clone()), l(2)->clone()))))));
 
-//         // Helper 0: K combinator
-//         const auto K = g(l_helpers.size());
-//         l_helpers.push_back(f(f(l(0))));
+        // Test: SUCC ZERO = ONE
+        auto l_main = a(SUCC->clone(), ZERO->clone());
+        auto l_program =
+            construct_program(l_helpers.begin(), l_helpers.end(), l_main);
 
-//         // Helper 1: S combinator λ.λ.λ.((0 2) (1 2))
-//         const auto S = g(l_helpers.size());
-//         l_helpers.push_back(f(f(f(a(a(l(0)->clone(), l(2)->clone()),
-//                                     a(l(1)->clone(), l(2)->clone()))))));
+        while(reduce_one_step(l_program))
+            ;
 
-//         // Main: ((S K) K) applied to a local
-//         // l(0) = v(2) (two helpers in place)
-//         auto l_skk = a(a(S->clone(), K->clone()), K->clone());
-//         auto l_main = a(l_skk->clone(), l(0)->clone());
+        // ONE = λ.λ.(0 1)
+        auto l_expected = f(f(a(v(0), v(1))));
+        assert(l_program->equals(l_expected));
+    }
 
-//         auto l_program =
-//             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
-//         auto l_result = l_program->normalize();
+    // Test 6: Main function with lambdas using local variables
+    {
+        std::list<std::unique_ptr<expr>> l_helpers{};
 
-//         // SKK is identity, returns its argument
-//         // l(0) was v(2), after 2 helpers removed: v(2) - 2 = v(0)
-//         assert(l_result.m_expr->equals(v(0)));
-//     }
+        auto l = [&l_helpers](size_t a_local_index)
+        { return v(l_helpers.size() + a_local_index); };
+        auto g = [&l_helpers](size_t a_global_index)
+        { return v(a_global_index); };
 
-//     // Test 8: Helper that uses multiple earlier helpers
-//     {
-//         std::list<std::unique_ptr<expr>> l_helpers{};
+        // Helper 0: TRUE
+        const auto TRUE = g(l_helpers.size());
+        l_helpers.emplace_back(f(f(l(0))));
 
-//         auto l = [&l_helpers](size_t a_local_index)
-//         { return v(l_helpers.size() + a_local_index); };
-//         auto g = [&l_helpers](size_t a_global_index)
-//         { return v(a_global_index); };
+        // Main: λ.λ.((TRUE l(0)) l(1))
+        // Two-arg function that applies TRUE to its arguments
+        // l(0) = v(1), l(1) = v(2)
+        auto l_main = f(f(a(a(TRUE->clone(), l(0)->clone()), l(1)->clone())));
 
-//         // Helper 0: TRUE
-//         const auto TRUE = g(l_helpers.size());
-//         l_helpers.emplace_back(f(f(l(0))));
+        auto l_program =
+            construct_program(l_helpers.begin(), l_helpers.end(), l_main);
 
-//         // Helper 1: FALSE
-//         const auto FALSE = g(l_helpers.size());
-//         l_helpers.emplace_back(f(f(l(1))));
+        while(reduce_one_step(l_program))
+            ;
 
-//         // Helper 2: AND = λ.λ.((0 1) FALSE)
-//         const auto AND = g(l_helpers.size());
-//         l_helpers.emplace_back(
-//             f(f(a(a(l(0)->clone(), l(1)->clone()), FALSE->clone()))));
+        // After normalization: helpers fall away, locals become globals
+        // l(0) was v(1), becomes v(0) after 1 helper removed
+        // Result: λ.λ.0 (TRUE returns first arg, which was l(0), now v(0))
+        auto l_expected = f(f(v(0)));
+        assert(l_program->equals(l_expected));
+    }
 
-//         // Test: ((AND TRUE) TRUE) → TRUE
-//         auto l_main = a(a(AND->clone(), TRUE->clone()), TRUE->clone());
-//         auto l_program =
-//             construct_program(l_helpers.begin(), l_helpers.end(), l_main);
-//         auto l_result = l_program->normalize();
+    // Test 7: Test with different iterator type (std::vector)
+    {
+        std::vector<std::unique_ptr<expr>> l_helpers{};
 
-//         // Result: TRUE = λ.λ.0
-//         auto l_expected = f(f(v(0)));
-//         assert(l_result.m_expr->equals(l_expected));
-//     }
+        auto l = [&l_helpers](size_t a_local_index)
+        { return v(l_helpers.size() + a_local_index); };
+        auto g = [&l_helpers](size_t a_global_index)
+        { return v(a_global_index); };
 
-//     std::cout << "construct_program_test: ALL TESTS PASSED" << std::endl;
-// }
+        // Helper 0: K combinator
+        const auto K = g(l_helpers.size());
+        l_helpers.push_back(f(f(l(0))));
+
+        // Helper 1: S combinator λ.λ.λ.((0 2) (1 2))
+        const auto S = g(l_helpers.size());
+        l_helpers.push_back(f(f(f(a(a(l(0)->clone(), l(2)->clone()),
+                                    a(l(1)->clone(), l(2)->clone()))))));
+
+        // Main: ((S K) K) applied to a local
+        // l(0) = v(2) (two helpers in place)
+        auto l_skk = a(a(S->clone(), K->clone()), K->clone());
+        auto l_main = a(l_skk->clone(), l(0)->clone());
+
+        auto l_program =
+            construct_program(l_helpers.begin(), l_helpers.end(), l_main);
+
+        while(reduce_one_step(l_program))
+            ;
+
+        // SKK is identity, returns its argument
+        // l(0) was v(2), after 2 helpers removed: v(2) - 2 = v(0)
+        assert(l_program->equals(v(0)));
+    }
+
+    // Test 8: Helper that uses multiple earlier helpers
+    {
+        std::list<std::unique_ptr<expr>> l_helpers{};
+
+        auto l = [&l_helpers](size_t a_local_index)
+        { return v(l_helpers.size() + a_local_index); };
+        auto g = [&l_helpers](size_t a_global_index)
+        { return v(a_global_index); };
+
+        // Helper 0: TRUE
+        const auto TRUE = g(l_helpers.size());
+        l_helpers.emplace_back(f(f(l(0))));
+
+        // Helper 1: FALSE
+        const auto FALSE = g(l_helpers.size());
+        l_helpers.emplace_back(f(f(l(1))));
+
+        // Helper 2: AND = λ.λ.((0 1) FALSE)
+        const auto AND = g(l_helpers.size());
+        l_helpers.emplace_back(
+            f(f(a(a(l(0)->clone(), l(1)->clone()), FALSE->clone()))));
+
+        // Test: ((AND TRUE) TRUE) → TRUE
+        auto l_main = a(a(AND->clone(), TRUE->clone()), TRUE->clone());
+        auto l_program =
+            construct_program(l_helpers.begin(), l_helpers.end(), l_main);
+
+        while(reduce_one_step(l_program))
+            ;
+
+        // Result: TRUE = λ.λ.0
+        auto l_expected = f(f(v(0)));
+        assert(l_program->equals(l_expected));
+    }
+}
 
 // void generic_use_case_test()
 // {
@@ -3913,7 +3930,7 @@ void lambda_test_main()
     // TEST(test_func_size);
     // TEST(test_app_size);
 
-    // TEST(construct_program_test);
+    TEST(construct_program_test);
 
     // TEST(generic_use_case_test);
 }
