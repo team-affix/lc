@@ -17,11 +17,13 @@
 - Embedding: adding lambda calculus evaluation to existing applications
 - Verification: testing lambda calculus properties with comprehensive constraints
 
+**lc** prioritizes efficiency: expressions mutate in place during reduction, minimizing allocations. Immutability is opt-in via explicit cloning.
+
 The library is designed to be:
 - **Minimal**: Three expression types (`var`, `func`, `app`), clean API
-- **Safe**: Immutable expressions with `std::unique_ptr` memory management
-- **Controlled**: Configurable step and size limits with detailed results prevent non-termination
-- **Debuggable**: Returns reduction steps, peak sizes, and limit violation flags
+- **Efficient**: In-place mutation minimizes allocations; immutability is opt-in via `clone()`
+- **Flexible**: Manual reduction loops give full control over termination conditions
+- **Safe**: Memory-safe with `std::unique_ptr` management
 - **Fast**: Efficient substitution and reduction with De Bruijn levels
 
 ### Design & Implementation
@@ -41,14 +43,20 @@ Variables reference lambda binders by their level from the **outermost** scope:
 
 **Important**: This differs from De Bruijn **indices** where counting is from the innermost scope.
 
+#### Mutation Philosophy
+
+**lc** prioritizes **efficiency** through in-place mutation:
+- **Default behavior**: Operations mutate expressions directly, avoiding clones of unchanged sub-trees
+- **Opt-in immutability**: Explicitly `clone()` before mutation when you need to preserve originals
+- **Performance benefit**: Large expressions no longer copied during reduction
+- **Free functions for rewriting**: `reduce_one_step()` and `substitute()` operate on `std::unique_ptr<expr>&` because they need parent context during traversal
+
 #### Core Operations
-The implementation handles three critical operations:
-- **Reduction**: Single-step beta-reduction following normal order
-- **Lifting**: Adjusts variable indices when moving expressions into deeper binding contexts
-- **Substitution**: Replaces variables with argument expressions, handling:
-  - Variable lifting for free variables in arguments
-  - Variable decrementation for free variables in the body
-  - Capture-avoiding substitution
+The implementation handles four critical operations:
+- **Reduction**: Single-step beta-reduction following normal order (mutates in place)
+- **Substitution**: Replaces variables with argument expressions (mutates in place)
+- **Lifting**: Adjusts variable indices when moving expressions into deeper binding contexts (mutates in place)
+- **Size Updates**: `update_size()` synchronizes cached sizes after mutations
 
 ### Usage
 
@@ -58,13 +66,30 @@ After including the library, you can construct and reduce lambda expressions:
 using namespace lambda;
 
 // Identity function: (λ.0) 5 → 5
-auto identity = f(v(0));  // λ.0
+auto identity = f(v(0));
 auto expr = a(identity->clone(), v(5));
-auto result = expr->normalize();
-// result.m_expr equals v(5)
+
+// Normalize to beta-normal form (mutates expr in place)
+while(reduce_one_step(expr));
+
+assert(expr->equals(v(5)));
 ```
 
-The library uses factory functions for construction:
+**Opt-in Immutability:**
+
+By default, reduction mutates expressions in place for efficiency. To preserve the original, clone explicitly:
+
+```cpp
+auto original = a(f(v(0)), v(5));
+auto copy = original->clone();  // Explicit clone for immutability
+
+while(reduce_one_step(copy));   // Only copy is mutated
+
+assert(original->equals(a(f(v(0)), v(5))));  // Original preserved
+assert(copy->equals(v(5)));                   // Copy normalized
+```
+
+**Factory Functions:**
 - `v(index)` creates a variable
 - `f(body)` creates a lambda abstraction
 - `a(lhs, rhs)` creates an application
@@ -94,82 +119,56 @@ Represents function application (applying a function to an argument).
 - **Size**: `1 + lhs_size + rhs_size`
 
 **Expression Properties:**
-- **Immutable**: Operations create new expressions rather than modifying existing ones
+- **In-place mutation**: Operations modify expressions directly for efficiency
+- **Opt-in immutability**: Use `clone()` explicitly to preserve originals before mutation
 - **Polymorphic**: Accessed through the base `expr` interface
 - **Memory-safe**: Managed via `std::unique_ptr`
+- **Direct member access**: Use `m_size`, `m_lhs`, `m_rhs`, `m_body`, `m_index` directly
 
 ### Features
 
 #### Expression Normalization
 
-The `normalize()` method reduces expressions to normal form and returns a `normalize_result` struct with detailed information:
+Normalize expressions to beta-normal form using `reduce_one_step()`:
 
 ```cpp
-struct normalize_result {
-    bool m_step_excess;           // true if step limit was hit
-    bool m_size_excess;           // true if size limit was hit
-    size_t m_step_count;          // number of reductions performed
-    size_t m_size_peak;           // maximum intermediate result size
-    std::unique_ptr<expr> m_expr; // the normalized expression
-};
-
-normalize_result normalize(
-    size_t a_step_limit = SIZE_MAX,    // maximum reductions allowed
-    size_t a_size_limit = SIZE_MAX     // maximum expression size allowed
-) const;
+auto expr = a(f(v(0)), v(5));
+while(reduce_one_step(expr));  // Mutates in place
 ```
 
-**Return Value: `normalize_result` struct**
+**The `reduce_one_step()` Function:**
 
-- **`m_step_excess`**: `true` if step limit was reached while more reductions are possible
-- **`m_size_excess`**: `true` if a reduction would have exceeded the size limit
-- **`m_step_count`**: Number of reductions actually performed (never exceeds `a_step_limit`)
-- **`m_size_peak`**: Maximum size of intermediate results (excludes limit-violating reductions)
-- **`m_expr`**: The normalized expression (or partially normalized if limits hit)
+```cpp
+bool reduce_one_step(std::unique_ptr<expr>& a_expr, size_t a_depth = 0);
+```
 
-**Limit Precedence:**
+- **Returns**: `true` if reduction performed, `false` if beta-normal form reached
+- **Mutates in place**: The expression is modified directly for efficiency
+- **Parameters**: 
+  - `a_expr`: Expression to reduce (modified in place)
+  - `a_depth`: Current binding depth (default 0, rarely needs specification)
 
-Step limit **ALWAYS** takes precedence over size limit. When both limits would block a reduction:
-- `m_step_excess = true`
-- `m_size_excess = false`
+**Controlling Normalization:**
 
-**When Limits Are Exceeded:**
+Full control over the reduction loop for custom termination logic:
 
-- **Step limit**: `m_step_excess = true` when `m_step_count` reaches `a_step_limit` AND more reductions are possible
-- **Size limit**: `m_size_excess = true` when a reduction would produce a result with `size > a_size_limit`
-- Only ONE excess flag can be `true` (step takes precedence)
-- If `m_step_excess = true`, then `m_step_count == a_step_limit`
-- If `m_size_excess = true`, then `m_step_count < a_step_limit`
+```cpp
+// Step limit: reduce at most 100 times
+size_t step_count = 0;
+while(step_count < 100 && reduce_one_step(expr))
+    ++step_count;
 
-**Reduction Lookahead Behavior:**
+// Size limit: stop if expression exceeds size
+while(expr->m_size <= 1000 && reduce_one_step(expr));
 
-The normalizer uses lookahead to enforce limits:
-1. The next reduction is computed (lookahead)
-2. Limits are checked *before* applying it
-3. If a limit would be violated
-   1. The appropriate excess flag is set
-   2. The reduction is **discarded** (not committed)
-   3. Normalization halts immediately
-4. The returned expression is the **last valid state** (before the limit-violating reduction)
-
-This ensures:
-- The returned expression is always within limits OR is the initial expression
-- `m_step_count` reflects only successful, committed reductions
-- `m_size_peak` only includes sizes of committed reductions
-
-**Size Checking:**
-
-- **Initial expression size is NEVER checked** against `a_size_limit`
-- Only reduction **results** are checked
-- This allows large expressions that reduce to smaller results
-- Example: Expression of size 100 can normalize with `a_size_limit = 50` if all intermediate results are ≤ 50
-
-**Size Peak Behavior:**
-
-- Tracks maximum size of intermediate **results** (not original expression)
-- Updated after each successful reduction
-- If no reductions occur: `m_size_peak = std::numeric_limits<size_t>::min()`
-- Does **NOT** include sizes of rejected (limit-violating) reductions
+// Combined: step limit with size tracking
+size_t steps = 0;
+size_t max_size = 0;
+while(steps < 100 && reduce_one_step(expr)) {
+    ++steps;
+    max_size = std::max(max_size, expr->m_size);
+}
+```
 
 #### Emulating Delta Reductions with `construct_program`
 
@@ -256,10 +255,14 @@ auto main_expr = a(NOT->clone(), TRUE->clone());
 
 // Construct and normalize the program
 auto program = construct_program(helpers.begin(), helpers.end(), main_expr);
-auto result = program->normalize();
 
-// Result: FALSE = λ.λ.1
-assert(result.m_expr->equals(f(f(v(1)))));
+// Normalize in place
+while(reduce_one_step(program));
+assert(program->equals(f(f(v(1)))));
+
+// Or preserve original with clone()
+auto program_copy = program->clone();
+while(reduce_one_step(program_copy));
 ```
 
 **Key Insight: Locals Become Globals**
@@ -278,10 +281,11 @@ After normalization, helper bindings are eliminated through substitution, effect
 
 #### Expression Size
 
-Every expression has a `size()` method that returns its structural size:
+Every expression maintains a cached size in the `m_size` member:
 
 ```cpp
-size_t size() const;
+auto expr = a(f(v(0)), v(5));
+std::cout << "Size: " << expr->m_size << std::endl;  // Direct member access
 ```
 
 **Size calculation:**
@@ -289,19 +293,96 @@ size_t size() const;
 - `func`: size = 1 + body_size
 - `app`: size = 1 + lhs_size + rhs_size
 
-This allows tracking expression growth during reduction and preventing size explosions.
+Size is cached in `m_size` for O(1) access. After mutations, sizes are automatically synchronized via `update_size()`. User code doesn't call this manually—it's handled internally for efficiency.
+
+#### Core Rewriting Functions
+
+Two main functions mutate expressions in place for efficiency:
+
+**`reduce_one_step()`** - Performs one beta-reduction:
+
+```cpp
+bool reduce_one_step(std::unique_ptr<expr>& a_expr, size_t a_depth = 0);
+```
+
+Finds and reduces the leftmost-outermost redex following normal-order reduction. Returns `false` when expression reaches beta-normal form. Mutates in place.
+
+**`substitute()`** - Performs variable substitution:
+
+```cpp
+void substitute(std::unique_ptr<expr>& a_expr, 
+                size_t a_lift_amount,
+                size_t a_var_index, 
+                const std::unique_ptr<expr>& a_arg);
+```
+
+Replaces all occurrences of variable `a_var_index` with `a_arg`, handling:
+- Variable lifting for free variables in arguments
+- Variable decrementation for free variables in body
+- Capture-avoiding substitution
+
+**Why Free Functions:** These are free functions (not methods) because they need parent context during tree traversal and must modify the `std::unique_ptr` itself for in-place mutation.
+
+#### Direct Member Access
+
+Expressions expose internal state via public members for efficiency:
+
+```cpp
+// Base expr class
+size_t m_size;  // Cached structural size (O(1) access)
+
+// var class
+size_t m_index;  // De Bruijn level
+
+// func class
+std::unique_ptr<expr> m_body;  // Function body
+
+// app class  
+std::unique_ptr<expr> m_lhs;   // Function being applied
+std::unique_ptr<expr> m_rhs;   // Argument
+```
+
+**Example:**
+
+```cpp
+auto func_expr = f(v(0));
+std::cout << "Size: " << func_expr->m_size << std::endl;
+
+if(auto func_ptr = dynamic_cast<func*>(func_expr.get())) {
+    std::cout << "Body size: " << func_ptr->m_body->m_size << std::endl;
+}
+```
 
 #### Expression Deep Cloning
 
-Since expressions are managed by `std::unique_ptr`, the `clone()` method provides deep copying:
+**Opt-in Immutability:** Since expressions mutate in place for efficiency, use `clone()` to preserve originals:
 
 ```cpp
 std::unique_ptr<expr> clone() const;
 ```
 
-- **Purpose**: Creates an independent deep copy of an expression
-- **Use case**: Required when reusing an expression, as `std::unique_ptr` enforces single ownership
-- **Example**: `auto copy = expr->clone();`
+- **Purpose**: Creates an independent deep copy for opt-in immutability
+- **Use case**: Call before mutation when you need to preserve the original
+- **Memory**: Allocates completely independent copy with own memory
+
+**The Pattern: Clone Before Mutation**
+
+```cpp
+auto original = a(f(v(0)), v(5));
+auto mutable_copy = original->clone();  // Explicit choice for immutability
+
+while(reduce_one_step(mutable_copy));   // Only copy mutates
+
+// Original is preserved
+assert(original->equals(a(f(v(0)), v(5))));
+// Copy is normalized
+assert(mutable_copy->equals(v(5)));
+```
+
+**When to clone:**
+- Before normalization if you need the original expression
+- When reusing an expression in multiple contexts
+- When `std::unique_ptr` ownership needs duplication
 
 ### Examples
 
@@ -320,19 +401,23 @@ auto expr = a(f(v(0)), v(5));
 #### Simple Reduction
 
 ```cpp
-// Identity function: (λ.0) 5 → 5
-auto identity = f(v(0));  // λ.0
+// Identity function: (λ.0) 5 → 5 (mutates in place)
+auto identity = f(v(0));
 auto expr = a(identity->clone(), v(5));
-auto result = expr->normalize();
-// result.m_expr equals v(5)
-// result.m_step_count == 1
 
-// K combinator: ((λ.λ.0) 7) 8 → 7
-auto K = f(f(v(0)));  // λ.λ.0
-auto expr = a(a(K->clone(), v(7)), v(8));
-auto result = expr->normalize();
-// result.m_expr equals v(7)
-// result.m_step_count == 2
+while(reduce_one_step(expr));
+assert(expr->equals(v(5)));
+
+// K combinator: ((λ.λ.0) 7) 8 → 7 (with step counting)
+auto K = f(f(v(0)));
+auto expr2 = a(a(K->clone(), v(7)), v(8));
+
+size_t steps = 0;
+while(reduce_one_step(expr2))
+    ++steps;
+
+assert(expr2->equals(v(7)));
+assert(steps == 2);
 ```
 
 #### Church Numerals
@@ -355,57 +440,34 @@ auto two = f(f(a(v(0), a(v(0), v(1)))));
 
 ```cpp
 // Step limit with omega combinator
-// Omega combinator: (λ.(0 0)) (λ.(0 0))
 auto omega = a(f(a(v(0), v(0))), f(a(v(0), v(0))));
-auto result = omega->normalize(100);  // Limit to 100 steps
-// result.m_step_excess == true (more reductions possible)
-// result.m_step_count == 100 (exactly 100 reductions were applied)
-// The 101st reduction was computed but NOT applied
-// omega reduces to itself indefinitely
+auto omega_copy = omega->clone();  // Clone to preserve original
 
-// Size limit with growing expression
-// Growing combinator: (λ.(0 0)) (λ.(0 0 0))
-auto growing = a(f(a(v(0), v(0))), f(a(a(v(0), v(0)), v(0))));
-auto result = growing->normalize(SIZE_MAX, 20);  // size_limit=20
-if (result.m_size_excess) {
-    std::cout << "Stopped due to size after " 
-              << result.m_step_count << " steps\n";
-    // The reduction that would exceed 20 was detected via lookahead and discarded
-    // result.m_expr->size() <= 20
-    // result.m_size_peak <= 20
+size_t step_count = 0;
+while(step_count < 100 && reduce_one_step(omega_copy))
+    ++step_count;
+
+assert(step_count == 100);         // Hit step limit
+assert(omega_copy->equals(omega)); // Omega reduces to itself
+
+// Size limit
+auto expr = a(f(a(v(0), v(0))), f(a(a(v(0), v(0)), v(0))));
+while(expr->m_size <= 1000 && reduce_one_step(expr));
+
+if(expr->m_size > 1000) {
+    std::cout << "Stopped: expression too large\n";
 }
 
-// Track both metrics
-auto result = expr->normalize(1000, 100);  // step_limit=1000, size_limit=100
-std::cout << "Steps: " << result.m_step_count 
-          << ", Peak: " << result.m_size_peak << "\n";
-if (result.m_step_excess) {
-    std::cout << "Hit step limit\n";
-}
-if (result.m_size_excess) {
-    std::cout << "Hit size limit\n";
+// Custom control: combined limits
+auto expr2 = a(a(a(f(f(f(v(0)))), v(1)), v(2)), v(3));
+size_t steps = 0;
+size_t max_size = 0;
+while(steps < 100 && expr2->m_size <= 1000 && reduce_one_step(expr2)) {
+    ++steps;
+    max_size = std::max(max_size, expr2->m_size);
 }
 
-// Limit precedence demonstration
-auto expr = ...;  // Expression needing many steps
-auto result = expr->normalize(5, 10);  // Both limits restrictive
-// If step limit hits after 5 reductions:
-// result.m_step_excess == true
-// result.m_size_excess == false  // Step takes precedence
-// result.m_step_count == 5
-
-// Initial size doesn't matter
-auto large_expr = ...; // Expression with size 100
-auto result = large_expr->normalize(SIZE_MAX, 50);  // size_limit=50
-// Succeeds if all intermediate results have size <= 50
-// Initial size of 100 is not checked
-
-// Understanding lookahead behavior
-auto expr = ...; // Expression needing 10 steps to normalize
-auto result = expr->normalize(5);  // step_limit=5
-// result.m_step_count == 5 (only 5 reductions applied)
-// The 6th reduction was computed (lookahead) but discarded
-// result.m_expr is the state after exactly 5 reductions
+std::cout << "Steps: " << steps << ", Max size: " << max_size << "\n";
 ```
 
 #### Combinator Identities
@@ -422,8 +484,8 @@ auto S = f(f(f(a(a(v(0), v(2)), a(v(1), v(2))))));
 
 // Test: S K K a → a (SKK is equivalent to I)
 auto expr = a(a(a(S->clone(), K->clone()), K->clone()), v(10));
-auto result = expr->normalize();
-// result.m_expr equals v(10)
+while(reduce_one_step(expr));  // Mutates in place
+assert(expr->equals(v(10)));
 ```
 
 #### Measuring Expression Size
@@ -431,11 +493,11 @@ auto result = expr->normalize();
 ```cpp
 // Expression: (λ.0) 5
 auto expr = a(f(v(0)), v(5));
-std::cout << "Size: " << expr->size() << std::endl;  // Prints: 4
+std::cout << "Size: " << expr->m_size << std::endl;  // Direct access: 4
 // Size breakdown: 1 (app) + 2 (func with var body) + 1 (var) = 4
 
-auto result = expr->normalize();
-std::cout << "Size after: " << result.m_expr->size() << std::endl;  // Prints: 1
+while(reduce_one_step(expr));
+std::cout << "Size after: " << expr->m_size << std::endl;  // Direct access: 1
 // Just v(5) remains
 ```
 
@@ -464,10 +526,11 @@ This creates:
 
 The project includes comprehensive unit tests covering:
 - Expression construction and equality
-- Lifting and substitution  
-- Beta-reduction (one-step and normalization)
-- Size calculation
-- Reduction constraints (step and size limits)
+- Lifting and substitution (in-place mutation)
+- Beta-reduction with manual reduction loops
+- Size calculation and synchronization
+- Manual reduction loops with custom control
+- In-place mutation and opt-in immutability patterns
 - Combinator identities (I, K, S)
 - Church numeral arithmetic
 - `construct_program` with helpers and dependencies
