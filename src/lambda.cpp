@@ -2967,9 +2967,8 @@ void test_app_reduce()
         assert(l_result->m_size == 3);
     }
 
-    // Test N-2 scenario: 4-step expression limited to 2 steps
+    // 4-step expression
     // Expression: ((λ.0) (λ.0)) (((λ.2) 3) ((λ.4) 5))
-    // Needs 4 reductions, limit 2 allows 2
     {
         auto l_inner =
             a(a(f(v(2)), v(3)), a(f(v(4)), v(5))); // ((λ.2) 3) ((λ.4) 5)
@@ -2999,26 +2998,49 @@ void test_app_reduce()
         assert(l_result->m_size == 3);
     }
 
-    //     // Test N-2 scenario: Expression that needs 5 steps, limit 3
-    //     // Expression: ((((λ.0) 1) ((λ.0) 2)) ((λ.0) 3)) ((λ.0) 4)) ((λ.0) 5)
-    //     // Needs 5 reductions, limit 3 allows 3
-    //     {
-    //         auto l_r1 = a(f(v(0)), v(1)); // (λ.0) 1
-    //         auto l_r2 = a(f(v(0)), v(2)); // (λ.0) 2
-    //         auto l_r3 = a(f(v(0)), v(3)); // (λ.0) 3
-    //         auto l_r4 = a(f(v(0)), v(4)); // (λ.0) 4
-    //         auto l_r5 = a(f(v(0)), v(5)); // (λ.0) 5
-    //         auto l_expr = a(
-    //             a(a(a(l_r1->clone(), l_r2->clone()), l_r3->clone()),
-    //             l_r4->clone()), l_r5->clone());
-    //         auto l_result = l_expr->normalize(3);
-    //         assert(l_result.m_step_excess == true);
-    //         assert(l_result.m_size_excess == false);
-    //         assert(l_result.m_step_count == 3);
-    //         // Expression is partially reduced, NOT in normal form
-    //         // Result: (((1 2) 3) ((λ.0) 4)) ((λ.0) 5) - still has redexes
-    //         left
-    //     }
+    // Expression that needs 5 steps
+    // Expression: ((((λ.0) 1) ((λ.0) 2)) ((λ.0) 3)) ((λ.0) 4)) ((λ.0) 5)
+    {
+        auto l_r1 = a(f(v(0)), v(1)); // (λ.0) 1
+        auto l_r2 = a(f(v(0)), v(2)); // (λ.0) 2
+        auto l_r3 = a(f(v(0)), v(3)); // (λ.0) 3
+        auto l_r4 = a(f(v(0)), v(4)); // (λ.0) 4
+        auto l_r5 = a(f(v(0)), v(5)); // (λ.0) 5
+        auto l_expr = a(
+            a(a(a(l_r1->clone(), l_r2->clone()), l_r3->clone()), l_r4->clone()),
+            l_r5->clone());
+
+        auto l_result = l_expr->clone();
+
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(
+            a(a(a(a(v(1), l_r2->clone()), l_r3->clone()), l_r4->clone()),
+              l_r5->clone())));
+        assert(l_result->m_size == 21);
+
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(a(
+            a(a(a(v(1), v(2)), l_r3->clone()), l_r4->clone()), l_r5->clone())));
+        assert(l_result->m_size == 18);
+
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(
+            a(a(a(a(v(1), v(2)), v(3)), l_r4->clone()), l_r5->clone())));
+        assert(l_result->m_size == 15);
+
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(
+            a(a(a(a(v(1), v(2)), v(3)), v(4)), l_r5->clone())));
+        assert(l_result->m_size == 12);
+
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(a(a(a(a(v(1), v(2)), v(3)), v(4)), v(5))));
+        assert(l_result->m_size == 9);
+
+        assert(!reduce_one_step(l_result));
+        assert(l_result->equals(a(a(a(a(v(1), v(2)), v(3)), v(4)), v(5))));
+        assert(l_result->m_size == 9);
+    }
 }
 
 // void test_var_reduce_one_step()
