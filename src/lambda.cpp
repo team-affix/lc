@@ -2967,17 +2967,37 @@ void test_app_reduce()
         assert(l_result->m_size == 3);
     }
 
-    // // Test N-2 scenario: 4-step expression limited to 2 steps
-    // // Expression: ((λ.0) (λ.0)) (((λ.2) 3) ((λ.4) 5))
-    // // Needs 4 reductions, limit 2 allows 2
-    // {
-    //     auto l_inner =
-    //         a(a(f(v(2)), v(3)), a(f(v(4)), v(5))); // ((λ.2) 3) ((λ.4) 5)
-    //     auto l_wrapped =
-    //         a(a(f(v(0)), f(v(0))), l_inner->clone()); // ((λ.0) (λ.0)) (...)
-    //     auto l_result = l_wrapped->clone();
+    // Test N-2 scenario: 4-step expression limited to 2 steps
+    // Expression: ((λ.0) (λ.0)) (((λ.2) 3) ((λ.4) 5))
+    // Needs 4 reductions, limit 2 allows 2
+    {
+        auto l_inner =
+            a(a(f(v(2)), v(3)), a(f(v(4)), v(5))); // ((λ.2) 3) ((λ.4) 5)
+        auto l_wrapped =
+            a(a(f(v(0)), f(v(0))), l_inner->clone()); // ((λ.0) (λ.0)) (...)
+        auto l_result = l_wrapped->clone();
 
-    // }
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(
+            a(f(v(0)), a(a(f(v(2)), v(3)), a(f(v(4)), v(5))))));
+        assert(l_result->m_size == 12);
+
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(a(a(f(v(2)), v(3)), a(f(v(4)), v(5)))));
+        assert(l_result->m_size == 9);
+
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(a(v(1), a(f(v(4)), v(5)))));
+        assert(l_result->m_size == 6);
+
+        assert(reduce_one_step(l_result));
+        assert(l_result->equals(a(v(1), v(3))));
+        assert(l_result->m_size == 3);
+
+        assert(!reduce_one_step(l_result));
+        assert(l_result->equals(a(v(1), v(3))));
+        assert(l_result->m_size == 3);
+    }
 
     //     // Test N-2 scenario: Expression that needs 5 steps, limit 3
     //     // Expression: ((((λ.0) 1) ((λ.0) 2)) ((λ.0) 3)) ((λ.0) 4)) ((λ.0) 5)
