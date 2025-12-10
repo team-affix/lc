@@ -3,6 +3,45 @@
 namespace lambda
 {
 
+// OPERATOR<
+bool var::operator<(const expr& a_other) const
+{
+    if(dynamic_cast<const func*>(&a_other))
+        return true;
+    if(dynamic_cast<const app*>(&a_other))
+        return true;
+    const var& l_var = dynamic_cast<const var&>(a_other);
+    if(m_index < l_var.m_index)
+        return true;
+    return false;
+}
+
+bool func::operator<(const expr& a_other) const
+{
+    if(dynamic_cast<const var*>(&a_other))
+        return false;
+    if(dynamic_cast<const app*>(&a_other))
+        return true;
+    const func& l_func = dynamic_cast<const func&>(a_other);
+    if(*m_body < *l_func.m_body)
+        return true;
+    return false;
+}
+
+bool app::operator<(const expr& a_other) const
+{
+    if(dynamic_cast<const var*>(&a_other))
+        return false;
+    if(dynamic_cast<const func*>(&a_other))
+        return false;
+    const app& l_app = dynamic_cast<const app&>(a_other);
+    if(*m_lhs < *l_app.m_lhs)
+        return true;
+    if(*l_app.m_lhs < *m_lhs)
+        return false;
+    return *m_rhs < *l_app.m_rhs;
+}
+
 // EQUALS METHODS
 
 bool var::equals(const std::unique_ptr<expr>& a_other) const
@@ -348,6 +387,632 @@ void test_app_constructor()
         // make sure the indices are correct
         assert(l_lhs_var->m_index == 0);
         assert(l_rhs_var->m_index == 1);
+    }
+}
+
+void test_operator_less_than()
+{
+    // ========================================================================
+    // REFLEXIVITY TESTS: x < x should always be false
+    // ========================================================================
+
+    // var reflexivity - various indices
+    {
+        auto l_var = v(0);
+        assert(!(*l_var < *l_var));
+    }
+
+    {
+        auto l_var = v(1);
+        assert(!(*l_var < *l_var));
+    }
+
+    {
+        auto l_var = v(5);
+        assert(!(*l_var < *l_var));
+    }
+
+    {
+        auto l_var = v(10);
+        assert(!(*l_var < *l_var));
+    }
+
+    {
+        auto l_var = v(42);
+        assert(!(*l_var < *l_var));
+    }
+
+    {
+        auto l_var = v(100);
+        assert(!(*l_var < *l_var));
+    }
+
+    {
+        auto l_var = v(999);
+        assert(!(*l_var < *l_var));
+    }
+
+    // func reflexivity - simple structures
+    {
+        auto l_func = f(v(0));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(v(7));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(v(50));
+        assert(!(*l_func < *l_func));
+    }
+
+    // func reflexivity - nested funcs
+    {
+        auto l_func = f(f(v(0)));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(f(v(3)));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(f(f(v(0))));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(f(f(v(5))));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(f(f(f(v(2)))));
+        assert(!(*l_func < *l_func));
+    }
+
+    // func reflexivity - func with app body
+    {
+        auto l_func = f(a(v(0), v(1)));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(a(v(3), v(7)));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(a(f(v(0)), v(1)));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(a(v(2), f(v(5))));
+        assert(!(*l_func < *l_func));
+    }
+
+    // app reflexivity - simple structures
+    {
+        auto l_app = a(v(0), v(1));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(v(3), v(3));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(v(5), v(10));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(v(15), v(8));
+        assert(!(*l_app < *l_app));
+    }
+
+    // app reflexivity - with func children
+    {
+        auto l_app = a(f(v(0)), v(1));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(v(2), f(v(3)));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(f(v(5)), f(v(7)));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(f(f(v(0))), f(v(1)));
+        assert(!(*l_app < *l_app));
+    }
+
+    // app reflexivity - nested apps
+    {
+        auto l_app = a(a(v(0), v(1)), v(2));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(v(0), a(v(1), v(2)));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(a(v(1), v(2)), a(v(3), v(4)));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(a(v(5), v(6)), a(v(7), v(8)));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(a(a(v(0), v(1)), v(2)), v(3));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(v(0), a(v(1), a(v(2), v(3))));
+        assert(!(*l_app < *l_app));
+    }
+
+    // app reflexivity - mixed complex structures
+    {
+        auto l_app = a(f(v(0)), a(v(1), v(2)));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(a(f(v(1)), v(2)), f(v(3)));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(f(a(v(0), v(1))), a(f(v(2)), v(3)));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(a(v(5), f(v(6))), a(f(v(7)), v(8)));
+        assert(!(*l_app < *l_app));
+    }
+
+    // app reflexivity - deeply nested mixed structures
+    {
+        auto l_app = a(f(f(a(v(0), v(1)))), a(v(2), f(v(3))));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(a(f(v(1)), a(v(2), v(3))), f(a(v(4), v(5))));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app = a(f(a(f(v(0)), v(1))), a(f(a(v(2), v(3))), v(4)));
+        assert(!(*l_app < *l_app));
+    }
+
+    // func reflexivity - very complex nested bodies
+    {
+        auto l_func = f(a(a(v(0), v(1)), a(v(2), v(3))));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(f(a(f(v(0)), a(v(1), f(v(2))))));
+        assert(!(*l_func < *l_func));
+    }
+
+    {
+        auto l_func = f(a(f(a(v(0), v(1))), f(a(v(2), v(3)))));
+        assert(!(*l_func < *l_func));
+    }
+
+    // app reflexivity - maximally complex structures
+    {
+        auto l_app =
+            a(f(a(f(v(0)), a(v(1), v(2)))), a(f(v(3)), f(a(v(4), v(5)))));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app =
+            a(a(f(v(1)), a(f(v(2)), v(3))), f(a(v(4), a(f(v(5)), v(6)))));
+        assert(!(*l_app < *l_app));
+    }
+
+    {
+        auto l_app =
+            a(f(f(a(v(0), a(v(1), v(2))))), a(a(v(3), f(v(4))), f(f(v(5)))));
+        assert(!(*l_app < *l_app));
+    }
+
+    // ========================================================================
+    // CROSS-TYPE COMPARISONS: var < func < app
+    // ========================================================================
+
+    // var < func
+    {
+        auto l_var = v(0);
+        auto l_func = f(v(0));
+        assert(*l_var < *l_func);
+        assert(!(*l_func < *l_var));
+    }
+
+    {
+        auto l_var = v(100);
+        auto l_func = f(v(0));
+        assert(*l_var < *l_func);
+        assert(!(*l_func < *l_var));
+    }
+
+    // var < app
+    {
+        auto l_var = v(0);
+        auto l_app = a(v(0), v(1));
+        assert(*l_var < *l_app);
+        assert(!(*l_app < *l_var));
+    }
+
+    {
+        auto l_var = v(100);
+        auto l_app = a(v(0), v(1));
+        assert(*l_var < *l_app);
+        assert(!(*l_app < *l_var));
+    }
+
+    // func < app
+    {
+        auto l_func = f(v(0));
+        auto l_app = a(v(0), v(1));
+        assert(*l_func < *l_app);
+        assert(!(*l_app < *l_func));
+    }
+
+    {
+        auto l_func = f(f(f(v(0))));
+        auto l_app = a(v(0), v(1));
+        assert(*l_func < *l_app);
+        assert(!(*l_app < *l_func));
+    }
+
+    // ========================================================================
+    // VAR vs VAR: compare by m_index
+    // ========================================================================
+
+    // v(0) < v(1)
+    {
+        auto l_var0 = v(0);
+        auto l_var1 = v(1);
+        assert(*l_var0 < *l_var1);
+        assert(!(*l_var1 < *l_var0));
+    }
+
+    // v(1) < v(2)
+    {
+        auto l_var1 = v(1);
+        auto l_var2 = v(2);
+        assert(*l_var1 < *l_var2);
+        assert(!(*l_var2 < *l_var1));
+    }
+
+    // v(0) < v(10)
+    {
+        auto l_var0 = v(0);
+        auto l_var10 = v(10);
+        assert(*l_var0 < *l_var10);
+        assert(!(*l_var10 < *l_var0));
+    }
+
+    // equal vars: v(5) == v(5)
+    {
+        auto l_var5a = v(5);
+        auto l_var5b = v(5);
+        assert(!(*l_var5a < *l_var5b));
+        assert(!(*l_var5b < *l_var5a));
+    }
+
+    // ========================================================================
+    // FUNC vs FUNC: compare by m_body
+    // ========================================================================
+
+    // f(v(0)) < f(v(1)) because v(0) < v(1)
+    {
+        auto l_func0 = f(v(0));
+        auto l_func1 = f(v(1));
+        assert(*l_func0 < *l_func1);
+        assert(!(*l_func1 < *l_func0));
+    }
+
+    // f(v(0)) < f(f(v(0))) because v(0) < f(v(0)) (var < func)
+    {
+        auto l_func_var = f(v(0));
+        auto l_func_func = f(f(v(0)));
+        assert(*l_func_var < *l_func_func);
+        assert(!(*l_func_func < *l_func_var));
+    }
+
+    // f(v(0)) < f(a(v(0), v(1))) because v(0) < a(v(0), v(1)) (var < app)
+    {
+        auto l_func_var = f(v(0));
+        auto l_func_app = f(a(v(0), v(1)));
+        assert(*l_func_var < *l_func_app);
+        assert(!(*l_func_app < *l_func_var));
+    }
+
+    // f(f(v(0))) < f(f(v(1))) - nested comparison
+    {
+        auto l_func_func0 = f(f(v(0)));
+        auto l_func_func1 = f(f(v(1)));
+        assert(*l_func_func0 < *l_func_func1);
+        assert(!(*l_func_func1 < *l_func_func0));
+    }
+
+    // f(f(f(v(0)))) < f(f(f(v(1)))) - deeply nested
+    {
+        auto l_func_deep0 = f(f(f(v(0))));
+        auto l_func_deep1 = f(f(f(v(1))));
+        assert(*l_func_deep0 < *l_func_deep1);
+        assert(!(*l_func_deep1 < *l_func_deep0));
+    }
+
+    // equal funcs
+    {
+        auto l_func_a = f(v(5));
+        auto l_func_b = f(v(5));
+        assert(!(*l_func_a < *l_func_b));
+        assert(!(*l_func_b < *l_func_a));
+    }
+
+    // ========================================================================
+    // APP vs APP: lexicographic comparison (lhs first, then rhs)
+    // ========================================================================
+
+    // different lhs: a(v(0), v(1)) < a(v(1), v(0))
+    {
+        auto l_app1 = a(v(0), v(1));
+        auto l_app2 = a(v(1), v(0));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // same lhs, different rhs: a(v(0), v(0)) < a(v(0), v(1))
+    {
+        auto l_app1 = a(v(0), v(0));
+        auto l_app2 = a(v(0), v(1));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // same lhs, different rhs: a(v(5), v(2)) < a(v(5), v(3))
+    {
+        auto l_app1 = a(v(5), v(2));
+        auto l_app2 = a(v(5), v(3));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // lhs dominates: a(v(0), v(10)) < a(v(1), v(0))
+    // even though v(10) > v(0), lhs is v(0) < v(1)
+    {
+        auto l_app1 = a(v(0), v(10));
+        auto l_app2 = a(v(1), v(0));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // equal apps
+    {
+        auto l_app_a = a(v(3), v(7));
+        auto l_app_b = a(v(3), v(7));
+        assert(!(*l_app_a < *l_app_b));
+        assert(!(*l_app_b < *l_app_a));
+    }
+
+    // ========================================================================
+    // COMPLEX APP COMPARISONS: nested structures
+    // ========================================================================
+
+    // nested apps in lhs: a(a(v(0), v(1)), v(2)) < a(a(v(0), v(2)), v(1))
+    {
+        auto l_app1 = a(a(v(0), v(1)), v(2));
+        auto l_app2 = a(a(v(0), v(2)), v(1));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // nested apps in rhs: a(v(0), a(v(1), v(2))) < a(v(0), a(v(1), v(3)))
+    {
+        auto l_app1 = a(v(0), a(v(1), v(2)));
+        auto l_app2 = a(v(0), a(v(1), v(3)));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // lhs type difference: a(v(0), v(1)) < a(f(v(0)), v(0))
+    // because v(0) < f(v(0))
+    {
+        auto l_app1 = a(v(0), v(1));
+        auto l_app2 = a(f(v(0)), v(0));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // rhs type difference: a(v(0), v(0)) < a(v(0), f(v(0)))
+    {
+        auto l_app1 = a(v(0), v(0));
+        auto l_app2 = a(v(0), f(v(0)));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // complex nested: a(f(v(0)), a(v(1), v(2))) < a(f(v(1)), a(v(0), v(0)))
+    // because f(v(0)) < f(v(1))
+    {
+        auto l_app1 = a(f(v(0)), a(v(1), v(2)));
+        auto l_app2 = a(f(v(1)), a(v(0), v(0)));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // ========================================================================
+    // MIXED TYPE NESTED COMPARISONS
+    // ========================================================================
+
+    // func with app body: f(a(v(0), v(1))) < f(a(v(0), v(2)))
+    {
+        auto l_func1 = f(a(v(0), v(1)));
+        auto l_func2 = f(a(v(0), v(2)));
+        assert(*l_func1 < *l_func2);
+        assert(!(*l_func2 < *l_func1));
+    }
+
+    // func with func body: f(f(v(0))) < f(f(v(1)))
+    {
+        auto l_func1 = f(f(v(0)));
+        auto l_func2 = f(f(v(1)));
+        assert(*l_func1 < *l_func2);
+        assert(!(*l_func2 < *l_func1));
+    }
+
+    // app with func children: a(f(v(0)), f(v(0))) < a(f(v(0)), f(v(1)))
+    {
+        auto l_app1 = a(f(v(0)), f(v(0)));
+        auto l_app2 = a(f(v(0)), f(v(1)));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // deeply nested mixed: f(a(f(v(0)), v(1))) < f(a(f(v(1)), v(0)))
+    {
+        auto l_expr1 = f(a(f(v(0)), v(1)));
+        auto l_expr2 = f(a(f(v(1)), v(0)));
+        assert(*l_expr1 < *l_expr2);
+        assert(!(*l_expr2 < *l_expr1));
+    }
+
+    // ========================================================================
+    // TRANSITIVITY TESTS: if a < b and b < c, then a < c
+    // ========================================================================
+
+    // var transitivity: v(0) < v(1) < v(2)
+    {
+        auto l_var0 = v(0);
+        auto l_var1 = v(1);
+        auto l_var2 = v(2);
+        assert(*l_var0 < *l_var1);
+        assert(*l_var1 < *l_var2);
+        assert(*l_var0 < *l_var2);
+    }
+
+    // func transitivity: f(v(0)) < f(v(1)) < f(v(2))
+    {
+        auto l_func0 = f(v(0));
+        auto l_func1 = f(v(1));
+        auto l_func2 = f(v(2));
+        assert(*l_func0 < *l_func1);
+        assert(*l_func1 < *l_func2);
+        assert(*l_func0 < *l_func2);
+    }
+
+    // app transitivity: a(v(0), v(0)) < a(v(0), v(1)) < a(v(0), v(2))
+    {
+        auto l_app1 = a(v(0), v(0));
+        auto l_app2 = a(v(0), v(1));
+        auto l_app3 = a(v(0), v(2));
+        assert(*l_app1 < *l_app2);
+        assert(*l_app2 < *l_app3);
+        assert(*l_app1 < *l_app3);
+    }
+
+    // type transitivity: v(0) < f(v(0)) < a(v(0), v(0))
+    {
+        auto l_var = v(0);
+        auto l_func = f(v(0));
+        auto l_app = a(v(0), v(0));
+        assert(*l_var < *l_func);
+        assert(*l_func < *l_app);
+        assert(*l_var < *l_app);
+    }
+
+    // ========================================================================
+    // ANTISYMMETRY TESTS: if a < b, then !(b < a)
+    // ========================================================================
+
+    // Already tested throughout, but let's add a few explicit ones
+
+    // var antisymmetry
+    {
+        auto l_var_small = v(3);
+        auto l_var_large = v(7);
+        assert(*l_var_small < *l_var_large);
+        assert(!(*l_var_large < *l_var_small));
+    }
+
+    // func antisymmetry
+    {
+        auto l_func_small = f(v(2));
+        auto l_func_large = f(v(8));
+        assert(*l_func_small < *l_func_large);
+        assert(!(*l_func_large < *l_func_small));
+    }
+
+    // app antisymmetry
+    {
+        auto l_app_small = a(v(1), v(2));
+        auto l_app_large = a(v(3), v(4));
+        assert(*l_app_small < *l_app_large);
+        assert(!(*l_app_large < *l_app_small));
+    }
+
+    // ========================================================================
+    // EDGE CASES
+    // ========================================================================
+
+    // very large indices
+    {
+        auto l_var_small = v(0);
+        auto l_var_large = v(999999);
+        assert(*l_var_small < *l_var_large);
+        assert(!(*l_var_large < *l_var_small));
+    }
+
+    // complex deeply nested structure
+    {
+        auto l_complex1 = a(f(a(f(v(0)), v(1))), f(a(v(2), f(v(3)))));
+        auto l_complex2 = a(f(a(f(v(0)), v(1))), f(a(v(2), f(v(4)))));
+        assert(*l_complex1 < *l_complex2);
+        assert(!(*l_complex2 < *l_complex1));
+    }
+
+    // app where lhs differs deeply
+    {
+        auto l_app1 = a(f(f(v(0))), v(100));
+        auto l_app2 = a(f(f(v(1))), v(0));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
+    }
+
+    // app where only rhs differs after deep structure
+    {
+        auto l_lhs = f(a(v(5), f(v(10))));
+        auto l_app1 = a(l_lhs->clone(), v(0));
+        auto l_app2 = a(l_lhs->clone(), v(1));
+        assert(*l_app1 < *l_app2);
+        assert(!(*l_app2 < *l_app1));
     }
 }
 
@@ -3861,6 +4526,8 @@ void lambda_test_main()
     TEST(test_var_constructor);
     TEST(test_func_constructor);
     TEST(test_app_constructor);
+
+    TEST(test_operator_less_than);
 
     TEST(test_var_equals);
     TEST(test_func_equals);

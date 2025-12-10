@@ -13,6 +13,7 @@ struct expr
     virtual ~expr() = default;
 
     // ACCESSOR METHODS
+    virtual bool operator<(const expr& a_other) const = 0;
     // checks if the expression is equal to another
     virtual bool equals(const std::unique_ptr<expr>&) const = 0;
     // prints the expression to a_ostream
@@ -40,6 +41,7 @@ struct var : expr
     virtual ~var() = default;
 
     // ACCESSOR METHODS
+    bool operator<(const expr& a_other) const override;
     bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
     std::unique_ptr<expr> clone() const override;
@@ -61,6 +63,7 @@ struct func : expr
     virtual ~func() = default;
 
     // ACCESSOR METHODS
+    bool operator<(const expr& a_other) const override;
     bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
     std::unique_ptr<expr> clone() const override;
@@ -82,6 +85,7 @@ struct app : expr
     virtual ~app() = default;
 
     // ACCESSOR METHODS
+    bool operator<(const expr& a_other) const override;
     bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
     std::unique_ptr<expr> clone() const override;
