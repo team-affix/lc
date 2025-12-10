@@ -14,8 +14,6 @@ struct expr
 
     // ACCESSOR METHODS
     virtual bool operator<(const expr& a_other) const = 0;
-    // checks if the expression is equal to another
-    virtual bool equals(const std::unique_ptr<expr>&) const = 0;
     // prints the expression to a_ostream
     virtual void print(std::ostream& a_ostream) const = 0;
     // creates a deep copy of the expression
@@ -27,6 +25,9 @@ struct expr
     // lifts all free variables in a_expr by a_lift_amount,
     // given that free variables are those whose level is >= a_cutoff.
     virtual void lift(size_t a_lift_amount, size_t a_cutoff) = 0;
+
+    // checks if the expression is equal to another
+    bool equals(const std::unique_ptr<expr>& a_other) const;
 
     expr();
     expr(const expr& other) = delete;
@@ -42,7 +43,6 @@ struct var : expr
 
     // ACCESSOR METHODS
     bool operator<(const expr& a_other) const override;
-    bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
     std::unique_ptr<expr> clone() const override;
 
@@ -64,7 +64,6 @@ struct func : expr
 
     // ACCESSOR METHODS
     bool operator<(const expr& a_other) const override;
-    bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
     std::unique_ptr<expr> clone() const override;
 
@@ -86,7 +85,6 @@ struct app : expr
 
     // ACCESSOR METHODS
     bool operator<(const expr& a_other) const override;
-    bool equals(const std::unique_ptr<expr>&) const override;
     void print(std::ostream& a_ostream) const override;
     std::unique_ptr<expr> clone() const override;
 

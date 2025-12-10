@@ -44,34 +44,39 @@ bool app::operator<(const expr& a_other) const
 
 // EQUALS METHODS
 
-bool var::equals(const std::unique_ptr<expr>& a_other) const
+// bool var::equals(const std::unique_ptr<expr>& a_other) const
+// {
+//     const var* l_casted = dynamic_cast<const var*>(a_other.get());
+
+//     if(!l_casted)
+//         return false;
+
+//     return m_index == l_casted->m_index;
+// }
+
+// bool func::equals(const std::unique_ptr<expr>& a_other) const
+// {
+//     const func* l_casted = dynamic_cast<const func*>(a_other.get());
+
+//     if(!l_casted)
+//         return false;
+
+//     return m_body->equals(l_casted->m_body);
+// }
+
+// bool app::equals(const std::unique_ptr<expr>& a_other) const
+// {
+//     const app* l_casted = dynamic_cast<const app*>(a_other.get());
+
+//     if(!l_casted)
+//         return false;
+
+//     return m_lhs->equals(l_casted->m_lhs) && m_rhs->equals(l_casted->m_rhs);
+// }
+
+bool expr::equals(const std::unique_ptr<expr>& a_other) const
 {
-    const var* l_casted = dynamic_cast<const var*>(a_other.get());
-
-    if(!l_casted)
-        return false;
-
-    return m_index == l_casted->m_index;
-}
-
-bool func::equals(const std::unique_ptr<expr>& a_other) const
-{
-    const func* l_casted = dynamic_cast<const func*>(a_other.get());
-
-    if(!l_casted)
-        return false;
-
-    return m_body->equals(l_casted->m_body);
-}
-
-bool app::equals(const std::unique_ptr<expr>& a_other) const
-{
-    const app* l_casted = dynamic_cast<const app*>(a_other.get());
-
-    if(!l_casted)
-        return false;
-
-    return m_lhs->equals(l_casted->m_lhs) && m_rhs->equals(l_casted->m_rhs);
+    return !(*this < *a_other) && !(*a_other < *this);
 }
 
 // PRINT METHODS
