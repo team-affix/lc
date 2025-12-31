@@ -41,12 +41,13 @@ result = mp ax1 ax2    // → theorem q  ✓
 ```
 
 **Key features:**
-- ✅ Only 6 constructs (minimal!)
+- ✅ Only 7 constructs (minimal!)
 - ✅ Pattern matching for all functions
 - ✅ Uppercase = variables, lowercase = atoms
 - ✅ One pattern per arrow (curry for multiple args)
-- ✅ Partial functions natural (no match = no error, not an error!)
+- ✅ Partial functions natural (no match = no error!)
 - ✅ Binary pipe operator (no `end` token needed)
+- ✅ Quotation with `{M}` for meta-programming
 
 **Status:** Theory complete, ready for implementation (~1000 LOC, 3-4 weeks)
 

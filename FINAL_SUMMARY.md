@@ -8,7 +8,7 @@ The theoretical foundation for the Logi logic verification language is now compl
 
 ## Core Design (Final)
 
-### Syntax (6 Constructs)
+### Syntax (7 Constructs)
 
 ```
 M ::= atom                  // lowercase identifiers
@@ -17,6 +17,7 @@ M ::= atom                  // lowercase identifiers
     | pattern => M          // function (ONE pattern per arrow)
     | M | M                 // choice (binary infix operator)
     | theorem M             // theorem marker
+    | {M}                   // quotation (prevent reduction)
 ```
 
 ### Key Principles
@@ -26,6 +27,7 @@ M ::= atom                  // lowercase identifiers
 3. **Binary pipe** - `|` is infix, connects alternatives (no `end` token!)
 4. **Partial functions** - No pattern match = no reduction (not an error)
 5. **HOAS for quantifiers** - Predicates are functions
+6. **Quotation with `{M}`** - Prevent reduction, allow substitution
 
 ---
 
@@ -258,13 +260,14 @@ Terms that don't match any pattern simply don't reduce (not an error).
 
 ## What Makes This Design Elegant
 
-1. **Minimal** - Only 6 constructs
+1. **Minimal** - Only 7 constructs
 2. **Unambiguous** - One pattern per arrow (clear)
 3. **No syntactic noise** - Total functions are clean (no pipes, no end)
 4. **Partial functions natural** - Just don't reduce (not errors)
 5. **Unified** - Pattern matching does everything (binding + branching)
 6. **Case convention** - Visually distinct (Uppercase vs. lowercase)
 7. **Binary pipe** - Right-associative, natural semantics
+8. **Quotation** - `{M}` for control over evaluation (meta-programming)
 
 ---
 

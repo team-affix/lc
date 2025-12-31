@@ -35,12 +35,13 @@ result = mp ax1 ax2    // → theorem q  ✓
 ```
 
 **Key features:**
-- ✅ **6 constructs** (minimal!)
+- ✅ **7 constructs** (minimal!)
 - ✅ **Pattern matching** for all functions
 - ✅ **Partial functions** natural (no match = no error)
 - ✅ **One pattern per arrow** (curry for multiple args)
 - ✅ **No end token** (binary pipe operator)
 - ✅ **Uppercase = variables, lowercase = atoms**
+- ✅ **Quotation with `{M}`** for meta-programming
 
 ---
 
@@ -279,9 +280,13 @@ f x y = ((f x) y)
 // Theorem marker
 theorem M
 
+// Quotation (prevent reduction)
+{M}
+
 // Structured patterns (ONE complex pattern)
 (cons X Xs) => body
 (theorem (imp P Q)) => body
+{not X} => body
 ```
 
 ---
@@ -302,7 +307,7 @@ theorem M
 
 | Feature | Logi | Coq/Agda | Prolog | ML/Haskell |
 |---------|------|----------|--------|------------|
-| **Constructs** | 6 | 10+ | 4 | 8+ |
+| **Constructs** | 7 | 10+ | 4 | 8+ |
 | **Type System** | None/Optional | Dependent | None | Hindley-Milner |
 | **Patterns** | ✓ Yes | ✓ Yes | ✓ Yes | ✓ Yes |
 | **Partial Functions** | ✓ Natural | ✗ Must prove total | N/A | ⚠️ Requires exhaustiveness |
@@ -464,15 +469,17 @@ Read everything, especially:
 2. ⭐ **FORMAL_SPECIFICATION.md** - Complete spec (1-2 hours)
 3. ⭐ **EXAMPLES.md** - Worked examples (1-2 hours)
 4. ⭐ **FINAL_SUMMARY.md** - Design summary (30 min)
+5. ⭐ **LANGUAGE_SUMMARY.md** - One-page reference (5 min)
 
 ### Supporting (Optional)
 
-5. FINAL_DESIGN.md - Partial functions design
-6. CORRECTED_SYNTAX.md - One pattern per arrow
-7. CLEAN_SYNTAX.md - Multi-pattern exploration
-8. ARROW_SEMANTICS.md - Context-dependent arrow
-9. REVISED_THEORY.md - Alternative approaches
-10. RECONSIDERING.md - Critical re-evaluation
+6. QUOTATION_CURLY.md - Quotation mechanism (curly braces)
+7. FINAL_DESIGN.md - Partial functions design
+8. CORRECTED_SYNTAX.md - One pattern per arrow
+9. CLEAN_SYNTAX.md - Multi-pattern exploration
+10. ARROW_SEMANTICS.md - Context-dependent arrow
+11. REVISED_THEORY.md - Alternative approaches
+12. RECONSIDERING.md - Critical re-evaluation
 
 ### Historical (Reference Only)
 

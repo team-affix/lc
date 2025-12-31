@@ -18,6 +18,7 @@ Terms (M, N, P, Q):
       | pattern => M            (function - one pattern per arrow)
       | M | M                   (choice - alternative cases)
       | theorem M               (theorem marker)
+      | {M}                     (quotation - prevent reduction)
 
 Patterns (p, q):
   p ::= atom                    (atom pattern - matches exactly)
@@ -25,6 +26,7 @@ Patterns (p, q):
       | _                       (wildcard - matches, doesn't bind)
       | (p p)                   (application pattern)
       | theorem p               (theorem pattern)
+      | {p}                     (quoted pattern - matches quoted terms)
 
 Atoms (a, b, c):
   Lowercase identifiers: true, false, nil, zero, etc.
@@ -68,6 +70,7 @@ Values (V, W):
       | pattern => M
       | M | M                   (choice is a value)
       | theorem V
+      | {M}                     (quoted term is a value)
 ```
 
 ### 2.2 Pattern Matching
@@ -88,6 +91,7 @@ match(atom₁, atom₂)         = FAIL              (if atom₁ ≠ atom₂)
 match((p₁ p₂), (V₁ V₂))    = σ₁ ∪ σ₂           (if σ₁ = match(p₁, V₁) ≠ FAIL,
                                                       σ₂ = match(p₂, V₂) ≠ FAIL)
 match(theorem p, theorem V) = match(p, V)
+match({p}, {M})             = match(p, M)
 match(p, V)                 = FAIL              (otherwise)
 ```
 
@@ -107,6 +111,7 @@ Var[σ]               = σ(Var) if Var ∈ dom(σ), else Var
 (p => M)[σ]          = p => M[σ']     where σ' = σ \ bound(p)
 (M | N)[σ]           = M[σ] | N[σ]
 (theorem M)[σ]       = theorem M[σ]
+{M}[σ]               = {M[σ]}        (substitution penetrates quotes)
 ```
 
 **Where `bound(p)` returns variables bound by pattern `p`:**
@@ -116,6 +121,7 @@ bound(Var)           = {Var}
 bound(_)             = ∅
 bound((p₁ p₂))       = bound(p₁) ∪ bound(p₂)
 bound(theorem p)     = bound(p)
+bound({p})           = bound(p)
 ```
 
 ### 2.4 Small-Step Operational Semantics
@@ -154,6 +160,8 @@ E[M] ⟶ E[M']
 ```
 
 **Note:** If a function `(p => M)` is applied to value `V` and `match(p, V) = FAIL`, and there is no alternative (no `|`), then **no reduction occurs**. This is the partial function behavior.
+
+**Note on quotation:** Quoted terms `{M}` are values and never reduce. Inside a quotation, no beta-reduction occurs. However, substitution still penetrates quotes (capture-avoiding).
 
 ### 2.5 Multi-Step Reduction
 
@@ -276,7 +284,7 @@ Static analysis identifies all direct axiom declarations. Derived theorems must 
 - **Variables:** Uppercase identifiers matching `[A-Z][a-zA-Z0-9_]*`
 - **Wildcard:** `_`
 - **Keywords:** `theorem`
-- **Operators:** `=>`, `|`, `(`, `)`
+- **Operators:** `=>`, `|`, `(`, `)`, `{`, `}`
 - **Comments:** `//` for line comments, `/* */` for block comments
 
 ### 5.2 Grammar
@@ -292,12 +300,14 @@ term       ::= atom
              | term term                        // application
              | pattern '=>' term                // function
              | term '|' term                    // choice
+             | '{' term '}'                     // quotation
              | '(' term ')'                     // grouping
 
 pattern    ::= atom
              | Var
              | '_'
              | 'theorem' pattern
+             | '{' pattern '}'                  // quoted pattern
              | '(' pattern pattern ')'          // application pattern
 ```
 
@@ -324,6 +334,19 @@ head = (cons X Xs) => X
 tail = (cons X Xs) => Xs
 
 length = nil => zero | (cons _ Xs) => (succ (length Xs))
+```
+
+**Quotation:**
+```
+// Build unreduced term
+term = {not true}         // stays as {not true}, doesn't reduce to {false}
+
+// Extract from quote
+extract = {X} => X
+
+result = extract {not true}
+// → not true (now can reduce)
+// → false
 ```
 
 ---
@@ -765,12 +788,13 @@ typeof M      // inspect structure
 
 The Logi language achieves:
 
-1. **Minimalism:** 6 core constructs
+1. **Minimalism:** 7 core constructs
 2. **Expressiveness:** First-order logic with user-defined rules
 3. **Simplicity:** Pattern matching as the sole binding mechanism
 4. **Clarity:** One pattern per arrow eliminates ambiguity
 5. **Elegance:** Partial functions arise naturally from failed pattern matches
 6. **Practicality:** Clean syntax for common cases (currying, no end token)
+7. **Control:** Quotation with `{M}` prevents reduction when needed
 
 **Core innovation:** Unifying computation and proof through pattern matching, with static soundness via the `theorem` keyword, avoiding the complexity of dependent types while retaining expressiveness for logic verification.
 
@@ -789,12 +813,14 @@ The Logi language achieves:
                 | <term> <term>
                 | <pattern> "=>" <term>
                 | <term> "|" <term>
+                | "{" <term> "}"
                 | "(" <term> ")"
 
 <pattern>     ::= <atom>
                 | <variable>
                 | "_"
                 | "theorem" <pattern>
+                | "{" <pattern> "}"
                 | "(" <pattern> <pattern> ")"
 
 <atom>        ::= [a-z][a-zA-Z0-9_]*

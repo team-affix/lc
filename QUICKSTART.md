@@ -27,6 +27,9 @@ axiom1 = theorem (imp p q)
 
 // Inference rules are just functions
 mp = (theorem (imp P Q)) => (theorem P) => theorem Q
+
+// Quotation prevents reduction (use curly braces)
+unreduced = {not true}    // stays as {not true}, doesn't reduce to {false}
 ```
 
 ### Key Features
@@ -36,6 +39,7 @@ mp = (theorem (imp P Q)) => (theorem P) => theorem Q
 3. **No `end` token** - Pipe connects cases directly
 4. **Partial functions** - No match just means undefined (not an error!)
 5. **Case convention** - `Uppercase` = variables, `lowercase` = atoms
+6. **Quotation with `{M}`** - Prevent reduction while allowing substitution
 
 ---
 
@@ -149,6 +153,36 @@ length (cons 1 (cons 2 nil))
 - First case: `nil => zero` (base case)
 - Second case: `(cons _ Xs) => ...` (recursive case)
 - Connected by `|` (pipe operator)
+
+---
+
+## Example 7: Quotation (Prevent Reduction)
+
+```
+// Without braces - reduces
+term1 = not true
+// → false
+
+// With braces - doesn't reduce
+term2 = {not true}
+// → {not true}  ✓
+
+// Extract from quote
+extract = {X} => X
+
+result = extract {not true}
+// → not true  (now can reduce)
+// → false
+```
+
+**Key insight:** Curly braces `{M}` freeze reduction inside, but substitution still works!
+
+```
+build_neg = X => {not X}
+
+term = build_neg true
+// → {not true}  ✓  (substituted but not reduced)
+```
 
 ---
 
@@ -385,9 +419,13 @@ a => b | c => d
 // Theorem marker
 theorem M
 
+// Quotation (prevent reduction)
+{M}
+
 // Structured patterns (ONE pattern!)
 (cons X Xs) => body
 (theorem (imp P Q)) => body
+{not X} => body
 ```
 
 ---
