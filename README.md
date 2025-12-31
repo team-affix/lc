@@ -8,6 +8,25 @@
 :----------------------------------------------------------: |
 | [Expression Types](#expression-types) - [Features](#features) - [Examples](#examples) - [Building & Testing](#building--testing) - [License](#license) |
 
+---
+
+## 🆕 Logi Language Theory
+
+This repository now contains complete theoretical documentation for **logi**, a minimal logic verification language based on pattern matching.
+
+**Quick links:**
+- 📘 **[INDEX.md](INDEX.md)** - Start here: Complete overview and navigation guide
+- 📗 **[QUICK_START.md](QUICK_START.md)** - 10-minute introduction to logi
+- 📕 **[FORMAL_SPEC.md](FORMAL_SPEC.md)** - Rigorous formal specification
+- 📔 **[PROOF_EXAMPLES.md](PROOF_EXAMPLES.md)** - Worked proof examples
+- 📙 **[RECOMMENDATIONS.md](RECOMMENDATIONS.md)** - Implementation roadmap
+
+**Key innovation:** Pattern matching as the sole binding mechanism + theorem markers for static soundness.
+
+**Status:** Theoretical design complete, ready for implementation.
+
+---
+
 ### Overview
 
 **lc** is a **lightweight, self-contained lambda calculus library for C++**. It provides a complete implementation of untyped lambda calculus with normal order reduction (leftmost-outermost evaluation), making it ideal for:
