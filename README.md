@@ -10,20 +10,45 @@
 
 ---
 
-## 🆕 Logi Language Theory
+## 🆕 Logi Language Theory - Design Complete! ✅
 
-This repository now contains complete theoretical documentation for **logi**, a minimal logic verification language based on pattern matching.
+This repository now contains **complete theoretical documentation** for **logi**, a minimal logic verification language.
 
-**Quick links:**
-- 📘 **[INDEX.md](INDEX.md)** - Start here: Complete overview and navigation guide
-- 📗 **[QUICK_START.md](QUICK_START.md)** - 10-minute introduction to logi
-- 📕 **[FORMAL_SPEC.md](FORMAL_SPEC.md)** - Rigorous formal specification
-- 📔 **[PROOF_EXAMPLES.md](PROOF_EXAMPLES.md)** - Worked proof examples
-- 📙 **[RECOMMENDATIONS.md](RECOMMENDATIONS.md)** - Implementation roadmap
+### Quick Start
 
-**Key innovation:** Pattern matching as the sole binding mechanism + theorem markers for static soundness.
+**New to Logi?** Read these in order:
 
-**Status:** Theoretical design complete, ready for implementation.
+1. 📘 **[QUICKSTART.md](QUICKSTART.md)** - 10-minute introduction (start here!)
+2. 📕 **[FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)** - Complete formal semantics
+3. 📗 **[EXAMPLES.md](EXAMPLES.md)** - Worked examples with full reduction traces
+4. 📙 **[FINAL_SUMMARY.md](FINAL_SUMMARY.md)** - Design rationale and roadmap
+
+**For complete navigation:** See [README_THEORY.md](README_THEORY.md)
+
+### What is Logi?
+
+```logi
+// Boolean NOT (pattern matching with alternatives)
+not = true => false | false => true
+
+// Modus Ponens (curried function on theorems)
+mp = (theorem (imp P Q)) => (theorem P) => theorem Q
+
+// Derive a theorem
+ax1 = theorem (imp p q)
+ax2 = theorem p
+result = mp ax1 ax2    // → theorem q  ✓
+```
+
+**Key features:**
+- ✅ Only 6 constructs (minimal!)
+- ✅ Pattern matching for all functions
+- ✅ Uppercase = variables, lowercase = atoms
+- ✅ One pattern per arrow (curry for multiple args)
+- ✅ Partial functions natural (no match = no error, not an error!)
+- ✅ Binary pipe operator (no `end` token needed)
+
+**Status:** Theory complete, ready for implementation (~1000 LOC, 3-4 weeks)
 
 ---
 
