@@ -1,5 +1,17 @@
 # Logi: Corrected Syntax - One Pattern Per Arrow
 
+## ⚠️ HISTORICAL DOCUMENT - DESIGN EVOLUTION
+
+**This document explains why we chose one pattern per arrow. The syntax shown is mostly correct but see formal spec for authoritative reference.**
+
+**For current correct syntax, see:**
+- [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)
+- [FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)
+
+---
+
+# Original Document (Preserved Below)
+
 ## The Issue
 
 ```

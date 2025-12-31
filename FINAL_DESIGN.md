@@ -1,5 +1,21 @@
 # Logi: Final Design with Partial Functions
 
+## ⚠️ HISTORICAL DOCUMENT - INCOMPLETE DESIGN
+
+**This document explains the partial function design but predates:**
+1. The decision to require currying (one pattern per arrow)
+2. The addition of quotation with `{M}` syntax
+
+**Contains some incorrect multi-pattern syntax examples.**
+
+**For current complete and correct syntax, see:**
+- [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)
+- [FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)
+
+---
+
+# Original Document (Preserved Below)
+
 ## Core Insight: Partial Functions Are Natural
 
 Pattern matching creates partial functions automatically:

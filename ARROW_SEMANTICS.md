@@ -1,5 +1,17 @@
 # Exploring Arrow Semantics: Context-Dependent Binding
 
+## ⚠️ HISTORICAL DOCUMENT - REJECTED APPROACH
+
+**This document explores an approach that was ultimately rejected in favor of the simpler design.**
+
+**For current correct syntax, see:**
+- [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)
+- [FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)
+
+---
+
+# Original Document (Preserved Below)
+
 ## A Different Approach: Smart Arrow Operator
 
 ### Hypothesis

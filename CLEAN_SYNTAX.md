@@ -1,5 +1,31 @@
 # Clean Syntax Design
 
+## ⚠️ HISTORICAL DOCUMENT - CONTAINS REJECTED SYNTAX
+
+**This document explores multi-pattern syntax (e.g., `X Y => body`) which was REJECTED.**
+
+**For current correct syntax, see:**
+- [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)
+- [FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)
+
+**Correct syntax requires currying:** `X => Y => body` (not `X Y => body`)
+
+---
+
+# Original Document (Preserved Below)
+
+## ⚠️ HISTORICAL DOCUMENT - TRANSITIONAL SYNTAX
+
+**This document shows an intermediate design with some rejected features (multi-pattern syntax).**
+
+**For current correct syntax, see:**
+- [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)
+- [FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)
+
+---
+
+# Original Document (Preserved Below)
+
 ## Your Three Critiques
 
 1. **Meta-variable ambiguity**: How does system know `p` and `q` are pattern variables?

@@ -1,5 +1,17 @@
 # Revised Theory: Lambda + Arrow Operators
 
+## ⚠️ HISTORICAL DOCUMENT - OUTDATED SYNTAX
+
+**This document shows alternative approaches that were explored and rejected.**
+
+**For current correct syntax, see:**
+- [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)
+- [FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)
+
+---
+
+# Original Document (Preserved Below)
+
 ## Starting Fresh: Your Original Insight
 
 From your DOC 1, you had this key idea:

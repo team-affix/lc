@@ -4,6 +4,12 @@
 
 The Logi logic verification language has a complete theoretical foundation with formal semantics, worked examples, and implementation guidelines.
 
+## ⚠️ IMPORTANT: Which Files to Use
+
+**See [DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md) and [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md) first!**
+
+Many files in this repository are **historical design exploration** and show **rejected syntax**. Use only the current documentation listed below.
+
 ---
 
 ## 📘 Start Here
@@ -471,15 +477,25 @@ Read everything, especially:
 4. ⭐ **FINAL_SUMMARY.md** - Design summary (30 min)
 5. ⭐ **LANGUAGE_SUMMARY.md** - One-page reference (5 min)
 
-### Supporting (Optional)
+### Supporting (Optional - Current)
 
-6. QUOTATION_CURLY.md - Quotation mechanism (curly braces)
-7. FINAL_DESIGN.md - Partial functions design
-8. CORRECTED_SYNTAX.md - One pattern per arrow
-9. CLEAN_SYNTAX.md - Multi-pattern exploration
-10. ARROW_SEMANTICS.md - Context-dependent arrow
-11. REVISED_THEORY.md - Alternative approaches
-12. RECONSIDERING.md - Critical re-evaluation
+6. **QUOTATION_CURLY.md** - Quotation mechanism with `{M}` syntax
+7. **CONSTRUCTORS_VS_QUOTES.md** - When to use atom constructors vs. quotation
+8. **USE_CASES.md** - Use cases beyond logic (computation, meta-programming, etc.)
+9. **IMPLEMENTATION_GUIDE.md** - Complete Python implementation skeleton
+10. **SYNTAX_REFERENCE.md** - Quick syntax reference card
+11. **DOCUMENTATION_STATUS.md** - Which files are current vs. historical
+
+### Design Evolution (Historical Reference - May Show Rejected Syntax)
+
+⚠️ **Warning:** These files document the design process and may show syntax that was REJECTED. Do not use for learning the language!
+
+11. FINAL_DESIGN.md - Partial functions design exploration
+12. CORRECTED_SYNTAX.md - One pattern per arrow rationale
+13. CLEAN_SYNTAX.md - Multi-pattern exploration (rejected)
+14. ARROW_SEMANTICS.md - Context-dependent arrow (rejected)
+15. REVISED_THEORY.md - Alternative approaches (rejected)
+16. RECONSIDERING.md - Critical re-evaluation of assumptions
 
 ### Historical (Reference Only)
 

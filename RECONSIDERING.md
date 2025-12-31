@@ -1,5 +1,19 @@
 # Reconsidering the Lambda-Pattern Equivalence
 
+## ⚠️ HISTORICAL DOCUMENT - OUTDATED SYNTAX
+
+**This document is kept for historical reference to understand the design evolution.**
+
+**This document shows REJECTED syntax that was explored and discarded.**
+
+**For current syntax, see:**
+- [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)
+- [FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)
+
+---
+
+# Original Document (Preserved Below)
+
 ## The User's Critical Observation
 
 **My claim:**

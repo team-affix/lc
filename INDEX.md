@@ -1,439 +1,246 @@
-# Logi Language: Complete Theory Documentation
+# Logi Language Documentation - Complete Index
 
-## Overview
+## 🚨 Read This First!
 
-This repository contains a complete theoretical foundation for **logi**, a minimal logic verification language that unifies computation and proof through pattern matching.
+**Many files in this repository show outdated or rejected syntax from the design exploration process.**
 
-**Status:** Theoretical design complete, ready for implementation.
-
----
-
-## Document Guide
-
-### Start Here
-
-📘 **[QUICK_START.md](QUICK_START.md)** - 10-minute overview  
-**Read this first** if you want a rapid understanding of the core ideas.
+**Only use the files marked ✅ CURRENT below!**
 
 ---
 
-### Core Documentation
+## ✅ CURRENT DOCUMENTATION (Correct Syntax)
 
-📗 **[THEORY.md](THEORY.md)** - Theoretical exploration (1-2 hours)  
-Explores the design space, evaluates alternatives, and develops the core calculus through iterative refinement.
+### Essential Reading (In Order)
 
-**Key sections:**
-- Approach 1-7: Different theoretical foundations explored
-- Resolution Attempt: Convergence on pattern matching
-- The Refined Proposal: The Logi Calculus
-- Advantages and remaining questions
+1. **[START_HERE.md](START_HERE.md)** - Start point with navigation ⭐
+2. **[SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)** - Quick syntax card (5 min) ⭐⭐⭐
+3. **[QUICKSTART.md](QUICKSTART.md)** - 10-minute introduction ⭐⭐
+4. **[LANGUAGE_SUMMARY.md](LANGUAGE_SUMMARY.md)** - One-page summary (5 min) ⭐
+5. **[FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)** - Complete formal semantics ⭐⭐⭐
+6. **[EXAMPLES.md](EXAMPLES.md)** - Worked examples with traces ⭐⭐
+7. **[FINAL_SUMMARY.md](FINAL_SUMMARY.md)** - Design evolution and roadmap ⭐
 
----
+### Specialized Documentation
 
-📕 **[FORMAL_SPEC.md](FORMAL_SPEC.md)** - Formal specification (1-2 hours)  
-Rigorous mathematical specification of the Logi Calculus.
-
-**Key sections:**
-- Abstract syntax (BNF grammar)
-- Operational semantics (small-step reduction)
-- Pattern matching algorithm
-- Standard library specification
-- Concrete syntax proposal
-- Metatheory (determinism, progress, soundness)
+8. **[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md)** - Python implementation skeleton
+9. **[QUOTATION_CURLY.md](QUOTATION_CURLY.md)** - Quotation deep dive
+10. **[USE_CASES.md](USE_CASES.md)** - Use cases beyond logic
+11. **[DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md)** - File status guide
+12. **[README_THEORY.md](README_THEORY.md)** - Alternative index
 
 ---
 
-📙 **[CRITICAL_ANALYSIS.md](CRITICAL_ANALYSIS.md)** - Design critique (1-2 hours)  
-Critical examination of potential issues, edge cases, and refinements.
+## 📚 Historical/Design Evolution Files (May Show Rejected Syntax)
 
-**Key sections:**
-- Core design questions (minimality, theorem marker, quotation)
-- Semantic issues (pattern failure, alpha-equivalence, reduction)
-- Expressiveness concerns (quantifiers, equality, contradiction)
-- Implementation concerns (performance, static analysis)
-- Theoretical soundness (consistency, subject reduction, progress)
+**⚠️ Warning:** These files document the design process and may show syntax that was explored and then REJECTED. They are useful for understanding WHY we made certain decisions, but do NOT learn syntax from them!
 
----
+### Design Exploration (Correct to Read After Understanding Current Design)
 
-📔 **[PROOF_EXAMPLES.md](PROOF_EXAMPLES.md)** - Worked examples (2-3 hours)  
-Concrete proof examples demonstrating the calculus in action.
+- **RECONSIDERING.md** - Why lambda ≠ pattern (critical insight)
+- **REVISED_THEORY.md** - Alternative approaches explored
+- **ARROW_SEMANTICS.md** - Context-dependent arrow (rejected)
+- **CORRECTED_SYNTAX.md** - Why one pattern per arrow
+- **CLEAN_SYNTAX.md** - Multi-pattern exploration (rejected)
+- **FINAL_DESIGN.md** - Partial functions design (pre-quotation)
 
-**Key sections:**
-- Propositional logic foundation
-- Simple derivations (modus ponens, hypothetical syllogism)
-- Complex proofs (disjunction elimination, contrapositive)
-- User-defined derived rules
-- Quantifiers with HOAS
-- Proof automation examples
-- Peano arithmetic and set theory (sketches)
+**Read these ONLY after understanding the current design from the files above.**
 
 ---
 
-📘 **[RECOMMENDATIONS.md](RECOMMENDATIONS.md)** - Final recommendations (30-60 minutes)  
-Synthesis of all analysis into concrete recommendations and implementation roadmap.
+## Correct Syntax (The Truth™)
 
-**Key sections:**
-- Recommended core calculus
-- Why this design wins (minimality, integration, beginner-friendliness, soundness)
-- Critical design decisions (HOAS, quotation, evaluation strategy)
-- Concrete syntax recommendations
-- Implementation roadmap (6 phases)
-- Proof of concept code
-- Comparison to original vision
-- Risk analysis and success criteria
+### Arrow Operator
 
----
-
-## Quick Reference
-
-### The Logi Calculus in One Page
-
-**Abstract Syntax:**
-```
-Terms:  M ::= x | a | { | p ⇒ M | ... } | M M | theorem M
-Patterns: p ::= x | a | _ | p p | theorem p
-```
-
-**Evaluation:**
-- Call-by-value (strict evaluation)
-- Pattern matching with sequential branches
-- Deterministic reduction
-
-**Key Idea:**
-- Pattern matching as sole binding mechanism
-- `theorem M` tags propositions
-- Static analysis detects axioms
-- HOAS for quantifiers
-
-**Example:**
 ```logi
-// Axioms
-ax1 = theorem (imp P Q)
-ax2 = theorem P
+✅ CORRECT: =>
+not = true => false | false => true
 
-// Modus ponens
-mp = {
-  | (theorem (imp p q)) ⇒ {
-    | (theorem p) ⇒ theorem q
-  }
-}
+❌ WRONG: ->
+not = true -> false  ✗
+```
 
-// Derive Q
-result = mp ax1 ax2   // reduces to: theorem Q
+### Pipe Operator
+
+```logi
+✅ CORRECT: binary infix |
+not = true => false | false => true
+
+❌ WRONG: prefix with braces { | ... }
+not = { | true => false | false => true }  ✗
+```
+
+### Curly Braces
+
+```logi
+✅ CORRECT: quotation (prevent reduction)
+term = {not true}
+
+❌ WRONG: pattern matching
+not = { T => F }  ✗
+```
+
+### Multiple Arguments
+
+```logi
+✅ CORRECT: curry (one pattern per arrow)
+add = X => Y => plus X Y
+
+❌ WRONG: multi-pattern
+add = X Y => plus X Y  ✗
+```
+
+### Case Convention
+
+```logi
+✅ CORRECT:
+- Uppercase = variables (P, Q, X, Y)
+- lowercase = atoms (true, false, imp)
+
+❌ WRONG: opposite convention
 ```
 
 ---
 
-## Implementation Status
+## The 7 Constructs
 
-### Completed
+1. **Atoms** - `true`, `false` (lowercase)
+2. **Variables** - `X`, `Y` (uppercase)
+3. **Application** - `f x y`
+4. **Function** - `pattern => body`
+5. **Choice** - `case1 | case2` (binary infix)
+6. **Theorem** - `theorem M`
+7. **Quotation** - `{M}` (prevent reduction)
 
-✅ Theoretical design  
-✅ Formal specification  
-✅ Operational semantics  
-✅ Pattern matching algorithm  
-✅ Example proofs  
-✅ Critical analysis  
-✅ Design recommendations  
+---
 
-### Next Steps
+## Quick Examples (All Correct Syntax)
 
-**Phase 1: Core Interpreter** (1-2 weeks)
-- Lexer and parser
-- Pattern matcher
-- Evaluator
-- REPL
+```logi
+// Boolean NOT
+not = true => false | false => true
 
-**Phase 2: Static Analyzer** (1 week)
-- Axiom detection
-- Exhaustiveness checking
-- Error messages
+// Curried AND
+and = true => (X => X) | false => (_ => false)
 
-**Phase 3: Standard Library** (1 week)
-- Propositional logic
-- First-order logic
-- Inference rules
+// Modus Ponens
+mp = (theorem (imp P Q)) => (theorem P) => theorem Q
+
+// Quotation
+term = {not true}           // stays as {not true}
+extract = {X} => X          // pattern match on quote
+result = extract term       // → not true → false
+
+// Lists
+cons = X => Xs => (cons X Xs)
+head = (cons X Xs) => X
+length = nil => zero | (cons _ Xs) => (succ (length Xs))
+```
 
 ---
 
 ## Reading Paths
 
-### Path 1: Quick Overview (30 minutes)
+### Path 1: Learn the Language (1 hour)
 
-1. QUICK_START.md (10 min)
-2. RECOMMENDATIONS.md - Section 1-3 (20 min)
+1. [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md) (5 min) ⭐⭐⭐
+2. [QUICKSTART.md](QUICKSTART.md) (15 min)
+3. [LANGUAGE_SUMMARY.md](LANGUAGE_SUMMARY.md) (5 min)
+4. [EXAMPLES.md](EXAMPLES.md) - Skim examples 1-5 (30 min)
 
-**Goal:** Understand the core idea and design rationale.
+### Path 2: Implement the Language (4 hours)
 
----
+1. [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md) (5 min)
+2. [QUICKSTART.md](QUICKSTART.md) (15 min)
+3. [FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md) (2 hours)
+4. [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md) (1.5 hours)
 
-### Path 2: Deep Understanding (4-6 hours)
+### Path 3: Deep Understanding (8+ hours)
 
-1. QUICK_START.md (10 min)
-2. THEORY.md (1-2 hours) - Skim approaches, focus on final proposal
-3. FORMAL_SPEC.md (1-2 hours) - Focus on syntax and semantics sections
-4. PROOF_EXAMPLES.md (1-2 hours) - Work through 3-4 examples
-5. RECOMMENDATIONS.md (30 min) - Final synthesis
-
-**Goal:** Comprehensive understanding suitable for implementation.
-
----
-
-### Path 3: Complete Mastery (8-12 hours)
-
-1. Read all documents in order
-2. Work through all proof examples by hand
-3. Verify reduction traces
-4. Consider all design alternatives
-5. Understand all metatheoretic results
-
-**Goal:** Expert-level understanding suitable for research or language design.
+1. Read all ✅ CURRENT files in order
+2. Then read historical files to understand design evolution
+3. Work through all examples by hand
 
 ---
 
-### Path 4: Implementation Focus (2-3 hours)
+## What's What
 
-1. QUICK_START.md (10 min)
-2. FORMAL_SPEC.md - Sections 1-2, 6-7 (1 hour)
-3. PROOF_EXAMPLES.md - Examples 1-5 (1 hour)
-4. RECOMMENDATIONS.md - Section 5, 10 (30 min)
+### ✅ Use These Files
 
-**Goal:** Sufficient understanding to begin implementation.
+**For learning:**
+- SYNTAX_REFERENCE.md (authoritative syntax)
+- QUICKSTART.md (introduction)
+- EXAMPLES.md (see it in action)
+
+**For implementing:**
+- FORMAL_SPECIFICATION.md (complete semantics)
+- IMPLEMENTATION_GUIDE.md (code skeleton)
+
+**For understanding:**
+- FINAL_SUMMARY.md (design evolution - shows old vs. new)
+- USE_CASES.md (broader applications)
+
+### 📚 Historical Reference Only
+
+**Design exploration files:**
+- Show rejected syntax
+- Explain why decisions were made
+- Useful AFTER learning the current language
+- Do NOT learn syntax from these!
 
 ---
 
-## Key Insights
+## Common Questions
 
-### 1. Pattern Matching Subsumes Lambda
+### Q: Which arrow do I use?
 
-Lambda abstraction is a special case of pattern matching:
-```
-λx. M  ≡  { | x ⇒ M }
-```
+**A: Use `=>` (not `->` or `→`)**
 
-This allows **one binding mechanism** instead of two.
-
-### 2. Theorems as Tagged Computations
-
-No separation between computational and propositional layers:
-```
-// Computation
-not T  →  F
-
-// Proof
-mp axiom1 axiom2  →  theorem Q
+```logi
+f = X => body  ✓
 ```
 
-Same evaluation rules apply to both.
+### Q: How do I write multi-argument functions?
 
-### 3. Static Soundness Without Types
+**A: Curry with nested arrows (one pattern per arrow)**
 
-The `theorem` keyword enables static axiom detection:
-- Axioms: definitions with `theorem` at top level
-- Derivations: computations producing theorems
-
-No type system needed for basic soundness.
-
-### 4. HOAS Elegantly Handles Quantifiers
-
-Predicates as functions:
-```
-// ∀x. P(x)
-theorem (forall (λx. (P x)))
-
-// Instantiation is just application
-ui universal A  →  theorem (P A)
+```logi
+add = X => Y => plus X Y  ✓
 ```
 
-Leverages existing lambda machinery.
+### Q: What are curly braces for?
 
-### 5. Minimality Through Unification
+**A: Quotation ONLY (preventing reduction)**
 
-By making pattern matching the primitive:
-- Lambda is derived (not separate)
-- Branching is built-in (not separate)
-- Destructuring is unified (not separate)
-
-**Result:** 5 constructs instead of 8-10 in alternatives.
-
----
-
-## Design Goals Achievement
-
-| Goal | Status | How Achieved |
-|------|--------|--------------|
-| Minimalism | ✅ | 5 constructs, 1 binding mechanism |
-| User-defined inference | ✅ | Rules are functions on theorems |
-| Tight integration | ✅ | Unified computational framework |
-| Beginner-friendly | ✅ | Pattern matching is intuitive |
-| No dependent types | ✅ | Propositions are data, not types |
-| Avoid backtracking | ✅ | Deterministic sequential matching |
-| Avoid unification | ✅ | Structural matching only |
-| No hidden complexity | ✅ | Pattern matching IS the primitive |
-| Single variable binding | ✅ | Pattern variables only |
-
-**All goals achieved.** ✅
-
----
-
-## Comparison Summary
-
-### vs. Dependent Type Systems (Coq/Agda/Lean)
-
-**Logi advantages:**
-- Simpler (no universe hierarchies)
-- More intuitive (no propositions-as-types)
-- Easier to learn (pattern matching vs. dependent types)
-
-**Logi trade-offs:**
-- Less compile-time guarantees
-- Users responsible for axiom soundness
-
-### vs. Prolog
-
-**Logi advantages:**
-- Deterministic (no backtracking)
-- First-class functions
-- Explicit computation
-
-**Logi trade-offs:**
-- No automatic search (must write proof strategies)
-
-### vs. Pure Lambda Calculus
-
-**Logi advantages:**
-- Built-in pattern matching (not encoded)
-- Theorem marker for static analysis
-- More expressive for logic
-
-**Logi trade-offs:**
-- Slightly more constructs (5 vs. 4)
-
----
-
-## Implementation Estimates
-
-| Component | Lines of Code | Time (1 dev) |
-|-----------|---------------|--------------|
-| Core interpreter | 500-800 | 1-2 weeks |
-| Static analyzer | 300-500 | 1 week |
-| Standard library | 200-300 (Logi) | 1 week |
-| Documentation | N/A | 2 weeks |
-| Tooling (REPL, etc.) | 200-400 | 1 week |
-| **Total** | **~2000 lines** | **6-8 weeks** |
-
-For experienced functional programmer.
-
----
-
-## Research Questions
-
-### Answered
-
-✅ What should be the core primitive? (Pattern matching)  
-✅ How many binding mechanisms? (One - patterns)  
-✅ How to handle quantifiers? (HOAS)  
-✅ How to ensure soundness? (Static axiom detection)  
-✅ Is quotation needed? (Not initially)  
-✅ Should it be typed? (No, untyped core)  
-✅ What evaluation strategy? (Call-by-value)  
-
-### Open (For Future Research)
-
-- Optimal pattern compilation strategies
-- Proof search automation techniques
-- Integration with external SMT solvers
-- Module system design
-- Reflection/reification for meta-programming
-- Proof term extraction for certificates
-
----
-
-## Citation
-
-If you use this work, please cite:
-
-```
-Logi: A Minimal Logic Verification Language
-Pattern Matching Calculus with Theorem Markers
-2025
+```logi
+{not true}  // Freezes reduction
 ```
 
----
+### Q: How do I write case analysis?
 
-## Contributing
+**A: Use binary pipe operator `|`**
 
-To contribute to the Logi project:
+```logi
+not = true => false | false => true  ✓
+```
 
-1. **Implementation:** Build interpreter following FORMAL_SPEC.md
-2. **Examples:** Write proof examples extending PROOF_EXAMPLES.md
-3. **Documentation:** Improve tutorials and guides
-4. **Research:** Explore open questions
-5. **Tooling:** Build editor support, visualizers, etc.
+### Q: What's the difference between `p` and `P`?
 
----
+**A: Case convention**
 
-## Contact and Discussion
-
-- **Design questions:** Reference appropriate document section
-- **Implementation issues:** See FORMAL_SPEC.md and RECOMMENDATIONS.md
-- **Proof examples:** See PROOF_EXAMPLES.md
-- **General theory:** See THEORY.md
-
----
-
-## License
-
-[Specify license here]
-
----
-
-## Acknowledgments
-
-This design synthesizes ideas from:
-- Lambda calculus (Church, 1930s)
-- Pattern matching (ML, 1970s)
-- Higher-order abstract syntax (Pfenning, 1988)
-- Theorem markers for soundness (original contribution)
-
----
-
-## Version History
-
-**v1.0** (December 2025) - Complete theoretical foundation
-- Core calculus specification
-- Formal semantics
-- Example proofs
-- Implementation recommendations
-
----
-
-## Quick Navigation
-
-**Want to...?**
-
-- **Understand the basics quickly** → [QUICK_START.md](QUICK_START.md)
-- **See the formal specification** → [FORMAL_SPEC.md](FORMAL_SPEC.md)
-- **Understand design rationale** → [THEORY.md](THEORY.md)
-- **See concrete examples** → [PROOF_EXAMPLES.md](PROOF_EXAMPLES.md)
-- **Understand potential issues** → [CRITICAL_ANALYSIS.md](CRITICAL_ANALYSIS.md)
-- **Get implementation guidance** → [RECOMMENDATIONS.md](RECOMMENDATIONS.md)
+- `p` = atom (lowercase)
+- `P` = variable (uppercase)
 
 ---
 
 ## Summary
 
-The **Logi Calculus** successfully realizes the vision of a minimal, beginner-friendly logic verification language that unifies computation and proof without dependent types.
+**Start here:** [START_HERE.md](START_HERE.md)
 
-**Key innovation:** Using pattern matching as the sole binding mechanism and theorem markers for static soundness checking.
+**Syntax reference:** [SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)
 
-**Ready for implementation:** Complete formal specification with worked examples.
+**Full spec:** [FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)
 
-**Estimated implementation effort:** 6-8 weeks for core system.
-
----
-
-**Let's make logic programming elegant, minimal, and accessible.** 🚀
+**⚠️ Many files show rejected syntax - be careful which ones you read!**
 
 ---
 

@@ -14,18 +14,27 @@
 
 This repository now contains **complete theoretical documentation** for **logi**, a minimal logic verification language.
 
-### Quick Start
+### 🎯 START HERE
 
-**New to Logi?** Read these in order:
+**📍 Entry Points:**
+- **[START_HERE.md](START_HERE.md)** - Main entry with guided reading paths
+- **[OVERVIEW.md](OVERVIEW.md)** - Visual overview and file map
+- **[SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)** - Quick syntax card
 
-1. 📘 **[QUICKSTART.md](QUICKSTART.md)** - 10-minute introduction (start here!)
-2. 📕 **[FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)** - Complete formal semantics
-3. 📗 **[EXAMPLES.md](EXAMPLES.md)** - Worked examples with full reduction traces
-4. 📙 **[FINAL_SUMMARY.md](FINAL_SUMMARY.md)** - Design rationale and roadmap
+**📚 Essential Reading:**
 
-**For complete navigation:** See [README_THEORY.md](README_THEORY.md)
+1. **[SYNTAX_REFERENCE.md](SYNTAX_REFERENCE.md)** - Quick syntax reference (5 min) ⭐⭐⭐
+2. **[QUICKSTART.md](QUICKSTART.md)** - 10-minute introduction ⭐⭐⭐
+3. **[FORMAL_SPECIFICATION.md](FORMAL_SPECIFICATION.md)** - Complete formal semantics ⭐⭐⭐
+4. **[EXAMPLES.md](EXAMPLES.md)** - Worked examples with full reduction traces ⭐⭐
+
+**📖 For Complete File Status:** See [FILES_SUMMARY.md](FILES_SUMMARY.md) or [INDEX.md](INDEX.md)
+
+**⚠️ Important:** Many files are historical design exploration (may show rejected syntax). See [DOCUMENTATION_STATUS.md](DOCUMENTATION_STATUS.md) for which files to use.
 
 ### What is Logi?
+
+**Syntax:** Use `=>` for arrows, `|` as binary infix, `{M}` for quotation
 
 ```logi
 // Boolean NOT (pattern matching with alternatives)
@@ -35,19 +44,22 @@ not = true => false | false => true
 mp = (theorem (imp P Q)) => (theorem P) => theorem Q
 
 // Derive a theorem
-ax1 = theorem (imp p q)
+ax1 = theorem {imp p q}
 ax2 = theorem p
 result = mp ax1 ax2    // → theorem q  ✓
+
+// Quotation (prevent reduction)
+term = {not true}      // stays as {not true}, doesn't reduce
 ```
 
 **Key features:**
 - ✅ Only 7 constructs (minimal!)
-- ✅ Pattern matching for all functions
+- ✅ Arrow is `=>` (not `->`)
+- ✅ Pipe `|` is binary infix (not prefix)
+- ✅ Curly braces `{M}` for quotation only
 - ✅ Uppercase = variables, lowercase = atoms
 - ✅ One pattern per arrow (curry for multiple args)
 - ✅ Partial functions natural (no match = no error!)
-- ✅ Binary pipe operator (no `end` token needed)
-- ✅ Quotation with `{M}` for meta-programming
 
 **Status:** Theory complete, ready for implementation (~1000 LOC, 3-4 weeks)
 
