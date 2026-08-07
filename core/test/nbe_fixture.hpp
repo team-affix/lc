@@ -4,9 +4,8 @@
 #include "debug_assert.hpp"
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
-#include "infrastructure/evaluator.hpp"
 #include "infrastructure/expr_pool.hpp"
-#include "infrastructure/normalizer.hpp"
+#include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
 #include <cstdint>
@@ -29,7 +28,7 @@ struct nbe_fixture {
 
     const expr* church(uint32_t n) {
         const expr* body = dv(0);
-        for (uint32_t i = 0; i < n; ++i)
+        for(uint32_t i = 0; i < n; ++i)
             body = ap(dv(1), body);
         return lm(lm(body));
     }
@@ -48,19 +47,13 @@ struct nbe_fixture {
 
     const expr* true_comb() { return lm(lm(dv(1))); }
     const expr* false_comb() { return lm(lm(dv(0))); }
-    const expr* and_comb() {
-        return lm(lm(ap(ap(dv(1), dv(0)), dv(1))));
-    }
-    const expr* or_comb() {
-        return lm(lm(ap(ap(dv(1), dv(1)), dv(0))));
-    }
+    const expr* and_comb() { return lm(lm(ap(ap(dv(1), dv(0)), dv(1)))); }
+    const expr* or_comb() { return lm(lm(ap(ap(dv(1), dv(1)), dv(0)))); }
     const expr* not_comb() {
         return lm(ap(ap(dv(0), false_comb()), true_comb()));
     }
 
-    const expr* w_term() {
-        return lm(lm(ap(ap(dv(1), dv(0)), dv(0))));
-    }
+    const expr* w_term() { return lm(lm(ap(ap(dv(1), dv(0)), dv(0)))); }
 
     const expr* b_term() {
         return lm(lm(lm(ap(dv(2), ap(dv(1), dv(0))))));
@@ -84,13 +77,13 @@ struct nbe_fixture {
         env_pool envs;
         val_pool vals;
         env_lookup lookup;
-        using ev_t = evaluator<val_pool, val_pool, env_pool, env_lookup>;
+        using red_t = reducer<val_pool, val_pool, env_pool, env_lookup>;
         using re_t =
-            reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, ev_t>;
-        ev_t ev{vals, vals, envs, lookup};
-        re_t re{pool, pool, pool, vals, envs, ev};
-        normalizer<ev_t, re_t> norm{ev, re};
-        return norm.normalize(out, term, reductions_left);
+            reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
+                    val_pool, red_t>;
+        red_t red{vals, vals, envs, lookup};
+        re_t re{pool, pool, pool, vals, envs, vals, red};
+        return re.reify_term(out, term, reductions_left);
     }
 
     const expr* normalize(const expr* term) {

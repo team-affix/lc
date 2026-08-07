@@ -9,8 +9,8 @@ struct env;
 
 struct val {
     struct clo {
-        const expr* body;
-        env* captured;
+        const expr* term;
+        env* environment;
         auto operator<=>(const clo&) const = default;
     };
     struct fvar {

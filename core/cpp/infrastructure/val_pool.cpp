@@ -1,7 +1,7 @@
 #include "infrastructure/val_pool.hpp"
 
-const val* val_pool::make_clo(const expr* body, env* e) {
-    return alloc(val{val::clo{body, e}});
+const val* val_pool::make_clo(const expr* term, env* e) {
+    return alloc(val{val::clo{term, e}});
 }
 
 const val* val_pool::make_fvar(uint32_t depth) {
