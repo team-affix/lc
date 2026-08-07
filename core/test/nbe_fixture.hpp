@@ -5,6 +5,7 @@
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/normalizer.hpp"
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
@@ -83,8 +84,8 @@ struct nbe_fixture {
                     val_pool, red_t>;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals, red};
-        const val* seed = vals.make_clo(term, nullptr);
-        return re.reify(out, seed, 0, reductions_left);
+        normalizer<val_pool, re_t> norm{vals, re};
+        return norm.normalize(out, term, reductions_left);
     }
 
     const expr* normalize(const expr* term) {

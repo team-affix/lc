@@ -8,7 +8,7 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 
 **Closed terms only:** every `var` must be bound by some enclosing `abs`. Unbound lookup is a debug assertion, not a runtime value.
 
-**β-budget:** `reify(out, clo, 0, reductions_left)` returns `false` when a β-step would run with no remaining budget (`out` untouched). Not resumable — retry with a larger budget. Terms are not interned — compare with deep structural equality (pointer identity and shallow `operator==` on `abs`/`app` are not meaningful across separately built trees).
+**β-budget:** `normalize(out, term, reductions_left)` returns `false` when a β-step would run with no remaining budget (`out` untouched). Not resumable — retry with a larger budget. Terms are not interned — compare with deep structural equality (pointer identity and shallow `operator==` on `abs`/`app` are not meaningful across separately built trees).
 
 ## Design
 
@@ -21,15 +21,16 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 | `env_pool` / `val_pool` | Bump storage for ephemeral env/val nodes (fresh per normalize) |
 | `reducer` | in-place `whnf(const val*&)` to WHNF (`bool` + β-budget); memoize by overwrite |
 | `reifier` | Value → β-normal `expr` (`bool` + out + depth + β-budget) |
+| `normalizer` | `make_clo(term, nil)` then `reify(…, 0, …)` |
 
-Variables use **de Bruijn indices** (`var(0)` = innermost binder). Function WHNF is a `clo` whose `term` is an `abs`. Seed normalization with `make_clo(term, nullptr)`.
+Variables use **de Bruijn indices** (`var(0)` = innermost binder). Function WHNF is a `clo` whose `term` is an `abs`. Fresh binders in reification use de Bruijn levels (`fvar`).
 
 ## Layout
 
 ```
 core/
   hpp/value_objects/     expr, val, env
-  hpp/infrastructure/    pools, reducer, reifier
+  hpp/infrastructure/    pools, reducer, reifier, normalizer
   cpp/                   non-template implementations
   test/unit|integration/ Google Test
 ```
@@ -45,17 +46,17 @@ reducer<val_pool, val_pool, env_pool, env_lookup> red(vals, vals, envs, lookup);
 reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool,
         decltype(red)>
     re(pool, pool, pool, vals, envs, vals, red);
+normalizer<val_pool, decltype(re)> norm(vals, re);
 
 const expr* id = pool.make_abs(pool.make_var(0));
 const expr* nf;
-const val* seed = vals.make_clo(pool.make_app(id, id), nullptr);
 uint64_t budget = 1000;
-if (!re.reify(nf, seed, 0, budget))
+if (!norm.normalize(nf, pool.make_app(id, id), budget))
     /* β-budget exhausted */;
 // nf equals id by deep structural comparison of the trees
 ```
 
-Prefer constructing **fresh** `env_pool` / `val_pool` for each normalize (no `reset`).
+Prefer constructing **fresh** `env_pool` / `val_pool` for each `normalize` (no `reset`).
 
 ## Build & test
 
