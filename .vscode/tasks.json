@@ -2,23 +2,32 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build_debug",
+            "label": "build_core_debug_fast",
             "type": "shell",
-            "command": "make debug",
+            "command": "make core_debug_fast",
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "problemMatcher": []
+            "problemMatcher": ["$gcc"]
         },
         {
-            "label": "build_release",
+            "label": "build_core_debug",
             "type": "shell",
-            "command": "make release",
+            "command": "make core_debug",
             "group": {
                 "kind": "build"
             },
-            "problemMatcher": []
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "build_core",
+            "type": "shell",
+            "command": "make core",
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": ["$gcc"]
         },
         {
             "label": "set_intellisense_debug",

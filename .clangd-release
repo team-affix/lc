@@ -1,2 +1,8 @@
 CompileFlags:
-  Add: [-std=c++20]
+  Add:
+    - -std=c++20
+    - -Icore/hpp
+    - -Icore/test
+    - -Igoogletest/googletest/include
+    - -Igoogletest/googlemock/include
+    - -O3
