@@ -1,15 +1,21 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <cstdint>
+#include <limits>
+#include <optional>
 #include <variant>
+#include "exprs_eq.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/evaluator.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
+#include "value_objects/env.hpp"
 #include "value_objects/val.hpp"
 
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::_;
 
 struct MockMakeVar {
     MOCK_METHOD(const expr*, make_var, (uint32_t), ());
@@ -32,11 +38,13 @@ struct MockMakeReady {
 };
 
 struct MockEval {
-    MOCK_METHOD(const val*, eval, (const expr*, const env*), ());
+    MOCK_METHOD((std::optional<const val*>), eval,
+                (const expr*, const env*, uint64_t&), ());
 };
 
 using test_reifier_t =
-    reifier<MockMakeVar, MockMakeAbs, MockMakeApp, MockMakeFvar, MockMakeReady, MockEval>;
+    reifier<MockMakeVar, MockMakeAbs, MockMakeApp, MockMakeFvar, MockMakeReady,
+            MockEval>;
 
 struct ReifierMockTest : public ::testing::Test {
     NiceMock<MockMakeVar> make_var;
@@ -48,13 +56,57 @@ struct ReifierMockTest : public ::testing::Test {
     test_reifier_t re{make_var, make_abs, make_app, make_fvar, make_ready, eval};
     expr_pool pool;
     val_pool vals;
+    uint64_t budget{std::numeric_limits<uint64_t>::max()};
 };
 
 TEST_F(ReifierMockTest, ReifyFvarAtImmediateLevel) {
     const val* fv = vals.make_fvar(0);
     const expr* expected = pool.make_var(0);
     EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(expected));
-    EXPECT_EQ(re.reify(fv, 1), expected);
+    std::optional<const expr*> got = re.reify(fv, 1, budget);
+    ASSERT_TRUE(got.has_value());
+    EXPECT_EQ(*got, expected);
+}
+
+TEST_F(ReifierMockTest, ReifyCloYieldsAbsOfQuotedBody) {
+    const expr* body = pool.make_var(0);
+    val clo{val::clo{body, nullptr}};
+    val fresh{val::fvar{0}};
+    env extended{env::ready{&fresh}, nullptr};
+    const expr* quoted_var = pool.make_var(0);
+    const expr* expected_abs = pool.make_abs(quoted_var);
+
+    EXPECT_CALL(make_fvar, make_fvar(0)).WillOnce(Return(&fresh));
+    EXPECT_CALL(make_ready, make_ready(&fresh, nullptr)).WillOnce(Return(&extended));
+    EXPECT_CALL(eval, eval(body, &extended, _))
+        .WillOnce(Return(std::optional<const val*>{&fresh}));
+    EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(quoted_var));
+    EXPECT_CALL(make_abs, make_abs(quoted_var)).WillOnce(Return(expected_abs));
+
+    std::optional<const expr*> got = re.reify(&clo, 0, budget);
+    ASSERT_TRUE(got.has_value());
+    EXPECT_EQ(*got, expected_abs);
+}
+
+TEST_F(ReifierMockTest, ReifyNappYieldsApp) {
+    val head{val::fvar{0}};
+    const expr* arg_term = pool.make_var(0);
+    val napp_v{val::napp{&head, arg_term, nullptr}};
+    val arg_whnf{val::fvar{0}};
+    const expr* fun_nf = pool.make_var(0);
+    const expr* arg_nf = pool.make_var(0);
+    const expr* expected = pool.make_app(fun_nf, arg_nf);
+
+    EXPECT_CALL(make_var, make_var(0))
+        .WillOnce(Return(fun_nf))
+        .WillOnce(Return(arg_nf));
+    EXPECT_CALL(eval, eval(arg_term, nullptr, _))
+        .WillOnce(Return(std::optional<const val*>{&arg_whnf}));
+    EXPECT_CALL(make_app, make_app(fun_nf, arg_nf)).WillOnce(Return(expected));
+
+    std::optional<const expr*> got = re.reify(&napp_v, 1, budget);
+    ASSERT_TRUE(got.has_value());
+    EXPECT_EQ(*got, expected);
 }
 
 struct ReifierTest : public ::testing::Test {
@@ -62,45 +114,48 @@ struct ReifierTest : public ::testing::Test {
     env_pool envs;
     val_pool vals;
     evaluator<val_pool, val_pool, env_pool> ev{vals, vals, envs};
-    reifier<expr_pool,
-            expr_pool,
-            expr_pool,
-            val_pool,
-            env_pool,
+    reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
             evaluator<val_pool, val_pool, env_pool>>
         re{pool, pool, pool, vals, envs, ev};
+    uint64_t budget{std::numeric_limits<uint64_t>::max()};
 
     const expr* dv(uint32_t i) { return pool.make_var(i); }
     const expr* lm(const expr* b) { return pool.make_abs(b); }
     const expr* ap(const expr* f, const expr* a) { return pool.make_app(f, a); }
+
+    const expr* must_reify(const val* v, uint32_t depth) {
+        std::optional<const expr*> e = re.reify(v, depth, budget);
+        EXPECT_TRUE(e.has_value());
+        return *e;
+    }
 };
 
 TEST_F(ReifierTest, ReifyClosureAtLevelZeroGivesId) {
     const expr* body = dv(0);
     const val* clo = vals.make_clo(body, nullptr);
-    EXPECT_EQ(re.reify(clo, 0), lm(dv(0)));
+    EXPECT_TRUE(exprs_eq(must_reify(clo, 0), lm(dv(0))));
 }
 
 TEST_F(ReifierTest, ReifyFvarAtImmediateLevel) {
     const val* fv = vals.make_fvar(0);
-    EXPECT_EQ(re.reify(fv, 1), dv(0));
+    EXPECT_TRUE(exprs_eq(must_reify(fv, 1), dv(0)));
 }
 
 TEST_F(ReifierTest, ReifyFvarAtHigherLevel) {
     const val* fv = vals.make_fvar(0);
-    EXPECT_EQ(re.reify(fv, 2), dv(1));
+    EXPECT_TRUE(exprs_eq(must_reify(fv, 2), dv(1)));
 }
 
 TEST_F(ReifierTest, ReifyInnerFvarAtHigherLevel) {
     const val* fv = vals.make_fvar(1);
-    EXPECT_EQ(re.reify(fv, 2), dv(0));
+    EXPECT_TRUE(exprs_eq(must_reify(fv, 2), dv(0)));
 }
 
 TEST_F(ReifierTest, ReifyNappGivesApp) {
     const val* head = vals.make_fvar(0);
     const expr* arg = lm(dv(0));
     const val* n = vals.make_napp(head, arg, nullptr);
-    EXPECT_EQ(re.reify(n, 1), ap(dv(0), lm(dv(0))));
+    EXPECT_TRUE(exprs_eq(must_reify(n, 1), ap(dv(0), lm(dv(0)))));
 }
 
 TEST_F(ReifierTest, ReifyNestedNappGivesNestedApp) {
@@ -108,5 +163,5 @@ TEST_F(ReifierTest, ReifyNestedNappGivesNestedApp) {
     const expr* id = lm(dv(0));
     const val* inner = vals.make_napp(head, id, nullptr);
     const val* outer = vals.make_napp(inner, id, nullptr);
-    EXPECT_EQ(re.reify(outer, 1), ap(ap(dv(0), id), id));
+    EXPECT_TRUE(exprs_eq(must_reify(outer, 1), ap(ap(dv(0), id), id)));
 }

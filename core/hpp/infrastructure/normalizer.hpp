@@ -3,25 +3,32 @@
 
 #include "value_objects/expr.hpp"
 #include "value_objects/val.hpp"
+#include <cstdint>
+#include <optional>
 
-template <typename IEval, typename IReify> struct normalizer {
+template <typename IEval, typename IReify>
+struct normalizer {
     normalizer(IEval& eval, IReify& reify);
-    const expr* normalize(const expr* term);
+    std::optional<const expr*> normalize(const expr* term,
+                                         uint64_t& reductions_left);
 
-  private:
+private:
     IEval& eval_;
     IReify& reify_;
 };
 
 template <typename IEval, typename IReify>
 normalizer<IEval, IReify>::normalizer(IEval& eval, IReify& reify)
-    : eval_(eval), reify_(reify) {
-}
+    : eval_(eval), reify_(reify) {}
 
 template <typename IEval, typename IReify>
-const expr* normalizer<IEval, IReify>::normalize(const expr* term) {
-    const val* whnf = eval_.eval(term, nullptr);
-    return reify_.reify(whnf, 0);
+std::optional<const expr*>
+normalizer<IEval, IReify>::normalize(const expr* term,
+                                     uint64_t& reductions_left) {
+    std::optional<const val*> whnf = eval_.eval(term, nullptr, reductions_left);
+    if (!whnf.has_value())
+        return std::nullopt;
+    return reify_.reify(*whnf, 0, reductions_left);
 }
 
 #endif

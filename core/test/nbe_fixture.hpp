@@ -7,6 +7,9 @@
 #include "infrastructure/normalizer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
+#include <cstdint>
+#include <limits>
+#include <optional>
 
 // Shared term builders + fresh env/val pools per normalize.
 struct nbe_fixture {
@@ -55,26 +58,46 @@ struct nbe_fixture {
         return lm(ap(ap(dv(0), false_comb()), true_comb()));
     }
 
-    const expr* normalize(const expr* term) {
+    const expr* w_term() {
+        return lm(lm(ap(ap(dv(1), dv(0)), dv(0))));
+    }
+
+    const expr* b_term() {
+        return lm(lm(lm(ap(dv(2), ap(dv(1), dv(0))))));
+    }
+
+    const expr* pred_comb() {
+        const expr* step = lm(lm(ap(dv(0), ap(dv(1), dv(3)))));
+        return lm(lm(lm(ap(ap(ap(dv(2), step), lm(dv(1))), lm(dv(0))))));
+    }
+
+    const expr* iszero_comb() {
+        return lm(ap(ap(dv(0), lm(false_comb())), true_comb()));
+    }
+
+    const expr* if_comb() {
+        return lm(lm(lm(ap(ap(dv(2), dv(1)), dv(0)))));
+    }
+
+    std::optional<const expr*> normalize_with_budget(const expr* term,
+                                                     uint64_t reductions_left) {
         env_pool envs;
         val_pool vals;
         evaluator<val_pool, val_pool, env_pool> ev{vals, vals, envs};
-        reifier<expr_pool,
-                expr_pool,
-                expr_pool,
-                val_pool,
-                env_pool,
+        reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
                 evaluator<val_pool, val_pool, env_pool>>
             re{pool, pool, pool, vals, envs, ev};
         normalizer<evaluator<val_pool, val_pool, env_pool>,
-                   reifier<expr_pool,
-                           expr_pool,
-                           expr_pool,
-                           val_pool,
-                           env_pool,
+                   reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
                            evaluator<val_pool, val_pool, env_pool>>>
             norm{ev, re};
-        return norm.normalize(term);
+        return norm.normalize(term, reductions_left);
+    }
+
+    const expr* normalize(const expr* term) {
+        uint64_t budget = std::numeric_limits<uint64_t>::max();
+        std::optional<const expr*> nf = normalize_with_budget(term, budget);
+        return nf.value();
     }
 
     expr_pool pool;

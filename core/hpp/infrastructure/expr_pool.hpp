@@ -1,9 +1,9 @@
 #ifndef EXPR_POOL_HPP
 #define EXPR_POOL_HPP
 
-#include <unordered_set>
+#include <cstdint>
+#include <deque>
 #include "value_objects/expr.hpp"
-#include "value_objects/expr_hash.hpp"
 
 struct expr_pool {
     expr_pool();
@@ -12,8 +12,8 @@ struct expr_pool {
     const expr* make_app(const expr* fun, const expr* arg);
 
 private:
-    const expr* intern(expr&& e);
-    std::unordered_set<expr, expr_hash> exprs_;
+    const expr* alloc(expr e);
+    std::deque<expr> exprs_;
 };
 
 #endif
