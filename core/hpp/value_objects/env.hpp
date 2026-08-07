@@ -9,15 +9,15 @@ struct val;
 struct env {
     struct delayed {
         const expr* arg;
-        const env* arg_env;
+        env* arg_env;
         auto operator<=>(const delayed&) const = default;
     };
     struct ready {
         const val* value;
         auto operator<=>(const ready&) const = default;
     };
-    mutable std::variant<delayed, ready> binder;
-    const env* parent;
+    std::variant<delayed, ready> binder;
+    env* parent;
     auto operator<=>(const env&) const = default;
 };
 

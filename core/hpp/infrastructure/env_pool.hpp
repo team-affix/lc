@@ -7,11 +7,11 @@
 #include "value_objects/val.hpp"
 
 struct env_pool {
-    const env* make_delayed(const expr* arg, const env* arg_env, const env* parent);
-    const env* make_ready(const val* value, const env* parent);
+    env* make_delayed(const expr* arg, env* arg_env, env* parent);
+    env* make_ready(const val* value, env* parent);
 
 private:
-    const env* alloc(env e);
+    env* alloc(env e);
     std::deque<env> envs_;
 };
 

@@ -6,7 +6,6 @@
 #include "value_objects/expr.hpp"
 #include "value_objects/val.hpp"
 #include <cstdint>
-#include <optional>
 #include <variant>
 
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
@@ -14,8 +13,8 @@ template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
 struct reifier {
     reifier(IMakeVar& make_var, IMakeAbs& make_abs, IMakeApp& make_app,
             IMakeFvar& make_fvar, IMakeReady& make_ready, IEval& eval);
-    std::optional<const expr*> reify(const val* v, uint32_t depth,
-                                     uint64_t& reductions_left);
+    bool reify(const expr*& out, const val* v, uint32_t depth,
+               uint64_t& reductions_left);
 
 private:
     IMakeVar& make_var_;
@@ -40,40 +39,38 @@ reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeReady, IEval>::reifier(
 
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeReady, typename IEval>
-std::optional<const expr*>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeReady, IEval>::reify(
-    const val* v, uint32_t depth, uint64_t& reductions_left) {
+bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeReady, IEval>::reify(
+    const expr*& out, const val* v, uint32_t depth,
+    uint64_t& reductions_left) {
     if (const val::clo* closure = std::get_if<val::clo>(&v->content)) {
         const val* fresh = make_fvar_.make_fvar(depth);
-        const env* extended = make_ready_.make_ready(fresh, closure->captured);
-        std::optional<const val*> body_val =
-            eval_.eval(closure->body, extended, reductions_left);
-        if (!body_val.has_value())
-            return std::nullopt;
-        std::optional<const expr*> body_nf =
-            reify(*body_val, depth + 1, reductions_left);
-        if (!body_nf.has_value())
-            return std::nullopt;
-        return make_abs_.make_abs(*body_nf);
+        env* extended = make_ready_.make_ready(fresh, closure->captured);
+        const val* body_val;
+        if (!eval_.eval(body_val, closure->body, extended, reductions_left))
+            return false;
+        const expr* body_nf;
+        if (!reify(body_nf, body_val, depth + 1, reductions_left))
+            return false;
+        out = make_abs_.make_abs(body_nf);
+        return true;
     }
     if (const val::fvar* fresh = std::get_if<val::fvar>(&v->content)) {
         DEBUG_ASSERT(depth > fresh->depth);
-        return make_var_.make_var(depth - fresh->depth - 1);
+        out = make_var_.make_var(depth - fresh->depth - 1);
+        return true;
     }
     const val::napp& neutral = std::get<val::napp>(v->content);
-    std::optional<const expr*> fun_term =
-        reify(neutral.head, depth, reductions_left);
-    if (!fun_term.has_value())
-        return std::nullopt;
-    std::optional<const val*> arg_val =
-        eval_.eval(neutral.arg, neutral.arg_env, reductions_left);
-    if (!arg_val.has_value())
-        return std::nullopt;
-    std::optional<const expr*> arg_term =
-        reify(*arg_val, depth, reductions_left);
-    if (!arg_term.has_value())
-        return std::nullopt;
-    return make_app_.make_app(*fun_term, *arg_term);
+    const expr* fun_term;
+    if (!reify(fun_term, neutral.head, depth, reductions_left))
+        return false;
+    const val* arg_val;
+    if (!eval_.eval(arg_val, neutral.arg, neutral.arg_env, reductions_left))
+        return false;
+    const expr* arg_term;
+    if (!reify(arg_term, arg_val, depth, reductions_left))
+        return false;
+    out = make_app_.make_app(fun_term, arg_term);
+    return true;
 }
 
 #endif

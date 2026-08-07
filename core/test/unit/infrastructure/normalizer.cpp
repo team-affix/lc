@@ -2,25 +2,26 @@
 #include <gmock/gmock.h>
 #include <cstdint>
 #include <limits>
-#include <optional>
 #include "exprs_eq.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/normalizer.hpp"
 #include "infrastructure/val_pool.hpp"
 #include "nbe_fixture.hpp"
 
+using ::testing::DoAll;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::SetArgReferee;
 using ::testing::_;
 
 struct MockEval {
-    MOCK_METHOD((std::optional<const val*>), eval,
-                (const expr*, const env*, uint64_t&), ());
+    MOCK_METHOD(bool, eval, (const val*&, const expr*, env*, uint64_t&),
+                ());
 };
 
 struct MockReify {
-    MOCK_METHOD((std::optional<const expr*>), reify,
-                (const val*, uint32_t, uint64_t&), ());
+    MOCK_METHOD(bool, reify, (const expr*&, const val*, uint32_t, uint64_t&),
+                ());
 };
 
 using test_normalizer_t = normalizer<MockEval, MockReify>;
@@ -40,14 +41,14 @@ TEST_F(NormalizerMockTest, NormalizeEvalThenReify) {
     const expr* result = pool.make_abs(pool.make_var(0));
     {
         ::testing::InSequence seq;
-        EXPECT_CALL(eval, eval(term, nullptr, _))
-            .WillOnce(Return(std::optional<const val*>{whnf}));
-        EXPECT_CALL(reify, reify(whnf, 0, _))
-            .WillOnce(Return(std::optional<const expr*>{result}));
+        EXPECT_CALL(eval, eval(_, term, nullptr, _))
+            .WillOnce(DoAll(SetArgReferee<0>(whnf), Return(true)));
+        EXPECT_CALL(reify, reify(_, whnf, 0, _))
+            .WillOnce(DoAll(SetArgReferee<0>(result), Return(true)));
     }
-    std::optional<const expr*> got = norm.normalize(term, budget);
-    ASSERT_TRUE(got.has_value());
-    EXPECT_EQ(*got, result);
+    const expr* got;
+    ASSERT_TRUE(norm.normalize(got, term, budget));
+    EXPECT_EQ(got, result);
 }
 
 struct NormalizerTest : public ::testing::Test, public nbe_fixture {};
@@ -62,6 +63,8 @@ TEST_F(NormalizerTest, NormalizeIdentityOnIdentity) {
 
 TEST_F(NormalizerTest, NormalizeExhaustsBetaBudget) {
     const expr* term = ap(id_term(), id_term());
-    EXPECT_EQ(normalize_with_budget(term, 0), std::nullopt);
-    EXPECT_TRUE(exprs_eq(normalize_with_budget(term, 1).value(), id_term()));
+    const expr* out;
+    EXPECT_FALSE(normalize_with_budget(out, term, 0));
+    ASSERT_TRUE(normalize_with_budget(out, term, 1));
+    EXPECT_TRUE(exprs_eq(out, id_term()));
 }

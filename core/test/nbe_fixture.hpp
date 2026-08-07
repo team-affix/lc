@@ -1,6 +1,7 @@
 #ifndef NBE_FIXTURE_HPP
 #define NBE_FIXTURE_HPP
 
+#include "debug_assert.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/evaluator.hpp"
 #include "infrastructure/expr_pool.hpp"
@@ -9,7 +10,6 @@
 #include "infrastructure/val_pool.hpp"
 #include <cstdint>
 #include <limits>
-#include <optional>
 
 // Shared term builders + fresh env/val pools per normalize.
 struct nbe_fixture {
@@ -79,8 +79,8 @@ struct nbe_fixture {
         return lm(lm(lm(ap(ap(dv(2), dv(1)), dv(0)))));
     }
 
-    std::optional<const expr*> normalize_with_budget(const expr* term,
-                                                     uint64_t reductions_left) {
+    bool normalize_with_budget(const expr*& out, const expr* term,
+                               uint64_t reductions_left) {
         env_pool envs;
         val_pool vals;
         evaluator<val_pool, val_pool, env_pool> ev{vals, vals, envs};
@@ -91,13 +91,15 @@ struct nbe_fixture {
                    reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
                            evaluator<val_pool, val_pool, env_pool>>>
             norm{ev, re};
-        return norm.normalize(term, reductions_left);
+        return norm.normalize(out, term, reductions_left);
     }
 
     const expr* normalize(const expr* term) {
+        const expr* out;
         uint64_t budget = std::numeric_limits<uint64_t>::max();
-        std::optional<const expr*> nf = normalize_with_budget(term, budget);
-        return nf.value();
+        bool ok = normalize_with_budget(out, term, budget);
+        DEBUG_ASSERT(ok);
+        return out;
     }
 
     expr_pool pool;

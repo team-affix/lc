@@ -1,6 +1,6 @@
 #include "infrastructure/val_pool.hpp"
 
-const val* val_pool::make_clo(const expr* body, const env* e) {
+const val* val_pool::make_clo(const expr* body, env* e) {
     return alloc(val{val::clo{body, e}});
 }
 
@@ -8,7 +8,7 @@ const val* val_pool::make_fvar(uint32_t depth) {
     return alloc(val{val::fvar{depth}});
 }
 
-const val* val_pool::make_napp(const val* head, const expr* arg, const env* arg_env) {
+const val* val_pool::make_napp(const val* head, const expr* arg, env* arg_env) {
     return alloc(val{val::napp{head, arg, arg_env}});
 }
 

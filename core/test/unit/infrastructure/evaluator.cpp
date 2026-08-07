@@ -2,7 +2,6 @@
 #include <gmock/gmock.h>
 #include <cstdint>
 #include <limits>
-#include <optional>
 #include <stdexcept>
 #include <variant>
 #include "exprs_eq.hpp"
@@ -18,15 +17,15 @@ using ::testing::Return;
 using ::testing::_;
 
 struct MockMakeClo {
-    MOCK_METHOD(const val*, make_clo, (const expr*, const env*), ());
+    MOCK_METHOD(const val*, make_clo, (const expr*, env*), ());
 };
 
 struct MockMakeNapp {
-    MOCK_METHOD(const val*, make_napp, (const val*, const expr*, const env*), ());
+    MOCK_METHOD(const val*, make_napp, (const val*, const expr*, env*), ());
 };
 
 struct MockMakeDelayed {
-    MOCK_METHOD(const env*, make_delayed, (const expr*, const env*, const env*), ());
+    MOCK_METHOD(env*, make_delayed, (const expr*, env*, env*), ());
 };
 
 using test_evaluator_t = evaluator<MockMakeClo, MockMakeNapp, MockMakeDelayed>;
@@ -46,29 +45,32 @@ TEST_F(EvaluatorMockTest, EvalAbsInNilGivesClosure) {
     const expr* term = pool.make_abs(body);
     const val* expected = vals.make_clo(body, nullptr);
     EXPECT_CALL(make_clo, make_clo(body, nullptr)).WillOnce(Return(expected));
-    std::optional<const val*> got = ev.eval(term, nullptr, budget);
-    ASSERT_TRUE(got.has_value());
-    EXPECT_EQ(*got, expected);
+    const val* got;
+    ASSERT_TRUE(ev.eval(got, term, nullptr, budget));
+    EXPECT_EQ(got, expected);
 }
 
 TEST_F(EvaluatorMockTest, UnboundVarNullEnvThrows) {
     const expr* term = pool.make_var(0);
-    EXPECT_THROW(ev.eval(term, nullptr, budget), std::logic_error);
+    const val* out;
+    EXPECT_THROW(ev.eval(out, term, nullptr, budget), std::logic_error);
 }
 
 TEST_F(EvaluatorMockTest, LookupPastNilParentThrows) {
     const expr* arg = pool.make_abs(pool.make_var(0));
     env e{env::delayed{arg, nullptr}, nullptr};
-    EXPECT_THROW(ev.eval(pool.make_var(1), &e, budget), std::logic_error);
+    const val* out;
+    EXPECT_THROW(ev.eval(out, pool.make_var(1), &e, budget), std::logic_error);
 }
 
-TEST_F(EvaluatorMockTest, BetaWithZeroBudgetReturnsNullopt) {
+TEST_F(EvaluatorMockTest, BetaWithZeroBudgetReturnsFalse) {
     const expr* body = pool.make_var(0);
     const expr* id = pool.make_abs(body);
     const val* clo = vals.make_clo(body, nullptr);
     EXPECT_CALL(make_clo, make_clo(body, nullptr)).WillOnce(Return(clo));
     uint64_t left = 0;
-    EXPECT_EQ(ev.eval(pool.make_app(id, id), nullptr, left), std::nullopt);
+    const val* out;
+    EXPECT_FALSE(ev.eval(out, pool.make_app(id, id), nullptr, left));
 }
 
 struct EvaluatorTest : public ::testing::Test {
@@ -82,10 +84,10 @@ struct EvaluatorTest : public ::testing::Test {
     const expr* lm(const expr* b) { return pool.make_abs(b); }
     const expr* ap(const expr* f, const expr* a) { return pool.make_app(f, a); }
 
-    const val* must_eval(const expr* term, const env* e) {
-        std::optional<const val*> v = ev.eval(term, e, budget);
-        EXPECT_TRUE(v.has_value());
-        return *v;
+    const val* must_eval(const expr* term, env* e) {
+        const val* v;
+        EXPECT_TRUE(ev.eval(v, term, e, budget));
+        return v;
     }
 };
 
@@ -100,7 +102,7 @@ TEST_F(EvaluatorTest, EvalAbsInNilGivesClosure) {
 
 TEST_F(EvaluatorTest, EvalVarZeroInEnvLookupsBinding) {
     const expr* arg = lm(dv(0));
-    const env* e = envs.make_delayed(arg, nullptr, nullptr);
+    env* e = envs.make_delayed(arg, nullptr, nullptr);
     const val* v = must_eval(dv(0), e);
     const val::clo* c = std::get_if<val::clo>(&v->content);
     ASSERT_NE(c, nullptr);
@@ -110,8 +112,8 @@ TEST_F(EvaluatorTest, EvalVarZeroInEnvLookupsBinding) {
 TEST_F(EvaluatorTest, EvalVarOneInEnvSkipsToOuterBinding) {
     const expr* outer_arg = lm(dv(1));
     const expr* inner_arg = lm(dv(0));
-    const env* outer = envs.make_delayed(outer_arg, nullptr, nullptr);
-    const env* inner = envs.make_delayed(inner_arg, nullptr, outer);
+    env* outer = envs.make_delayed(outer_arg, nullptr, nullptr);
+    env* inner = envs.make_delayed(inner_arg, nullptr, outer);
     const val* v = must_eval(dv(1), inner);
     const val::clo* c = std::get_if<val::clo>(&v->content);
     ASSERT_NE(c, nullptr);
@@ -129,7 +131,7 @@ TEST_F(EvaluatorTest, EvalAppBetaStep) {
 
 TEST_F(EvaluatorTest, LookupMemoizesDelayedAsReady) {
     const expr* arg = lm(dv(0));
-    const env* e = envs.make_delayed(arg, nullptr, nullptr);
+    env* e = envs.make_delayed(arg, nullptr, nullptr);
     const val* first = must_eval(dv(0), e);
     const env::ready* bound = std::get_if<env::ready>(&e->binder);
     ASSERT_NE(bound, nullptr);
@@ -141,7 +143,7 @@ TEST_F(EvaluatorTest, LookupMemoizesDelayedAsReady) {
 TEST_F(EvaluatorTest, EvalAppNeutralFvarHead) {
     const expr* id = lm(dv(0));
     const val* head = vals.make_fvar(0);
-    const env* e = envs.make_ready(head, nullptr);
+    env* e = envs.make_ready(head, nullptr);
     const val* v = must_eval(ap(dv(0), id), e);
     const val::napp* n = std::get_if<val::napp>(&v->content);
     ASSERT_NE(n, nullptr);
@@ -152,7 +154,7 @@ TEST_F(EvaluatorTest, EvalAppNeutralFvarHead) {
 TEST_F(EvaluatorTest, EvalAppNappBuildsNestedNapp) {
     const expr* id = lm(dv(0));
     const val* head = vals.make_fvar(0);
-    const env* e = envs.make_ready(head, nullptr);
+    env* e = envs.make_ready(head, nullptr);
     const val* v = must_eval(ap(ap(dv(0), id), id), e);
     const val::napp* outer = std::get_if<val::napp>(&v->content);
     ASSERT_NE(outer, nullptr);

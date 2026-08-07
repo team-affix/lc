@@ -10,7 +10,7 @@ struct env;
 struct val {
     struct clo {
         const expr* body;
-        const env* captured;
+        env* captured;
         auto operator<=>(const clo&) const = default;
     };
     // Reify-depth at creation; quoted as a de Bruijn index.
@@ -21,7 +21,7 @@ struct val {
     struct napp {
         const val* head;
         const expr* arg;
-        const env* arg_env;
+        env* arg_env;
         auto operator<=>(const napp&) const = default;
     };
     std::variant<clo, fvar, napp> content;

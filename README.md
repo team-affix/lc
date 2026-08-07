@@ -8,7 +8,7 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 
 **Closed terms only:** every `var` must be bound by some enclosing `abs`. Unbound lookup is a debug assertion, not a runtime value.
 
-**β-budget:** `normalize(term, reductions_left)` returns `std::nullopt` when a β-step would run with no remaining budget. Not resumable — retry with a larger budget. Terms are not interned — compare with deep structural equality (pointer identity and shallow `operator==` on `abs`/`app` are not meaningful across separately built trees).
+**β-budget:** `normalize(out, term, reductions_left)` returns `false` when a β-step would run with no remaining budget (`out` untouched). Not resumable — retry with a larger budget. Terms are not interned — compare with deep structural equality (pointer identity and shallow `operator==` on `abs`/`app` are not meaningful across separately built trees).
 
 ## Design
 
@@ -19,8 +19,8 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 | `val` | WHNF values: `clo` / `fvar` / `napp` |
 | `env` | Linked DAG binders: `delayed` \| `ready` (memoize-on-force) |
 | `env_pool` / `val_pool` | Bump storage for ephemeral env/val nodes (fresh per normalize) |
-| `evaluator` | Krivine-style eval to WHNF (optional + β-budget) |
-| `reifier` | Value → β-normal `expr` (optional + β-budget) |
+| `evaluator` | Krivine-style eval to WHNF (`bool` + out + β-budget) |
+| `reifier` | Value → β-normal `expr` (`bool` + out + β-budget) |
 | `normalizer` | `reify(eval(t, nil), 0)` with shared budget |
 
 Variables use **de Bruijn indices** (`var(0)` = innermost binder).
@@ -47,10 +47,11 @@ reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, decltype(ev)>
 normalizer<decltype(ev), decltype(re)> norm(ev, re);
 
 const expr* id = pool.make_abs(pool.make_var(0));
+const expr* nf;
 uint64_t budget = 1000;
-std::optional<const expr*> nf =
-    norm.normalize(pool.make_app(id, id), budget);
-// *nf equals id by deep structural comparison of the trees
+if (!norm.normalize(nf, pool.make_app(id, id), budget))
+    /* β-budget exhausted */;
+// nf equals id by deep structural comparison of the trees
 ```
 
 Prefer constructing **fresh** `env_pool` / `val_pool` for each `normalize` (no `reset`).

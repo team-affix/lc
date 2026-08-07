@@ -2,7 +2,6 @@
 #include <gmock/gmock.h>
 #include <cstdint>
 #include <limits>
-#include <optional>
 #include <variant>
 #include "exprs_eq.hpp"
 #include "infrastructure/env_pool.hpp"
@@ -13,8 +12,10 @@
 #include "value_objects/env.hpp"
 #include "value_objects/val.hpp"
 
+using ::testing::DoAll;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::SetArgReferee;
 using ::testing::_;
 
 struct MockMakeVar {
@@ -34,12 +35,12 @@ struct MockMakeFvar {
 };
 
 struct MockMakeReady {
-    MOCK_METHOD(const env*, make_ready, (const val*, const env*), ());
+    MOCK_METHOD(env*, make_ready, (const val*, env*), ());
 };
 
 struct MockEval {
-    MOCK_METHOD((std::optional<const val*>), eval,
-                (const expr*, const env*, uint64_t&), ());
+    MOCK_METHOD(bool, eval, (const val*&, const expr*, env*, uint64_t&),
+                ());
 };
 
 using test_reifier_t =
@@ -63,9 +64,9 @@ TEST_F(ReifierMockTest, ReifyFvarAtImmediateLevel) {
     const val* fv = vals.make_fvar(0);
     const expr* expected = pool.make_var(0);
     EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(expected));
-    std::optional<const expr*> got = re.reify(fv, 1, budget);
-    ASSERT_TRUE(got.has_value());
-    EXPECT_EQ(*got, expected);
+    const expr* got;
+    ASSERT_TRUE(re.reify(got, fv, 1, budget));
+    EXPECT_EQ(got, expected);
 }
 
 TEST_F(ReifierMockTest, ReifyCloYieldsAbsOfQuotedBody) {
@@ -78,14 +79,14 @@ TEST_F(ReifierMockTest, ReifyCloYieldsAbsOfQuotedBody) {
 
     EXPECT_CALL(make_fvar, make_fvar(0)).WillOnce(Return(&fresh));
     EXPECT_CALL(make_ready, make_ready(&fresh, nullptr)).WillOnce(Return(&extended));
-    EXPECT_CALL(eval, eval(body, &extended, _))
-        .WillOnce(Return(std::optional<const val*>{&fresh}));
+    EXPECT_CALL(eval, eval(_, body, &extended, _))
+        .WillOnce(DoAll(SetArgReferee<0>(&fresh), Return(true)));
     EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(quoted_var));
     EXPECT_CALL(make_abs, make_abs(quoted_var)).WillOnce(Return(expected_abs));
 
-    std::optional<const expr*> got = re.reify(&clo, 0, budget);
-    ASSERT_TRUE(got.has_value());
-    EXPECT_EQ(*got, expected_abs);
+    const expr* got;
+    ASSERT_TRUE(re.reify(got, &clo, 0, budget));
+    EXPECT_EQ(got, expected_abs);
 }
 
 TEST_F(ReifierMockTest, ReifyNappYieldsApp) {
@@ -100,13 +101,13 @@ TEST_F(ReifierMockTest, ReifyNappYieldsApp) {
     EXPECT_CALL(make_var, make_var(0))
         .WillOnce(Return(fun_nf))
         .WillOnce(Return(arg_nf));
-    EXPECT_CALL(eval, eval(arg_term, nullptr, _))
-        .WillOnce(Return(std::optional<const val*>{&arg_whnf}));
+    EXPECT_CALL(eval, eval(_, arg_term, nullptr, _))
+        .WillOnce(DoAll(SetArgReferee<0>(&arg_whnf), Return(true)));
     EXPECT_CALL(make_app, make_app(fun_nf, arg_nf)).WillOnce(Return(expected));
 
-    std::optional<const expr*> got = re.reify(&napp_v, 1, budget);
-    ASSERT_TRUE(got.has_value());
-    EXPECT_EQ(*got, expected);
+    const expr* got;
+    ASSERT_TRUE(re.reify(got, &napp_v, 1, budget));
+    EXPECT_EQ(got, expected);
 }
 
 struct ReifierTest : public ::testing::Test {
@@ -124,9 +125,9 @@ struct ReifierTest : public ::testing::Test {
     const expr* ap(const expr* f, const expr* a) { return pool.make_app(f, a); }
 
     const expr* must_reify(const val* v, uint32_t depth) {
-        std::optional<const expr*> e = re.reify(v, depth, budget);
-        EXPECT_TRUE(e.has_value());
-        return *e;
+        const expr* e;
+        EXPECT_TRUE(re.reify(e, v, depth, budget));
+        return e;
     }
 };
 
