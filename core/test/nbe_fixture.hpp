@@ -83,7 +83,7 @@ struct nbe_fixture {
                     val_pool, red_t>;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals, red};
-        return re.reify_term(out, term, reductions_left);
+        return re.reify(out, vals.make_clo(term, nullptr), 0, reductions_left);
     }
 
     const expr* normalize(const expr* term) {

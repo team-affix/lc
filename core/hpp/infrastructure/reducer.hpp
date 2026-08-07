@@ -13,16 +13,22 @@ template <typename IMakeClo, typename IMakeNapp, typename IMakeFrame,
 struct reducer {
     reducer(IMakeClo& make_clo, IMakeNapp& make_napp, IMakeFrame& make_frame,
             ILookup& lookup);
-    bool whnf(const val*& out, const val* v, uint64_t& reductions_left);
+    bool whnf(const val*& v, uint64_t& reductions_left);
 
   private:
-    bool whnf_clo(const val*& out, const val* v, uint64_t& reductions_left);
-    bool whnf_fvar(const val*& out, const val* v, uint64_t& reductions_left);
-    bool whnf_napp(const val*& out, const val* v, uint64_t& reductions_left);
+    bool whnf_clo(const val*& v, const val::clo* closure,
+                  uint64_t& reductions_left);
+    bool whnf_fvar(const val*& v, const val::fvar* fresh,
+                   uint64_t& reductions_left);
+    bool whnf_napp(const val*& v, const val::napp* neutral,
+                   uint64_t& reductions_left);
 
-    bool whnf_var(const val*& out, const val* v, uint64_t& reductions_left);
-    bool whnf_abs(const val*& out, const val* v, uint64_t& reductions_left);
-    bool whnf_app(const val*& out, const val* v, uint64_t& reductions_left);
+    bool whnf_var(const val*& v, const expr::var* variable, env* e,
+                  uint64_t& reductions_left);
+    bool whnf_abs(const val*& v, const expr::abs* abstraction,
+                  uint64_t& reductions_left);
+    bool whnf_app(const val*& v, const expr::app* application, env* e,
+                  uint64_t& reductions_left);
 
     IMakeClo& make_clo_;
     IMakeNapp& make_napp_;
@@ -42,85 +48,77 @@ reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::reducer(
 template <typename IMakeClo, typename IMakeNapp, typename IMakeFrame,
           typename ILookup>
 bool reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::whnf(
-    const val*& out, const val* v, uint64_t& reductions_left) {
-    if(std::holds_alternative<val::clo>(v->content))
-        return whnf_clo(out, v, reductions_left);
-    if(std::holds_alternative<val::fvar>(v->content))
-        return whnf_fvar(out, v, reductions_left);
-    return whnf_napp(out, v, reductions_left);
+    const val*& v, uint64_t& reductions_left) {
+    if(const val::clo* closure = std::get_if<val::clo>(&v->content))
+        return whnf_clo(v, closure, reductions_left);
+    if(const val::fvar* fresh = std::get_if<val::fvar>(&v->content))
+        return whnf_fvar(v, fresh, reductions_left);
+    return whnf_napp(v, &std::get<val::napp>(v->content), reductions_left);
 }
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeFrame,
           typename ILookup>
 bool reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::whnf_clo(
-    const val*& out, const val* v, uint64_t& reductions_left) {
-    const val::clo& closure = std::get<val::clo>(v->content);
-    const expr* term = closure.term;
-    if(std::holds_alternative<expr::var>(term->content))
-        return whnf_var(out, v, reductions_left);
-    if(std::holds_alternative<expr::abs>(term->content))
-        return whnf_abs(out, v, reductions_left);
-    return whnf_app(out, v, reductions_left);
+    const val*& v, const val::clo* closure, uint64_t& reductions_left) {
+    const expr* term = closure->term;
+    if(const expr::var* variable = std::get_if<expr::var>(&term->content))
+        return whnf_var(v, variable, closure->environment, reductions_left);
+    if(const expr::abs* abstraction = std::get_if<expr::abs>(&term->content))
+        return whnf_abs(v, abstraction, reductions_left);
+    return whnf_app(v, &std::get<expr::app>(term->content),
+                    closure->environment, reductions_left);
 }
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeFrame,
           typename ILookup>
 bool reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::whnf_fvar(
-    const val*& out, const val* v, uint64_t&) {
-    out = v;
+    const val*&, const val::fvar*, uint64_t&) {
     return true;
 }
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeFrame,
           typename ILookup>
 bool reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::whnf_napp(
-    const val*& out, const val* v, uint64_t&) {
-    out = v;
+    const val*&, const val::napp*, uint64_t&) {
     return true;
 }
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeFrame,
           typename ILookup>
 bool reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::whnf_var(
-    const val*& out, const val* v, uint64_t& reductions_left) {
-    const val::clo& closure = std::get<val::clo>(v->content);
-    const expr::var& variable = std::get<expr::var>(closure.term->content);
-
+    const val*& v, const expr::var* variable, env* e,
+    uint64_t& reductions_left) {
     ///////////
     //// LOOKUP
     ///////////
-    env* cell = lookup_.lookup(closure.environment, variable.index);
+    env* cell = lookup_.lookup(e, variable->index);
 
     ///////////
     //// WHNF + OVERWRITE
     ///////////
-    if(!whnf(out, cell->bound_value, reductions_left))
+    if(!whnf(cell->bound_value, reductions_left))
         return false;
-    cell->bound_value = out;
+    v = cell->bound_value;
     return true;
 }
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeFrame,
           typename ILookup>
 bool reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::whnf_abs(
-    const val*& out, const val* v, uint64_t&) {
-    out = v;
+    const val*&, const expr::abs*, uint64_t&) {
     return true;
 }
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeFrame,
           typename ILookup>
 bool reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::whnf_app(
-    const val*& out, const val* v, uint64_t& reductions_left) {
-    const val::clo& closure = std::get<val::clo>(v->content);
-    const expr::app& application = std::get<expr::app>(closure.term->content);
-    env* e = closure.environment;
-
+    const val*& v, const expr::app* application, env* e,
+    uint64_t& reductions_left) {
     ///////////
     //// WHNF FUN
     ///////////
-    const val* fun_val;
-    if(!whnf(fun_val, make_clo_.make_clo(application.fun, e), reductions_left))
+    const val* fun_val = make_clo_.make_clo(application->fun, e);
+    if(!whnf(fun_val, reductions_left))
         return false;
     const val::clo* fun_clo = std::get_if<val::clo>(&fun_val->content);
 
@@ -128,7 +126,7 @@ bool reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::whnf_app(
     //// APPLY NEUTRAL
     ///////////
     if(fun_clo == nullptr) {
-        out = make_napp_.make_napp(fun_val, application.arg, e);
+        v = make_napp_.make_napp(fun_val, application->arg, e);
         return true;
     }
 
@@ -141,8 +139,9 @@ bool reducer<IMakeClo, IMakeNapp, IMakeFrame, ILookup>::whnf_app(
     --reductions_left;
     const expr* body = std::get<expr::abs>(fun_clo->term->content).body;
     env* extended = make_frame_.make_frame(
-        make_clo_.make_clo(application.arg, e), fun_clo->environment);
-    return whnf(out, make_clo_.make_clo(body, extended), reductions_left);
+        make_clo_.make_clo(application->arg, e), fun_clo->environment);
+    v = make_clo_.make_clo(body, extended);
+    return whnf(v, reductions_left);
 }
 
 #endif

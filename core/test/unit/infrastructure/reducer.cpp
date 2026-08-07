@@ -51,8 +51,8 @@ TEST_F(ReducerMockTest, WhnfAbsCloReturnsSelf) {
     const expr* body = pool.make_var(0);
     const expr* term = pool.make_abs(body);
     const val* clo = vals.make_clo(term, nullptr);
-    const val* got;
-    ASSERT_TRUE(red.whnf(got, clo, budget));
+    const val* got = clo;
+    ASSERT_TRUE(red.whnf(got, budget));
     EXPECT_EQ(got, clo);
 }
 
@@ -64,8 +64,8 @@ TEST_F(ReducerMockTest, BetaWithZeroBudgetReturnsFalse) {
     const val* fun_clo = vals.make_clo(id, nullptr);
     EXPECT_CALL(make_clo, make_clo(id, nullptr)).WillOnce(Return(fun_clo));
     uint64_t left = 0;
-    const val* out;
-    EXPECT_FALSE(red.whnf(out, seed, left));
+    const val* v = seed;
+    EXPECT_FALSE(red.whnf(v, left));
 }
 
 struct ReducerTest : public ::testing::Test {
@@ -82,9 +82,9 @@ struct ReducerTest : public ::testing::Test {
     const expr* ap(const expr* f, const expr* a) { return pool.make_app(f, a); }
 
     const val* must_whnf(const val* v) {
-        const val* out;
-        EXPECT_TRUE(red.whnf(out, v, budget));
-        return out;
+        const val* reg = v;
+        EXPECT_TRUE(red.whnf(reg, budget));
+        return reg;
     }
 
     const val* must_whnf_term(const expr* term, env* e) {
@@ -103,16 +103,14 @@ TEST_F(ReducerTest, WhnfAbsInNilGivesClosure) {
 }
 
 TEST_F(ReducerTest, UnboundVarNullEnvThrows) {
-    const val* out;
-    EXPECT_THROW(red.whnf(out, vals.make_clo(dv(0), nullptr), budget),
-                 std::logic_error);
+    const val* v = vals.make_clo(dv(0), nullptr);
+    EXPECT_THROW(red.whnf(v, budget), std::logic_error);
 }
 
 TEST_F(ReducerTest, LookupPastNilParentThrows) {
     env* e = envs.make_frame(vals.make_clo(lm(dv(0)), nullptr), nullptr);
-    const val* out;
-    EXPECT_THROW(red.whnf(out, vals.make_clo(dv(1), e), budget),
-                 std::logic_error);
+    const val* v = vals.make_clo(dv(1), e);
+    EXPECT_THROW(red.whnf(v, budget), std::logic_error);
 }
 
 TEST_F(ReducerTest, WhnfVarZeroInEnvLookupsBinding) {

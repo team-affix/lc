@@ -15,8 +15,6 @@ struct reifier {
     reifier(IMakeVar& make_var, IMakeAbs& make_abs, IMakeApp& make_app,
             IMakeFvar& make_fvar, IMakeFrame& make_frame, IMakeClo& make_clo,
             IWhnf& whnf);
-    bool reify_term(const expr*& out, const expr* term,
-                    uint64_t& reductions_left);
     bool reify(const expr*& out, const val* v, uint32_t depth,
                uint64_t& reductions_left);
 
@@ -53,15 +51,6 @@ template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeFrame, typename IMakeClo,
           typename IWhnf>
 bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeFrame, IMakeClo,
-             IWhnf>::reify_term(const expr*& out, const expr* term,
-                                uint64_t& reductions_left) {
-    return reify(out, make_clo_.make_clo(term, nullptr), 0, reductions_left);
-}
-
-template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
-          typename IMakeFvar, typename IMakeFrame, typename IMakeClo,
-          typename IWhnf>
-bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeFrame, IMakeClo,
              IWhnf>::reify(const expr*& out, const val* v, uint32_t depth,
                            uint64_t& reductions_left) {
     if(const val::clo* closure = std::get_if<val::clo>(&v->content))
@@ -83,8 +72,8 @@ bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeFrame, IMakeClo,
         ///////////
         //// FORCE NON-ABS CLO
         ///////////
-        const val* forced;
-        if(!whnf_.whnf(forced, v, reductions_left))
+        const val* forced = v;
+        if(!whnf_.whnf(forced, reductions_left))
             return false;
         return reify(out, forced, depth, reductions_left);
     }
@@ -99,9 +88,8 @@ bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeFrame, IMakeClo,
     //// WHNF BODY
     ///////////
     const expr* body = std::get<expr::abs>(closure->term->content).body;
-    const val* body_val;
-    if(!whnf_.whnf(body_val, make_clo_.make_clo(body, extended),
-                   reductions_left))
+    const val* body_val = make_clo_.make_clo(body, extended);
+    if(!whnf_.whnf(body_val, reductions_left))
         return false;
 
     ///////////
@@ -141,9 +129,8 @@ bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeFrame, IMakeClo,
     ///////////
     //// WHNF ARG
     ///////////
-    const val* arg_val;
-    if(!whnf_.whnf(arg_val, make_clo_.make_clo(neutral.arg, neutral.arg_env),
-                   reductions_left))
+    const val* arg_val = make_clo_.make_clo(neutral.arg, neutral.arg_env);
+    if(!whnf_.whnf(arg_val, reductions_left))
         return false;
 
     ///////////

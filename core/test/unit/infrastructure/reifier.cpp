@@ -44,7 +44,7 @@ struct MockMakeClo {
 };
 
 struct MockWhnf {
-    MOCK_METHOD(bool, whnf, (const val*&, const val*, uint64_t&), ());
+    MOCK_METHOD(bool, whnf, (const val*&, uint64_t&), ());
 };
 
 using test_reifier_t =
@@ -89,7 +89,7 @@ TEST_F(ReifierMockTest, ReifyCloYieldsAbsOfQuotedBody) {
     EXPECT_CALL(make_frame, make_frame(&fresh, nullptr))
         .WillOnce(Return(&extended));
     EXPECT_CALL(make_clo, make_clo(body, &extended)).WillOnce(Return(body_clo));
-    EXPECT_CALL(whnf, whnf(_, body_clo, _))
+    EXPECT_CALL(whnf, whnf(_, _))
         .WillOnce(DoAll(SetArgReferee<0>(&fresh), Return(true)));
     EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(quoted_var));
     EXPECT_CALL(make_abs, make_abs(quoted_var)).WillOnce(Return(expected_abs));
@@ -113,7 +113,7 @@ TEST_F(ReifierMockTest, ReifyNappYieldsApp) {
         .WillOnce(Return(fun_nf))
         .WillOnce(Return(arg_nf));
     EXPECT_CALL(make_clo, make_clo(arg_term, nullptr)).WillOnce(Return(arg_clo));
-    EXPECT_CALL(whnf, whnf(_, arg_clo, _))
+    EXPECT_CALL(whnf, whnf(_, _))
         .WillOnce(DoAll(SetArgReferee<0>(&arg_whnf), Return(true)));
     EXPECT_CALL(make_app, make_app(fun_nf, arg_nf)).WillOnce(Return(expected));
 
@@ -181,8 +181,9 @@ TEST_F(ReifierTest, ReifyNestedNappGivesNestedApp) {
     EXPECT_TRUE(exprs_eq(must_reify(outer, 1), ap(ap(dv(0), id), id)));
 }
 
-TEST_F(ReifierTest, ReifyTermNormalizesIdentityApp) {
+TEST_F(ReifierTest, ReifySeededCloNormalizesIdentityApp) {
     const expr* out;
-    ASSERT_TRUE(re.reify_term(out, ap(lm(dv(0)), lm(dv(0))), budget));
+    const val* seed = vals.make_clo(ap(lm(dv(0)), lm(dv(0))), nullptr);
+    ASSERT_TRUE(re.reify(out, seed, 0, budget));
     EXPECT_TRUE(exprs_eq(out, lm(dv(0))));
 }

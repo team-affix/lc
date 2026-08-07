@@ -8,7 +8,7 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 
 **Closed terms only:** every `var` must be bound by some enclosing `abs`. Unbound lookup is a debug assertion, not a runtime value.
 
-**β-budget:** `reify_term(out, term, reductions_left)` returns `false` when a β-step would run with no remaining budget (`out` untouched). Not resumable — retry with a larger budget. Terms are not interned — compare with deep structural equality (pointer identity and shallow `operator==` on `abs`/`app` are not meaningful across separately built trees).
+**β-budget:** `reify(out, clo, 0, reductions_left)` returns `false` when a β-step would run with no remaining budget (`out` untouched). Not resumable — retry with a larger budget. Terms are not interned — compare with deep structural equality (pointer identity and shallow `operator==` on `abs`/`app` are not meaningful across separately built trees).
 
 ## Design
 
@@ -19,10 +19,10 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 | `val` | WHNF values: Krivine `clo(term, environment)` / `fvar` / `napp` |
 | `env` | Linked DAG frames: `bound_value` (`const val*`) + `parent` |
 | `env_pool` / `val_pool` | Bump storage for ephemeral env/val nodes (fresh per normalize) |
-| `reducer` | `whnf(val*)` to WHNF (`bool` + out + β-budget); memoize by overwrite |
-| `reifier` | Value → β-normal `expr`; entry `reify_term` seeds `clo(term,nil)` |
+| `reducer` | in-place `whnf(const val*&)` to WHNF (`bool` + β-budget); memoize by overwrite |
+| `reifier` | Value → β-normal `expr` (`bool` + out + depth + β-budget) |
 
-Variables use **de Bruijn indices** (`var(0)` = innermost binder). Function WHNF is a `clo` whose `term` is an `abs`.
+Variables use **de Bruijn indices** (`var(0)` = innermost binder). Function WHNF is a `clo` whose `term` is an `abs`. Seed normalization with `make_clo(term, nullptr)`.
 
 ## Layout
 
@@ -49,12 +49,12 @@ reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool,
 const expr* id = pool.make_abs(pool.make_var(0));
 const expr* nf;
 uint64_t budget = 1000;
-if (!re.reify_term(nf, pool.make_app(id, id), budget))
+if (!re.reify(nf, vals.make_clo(pool.make_app(id, id), nullptr), 0, budget))
     /* β-budget exhausted */;
 // nf equals id by deep structural comparison of the trees
 ```
 
-Prefer constructing **fresh** `env_pool` / `val_pool` for each `reify_term` (no `reset`).
+Prefer constructing **fresh** `env_pool` / `val_pool` for each normalize (no `reset`).
 
 ## Build & test
 
