@@ -59,7 +59,7 @@ make core_debug_fast      # preferred local test binary
 ./build/core_debug_fast
 ```
 
-Requires C++20 and vendored GoogleTest under `googletest/`.
+Requires C++20 and the GoogleTest git submodule (`git submodule update --init`).
 
 ## License
 
