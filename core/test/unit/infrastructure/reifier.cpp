@@ -4,6 +4,7 @@
 #include <limits>
 #include <variant>
 #include "exprs_eq.hpp"
+#include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/evaluator.hpp"
 #include "infrastructure/expr_pool.hpp"
@@ -114,9 +115,11 @@ struct ReifierTest : public ::testing::Test {
     expr_pool pool;
     env_pool envs;
     val_pool vals;
-    evaluator<val_pool, val_pool, env_pool> ev{vals, vals, envs};
+    env_lookup lookup;
+    evaluator<val_pool, val_pool, env_pool, env_lookup> ev{vals, vals, envs,
+                                                          lookup};
     reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
-            evaluator<val_pool, val_pool, env_pool>>
+            evaluator<val_pool, val_pool, env_pool, env_lookup>>
         re{pool, pool, pool, vals, envs, ev};
     uint64_t budget{std::numeric_limits<uint64_t>::max()};
 

@@ -2,6 +2,7 @@
 #define NBE_FIXTURE_HPP
 
 #include "debug_assert.hpp"
+#include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/evaluator.hpp"
 #include "infrastructure/expr_pool.hpp"
@@ -82,14 +83,13 @@ struct nbe_fixture {
                                uint64_t reductions_left) {
         env_pool envs;
         val_pool vals;
-        evaluator<val_pool, val_pool, env_pool> ev{vals, vals, envs};
-        reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
-                evaluator<val_pool, val_pool, env_pool>>
-            re{pool, pool, pool, vals, envs, ev};
-        normalizer<evaluator<val_pool, val_pool, env_pool>,
-                   reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
-                           evaluator<val_pool, val_pool, env_pool>>>
-            norm{ev, re};
+        env_lookup lookup;
+        using ev_t = evaluator<val_pool, val_pool, env_pool, env_lookup>;
+        using re_t =
+            reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, ev_t>;
+        ev_t ev{vals, vals, envs, lookup};
+        re_t re{pool, pool, pool, vals, envs, ev};
+        normalizer<ev_t, re_t> norm{ev, re};
         return norm.normalize(out, term, reductions_left);
     }
 

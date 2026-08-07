@@ -41,7 +41,9 @@ core/
 expr_pool pool;
 env_pool envs;
 val_pool vals;
-evaluator<val_pool, val_pool, env_pool> ev(vals, vals, envs);
+env_lookup lookup;
+evaluator<val_pool, val_pool, env_pool, env_lookup> ev(vals, vals, envs,
+                                                      lookup);
 reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, decltype(ev)>
     re(pool, pool, pool, vals, envs, ev);
 normalizer<decltype(ev), decltype(re)> norm(ev, re);

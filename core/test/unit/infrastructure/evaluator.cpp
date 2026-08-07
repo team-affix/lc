@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <variant>
 #include "exprs_eq.hpp"
+#include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/evaluator.hpp"
 #include "infrastructure/expr_pool.hpp"
@@ -28,13 +29,19 @@ struct MockMakeDelayed {
     MOCK_METHOD(env*, make_delayed, (const expr*, env*, env*), ());
 };
 
-using test_evaluator_t = evaluator<MockMakeClo, MockMakeNapp, MockMakeDelayed>;
+struct MockLookup {
+    MOCK_METHOD(env*, lookup, (env*, uint32_t), ());
+};
+
+using test_evaluator_t =
+    evaluator<MockMakeClo, MockMakeNapp, MockMakeDelayed, MockLookup>;
 
 struct EvaluatorMockTest : public ::testing::Test {
     NiceMock<MockMakeClo> make_clo;
     NiceMock<MockMakeNapp> make_napp;
     NiceMock<MockMakeDelayed> make_delayed;
-    test_evaluator_t ev{make_clo, make_napp, make_delayed};
+    NiceMock<MockLookup> lookup;
+    test_evaluator_t ev{make_clo, make_napp, make_delayed, lookup};
     expr_pool pool;
     val_pool vals;
     uint64_t budget{std::numeric_limits<uint64_t>::max()};
@@ -48,19 +55,6 @@ TEST_F(EvaluatorMockTest, EvalAbsInNilGivesClosure) {
     const val* got;
     ASSERT_TRUE(ev.eval(got, term, nullptr, budget));
     EXPECT_EQ(got, expected);
-}
-
-TEST_F(EvaluatorMockTest, UnboundVarNullEnvThrows) {
-    const expr* term = pool.make_var(0);
-    const val* out;
-    EXPECT_THROW(ev.eval(out, term, nullptr, budget), std::logic_error);
-}
-
-TEST_F(EvaluatorMockTest, LookupPastNilParentThrows) {
-    const expr* arg = pool.make_abs(pool.make_var(0));
-    env e{env::delayed{arg, nullptr}, nullptr};
-    const val* out;
-    EXPECT_THROW(ev.eval(out, pool.make_var(1), &e, budget), std::logic_error);
 }
 
 TEST_F(EvaluatorMockTest, BetaWithZeroBudgetReturnsFalse) {
@@ -77,7 +71,9 @@ struct EvaluatorTest : public ::testing::Test {
     expr_pool pool;
     env_pool envs;
     val_pool vals;
-    evaluator<val_pool, val_pool, env_pool> ev{vals, vals, envs};
+    env_lookup lookup;
+    evaluator<val_pool, val_pool, env_pool, env_lookup> ev{vals, vals, envs,
+                                                          lookup};
     uint64_t budget{std::numeric_limits<uint64_t>::max()};
 
     const expr* dv(uint32_t i) { return pool.make_var(i); }
@@ -98,6 +94,17 @@ TEST_F(EvaluatorTest, EvalAbsInNilGivesClosure) {
     ASSERT_NE(c, nullptr);
     EXPECT_EQ(c->body, body);
     EXPECT_EQ(c->captured, nullptr);
+}
+
+TEST_F(EvaluatorTest, UnboundVarNullEnvThrows) {
+    const val* out;
+    EXPECT_THROW(ev.eval(out, dv(0), nullptr, budget), std::logic_error);
+}
+
+TEST_F(EvaluatorTest, LookupPastNilParentThrows) {
+    env* e = envs.make_delayed(lm(dv(0)), nullptr, nullptr);
+    const val* out;
+    EXPECT_THROW(ev.eval(out, dv(1), e, budget), std::logic_error);
 }
 
 TEST_F(EvaluatorTest, EvalVarZeroInEnvLookupsBinding) {
