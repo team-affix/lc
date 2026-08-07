@@ -11,7 +11,6 @@
 #include <cstdint>
 #include <limits>
 
-// Shared term builders + fresh env/val pools per normalize.
 struct nbe_fixture {
     nbe_fixture() : pool() {}
 

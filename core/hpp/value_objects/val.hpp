@@ -13,7 +13,6 @@ struct val {
         env* captured;
         auto operator<=>(const clo&) const = default;
     };
-    // Reify-depth at creation; quoted as a de Bruijn index.
     struct fvar {
         uint32_t depth;
         auto operator<=>(const fvar&) const = default;
