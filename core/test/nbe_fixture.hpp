@@ -73,6 +73,49 @@ struct nbe_fixture {
         return lm(lm(lm(ap(ap(dv(2), dv(1)), dv(0)))));
     }
 
+    // Ω = (λx. x x)(λx. x x) — diverges under β; for budget / non-strict tests.
+    const expr* omega_term() {
+        const expr* xx = lm(ap(dv(0), dv(0)));
+        return ap(xx, xx);
+    }
+
+    // Y = λf.(λx. f (x x)) (λx. f (x x))
+    const expr* y_comb() {
+        const expr* xx = lm(ap(dv(1), ap(dv(0), dv(0))));
+        return lm(ap(xx, xx));
+    }
+
+    // exp = λm.λn. n m  (Church m^n)
+    const expr* exp_comb() { return lm(lm(ap(dv(0), dv(1)))); }
+
+    // fact = Y (λr. λn. if (iszero n) 1 (times n (r (pred n))))
+    const expr* fact_comb() {
+        const expr* else_branch =
+            ap(ap(times_comb(), dv(0)), ap(dv(1), ap(pred_comb(), dv(0))));
+        const expr* body =
+            ap(ap(ap(if_comb(), ap(iszero_comb(), dv(0))), church(1)),
+               else_branch);
+        return ap(y_comb(), lm(lm(body)));
+    }
+
+    // fib = Y (λr. λn.
+    //   if (iszero n) 0
+    //   (if (iszero (pred n)) 1
+    //    (plus (r (pred n)) (r (pred (pred n))))))
+    const expr* fib_comb() {
+        const expr* pred_n = ap(pred_comb(), dv(0));
+        const expr* pred_pred_n = ap(pred_comb(), pred_n);
+        const expr* else_branch =
+            ap(ap(plus_comb(), ap(dv(1), pred_n)), ap(dv(1), pred_pred_n));
+        const expr* inner_if =
+            ap(ap(ap(if_comb(), ap(iszero_comb(), pred_n)), church(1)),
+               else_branch);
+        const expr* body =
+            ap(ap(ap(if_comb(), ap(iszero_comb(), dv(0))), church(0)),
+               inner_if);
+        return ap(y_comb(), lm(lm(body)));
+    }
+
     bool normalize_with_budget(const expr*& out, const expr* term,
                                uint64_t reductions_left) {
         env_pool envs;
