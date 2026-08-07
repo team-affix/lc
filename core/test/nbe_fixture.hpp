@@ -98,6 +98,20 @@ struct nbe_fixture {
         return ap(y_comb(), lm(lm(body)));
     }
 
+    // Like fact_comb, but duplicates n into two distinct env cells so call-by-need
+    // cannot share WHNF between the iszero/times use and the pred use:
+    //   Y (λr. λn. (λn1. λn2. if (iszero n1) 1 (times n1 (r (pred n2)))) n n)
+    const expr* fact_noshare_comb() {
+        // under λr λn λn1 λn2: n2=0, n1=1, n=2, r=3
+        const expr* else_branch =
+            ap(ap(times_comb(), dv(1)), ap(dv(3), ap(pred_comb(), dv(0))));
+        const expr* body =
+            ap(ap(ap(if_comb(), ap(iszero_comb(), dv(1))), church(1)),
+               else_branch);
+        const expr* split = ap(ap(lm(lm(body)), dv(0)), dv(0));
+        return ap(y_comb(), lm(lm(split)));
+    }
+
     // fib = Y (λr. λn.
     //   if (iszero n) 0
     //   (if (iszero (pred n)) 1

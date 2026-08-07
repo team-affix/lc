@@ -799,6 +799,13 @@ TEST_F(NormalizeIntegrationTest, YFactFiveIsOneTwenty) {
     EXPECT_TRUE(exprs_eq(normalize(ap(fact_comb(), church(5))), church(120)));
 }
 
+// Unshared n (two thunks): stress test. 8! = 40320; ~4s on core_debug, <<15s.
+// fact 9 overflows the recursive evaluator stack on this machine.
+TEST_F(NormalizeIntegrationTest, YFactEightNoshareStress) {
+    EXPECT_TRUE(
+        exprs_eq(normalize(ap(fact_noshare_comb(), church(8))), church(40320)));
+}
+
 TEST_F(NormalizeIntegrationTest, YFibZeroIsZero) {
     EXPECT_TRUE(exprs_eq(normalize(ap(fib_comb(), church(0))), church(0)));
 }
