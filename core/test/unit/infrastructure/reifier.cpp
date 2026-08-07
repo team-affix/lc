@@ -64,6 +64,10 @@ struct ReifierMockTest : public ::testing::Test {
     expr_pool pool;
     val_pool vals;
     uint64_t budget{std::numeric_limits<uint64_t>::max()};
+
+    void SetUp() override {
+        ON_CALL(whnf, whnf(_, _)).WillByDefault(Return(true));
+    }
 };
 
 TEST_F(ReifierMockTest, ReifyFvarAtImmediateLevel) {
@@ -90,12 +94,14 @@ TEST_F(ReifierMockTest, ReifyCloYieldsAbsOfQuotedBody) {
         .WillOnce(Return(&extended));
     EXPECT_CALL(make_clo, make_clo(body, &extended)).WillOnce(Return(body_clo));
     EXPECT_CALL(whnf, whnf(_, _))
+        .WillOnce(Return(true))
         .WillOnce(DoAll(SetArgReferee<0>(&fresh), Return(true)));
     EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(quoted_var));
     EXPECT_CALL(make_abs, make_abs(quoted_var)).WillOnce(Return(expected_abs));
 
     const expr* got;
-    ASSERT_TRUE(re.reify(got, &clo, 0, budget));
+    const val* v = &clo;
+    ASSERT_TRUE(re.reify(got, v, 0, budget));
     EXPECT_EQ(got, expected_abs);
 }
 
@@ -114,11 +120,14 @@ TEST_F(ReifierMockTest, ReifyNappYieldsApp) {
         .WillOnce(Return(arg_nf));
     EXPECT_CALL(make_clo, make_clo(arg_term, nullptr)).WillOnce(Return(arg_clo));
     EXPECT_CALL(whnf, whnf(_, _))
+        .WillOnce(Return(true))
+        .WillOnce(Return(true))
         .WillOnce(DoAll(SetArgReferee<0>(&arg_whnf), Return(true)));
     EXPECT_CALL(make_app, make_app(fun_nf, arg_nf)).WillOnce(Return(expected));
 
     const expr* got;
-    ASSERT_TRUE(re.reify(got, &napp_v, 1, budget));
+    const val* v = &napp_v;
+    ASSERT_TRUE(re.reify(got, v, 1, budget));
     EXPECT_EQ(got, expected);
 }
 
@@ -140,7 +149,8 @@ struct ReifierTest : public ::testing::Test {
 
     const expr* must_reify(const val* v, uint32_t depth) {
         const expr* e;
-        EXPECT_TRUE(re.reify(e, v, depth, budget));
+        const val* reg = v;
+        EXPECT_TRUE(re.reify(e, reg, depth, budget));
         return e;
     }
 };

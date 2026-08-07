@@ -15,12 +15,12 @@ struct reifier {
     reifier(IMakeVar& make_var, IMakeAbs& make_abs, IMakeApp& make_app,
             IMakeFvar& make_fvar, IMakeFrame& make_frame, IMakeClo& make_clo,
             IWhnf& whnf);
-    bool reify(const expr*& out, const val* v, uint32_t depth,
+    bool reify(const expr*& out, const val*& v, uint32_t depth,
                uint64_t& reductions_left);
 
   private:
-    bool reify_clo(const expr*& out, const val* v, const val::clo* closure,
-                   uint32_t depth, uint64_t& reductions_left);
+    bool reify_clo(const expr*& out, const val::clo* closure, uint32_t depth,
+                   uint64_t& reductions_left);
     bool reify_fvar(const expr*& out, const val::fvar* fresh, uint32_t depth,
                     uint64_t& reductions_left);
     bool reify_napp(const expr*& out, const val::napp& neutral, uint32_t depth,
@@ -51,10 +51,16 @@ template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeFrame, typename IMakeClo,
           typename IWhnf>
 bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeFrame, IMakeClo,
-             IWhnf>::reify(const expr*& out, const val* v, uint32_t depth,
+             IWhnf>::reify(const expr*& out, const val*& v, uint32_t depth,
                            uint64_t& reductions_left) {
+    ///////////
+    //// WHNF
+    ///////////
+    if(!whnf_.whnf(v, reductions_left))
+        return false;
+
     if(const val::clo* closure = std::get_if<val::clo>(&v->content))
-        return reify_clo(out, v, closure, depth, reductions_left);
+        return reify_clo(out, closure, depth, reductions_left);
     if(const val::fvar* fresh = std::get_if<val::fvar>(&v->content))
         return reify_fvar(out, fresh, depth, reductions_left);
     return reify_napp(out, std::get<val::napp>(v->content), depth,
@@ -65,18 +71,9 @@ template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeFrame, typename IMakeClo,
           typename IWhnf>
 bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeFrame, IMakeClo,
-             IWhnf>::reify_clo(const expr*& out, const val* v,
-                               const val::clo* closure, uint32_t depth,
-                               uint64_t& reductions_left) {
-    if(!std::holds_alternative<expr::abs>(closure->term->content)) {
-        ///////////
-        //// FORCE NON-ABS CLO
-        ///////////
-        const val* forced = v;
-        if(!whnf_.whnf(forced, reductions_left))
-            return false;
-        return reify(out, forced, depth, reductions_left);
-    }
+             IWhnf>::reify_clo(const expr*& out, const val::clo* closure,
+                               uint32_t depth, uint64_t& reductions_left) {
+    DEBUG_ASSERT(std::holds_alternative<expr::abs>(closure->term->content));
 
     ///////////
     //// EXTEND WITH FVAR
@@ -85,16 +82,10 @@ bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeFrame, IMakeClo,
     env* extended = make_frame_.make_frame(fresh, closure->environment);
 
     ///////////
-    //// WHNF BODY
+    //// REIFY BODY
     ///////////
     const expr* body = std::get<expr::abs>(closure->term->content).body;
     const val* body_val = make_clo_.make_clo(body, extended);
-    if(!whnf_.whnf(body_val, reductions_left))
-        return false;
-
-    ///////////
-    //// REIFY BODY
-    ///////////
     const expr* body_nf;
     if(!reify(body_nf, body_val, depth + 1, reductions_left))
         return false;
@@ -122,20 +113,15 @@ bool reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeFrame, IMakeClo,
     ///////////
     //// REIFY HEAD
     ///////////
+    const val* head = neutral.head;
     const expr* fun_term;
-    if(!reify(fun_term, neutral.head, depth, reductions_left))
-        return false;
-
-    ///////////
-    //// WHNF ARG
-    ///////////
-    const val* arg_val = make_clo_.make_clo(neutral.arg, neutral.arg_env);
-    if(!whnf_.whnf(arg_val, reductions_left))
+    if(!reify(fun_term, head, depth, reductions_left))
         return false;
 
     ///////////
     //// REIFY ARG
     ///////////
+    const val* arg_val = make_clo_.make_clo(neutral.arg, neutral.arg_env);
     const expr* arg_term;
     if(!reify(arg_term, arg_val, depth, reductions_left))
         return false;

@@ -48,8 +48,9 @@ reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool,
 
 const expr* id = pool.make_abs(pool.make_var(0));
 const expr* nf;
+const val* seed = vals.make_clo(pool.make_app(id, id), nullptr);
 uint64_t budget = 1000;
-if (!re.reify(nf, vals.make_clo(pool.make_app(id, id), nullptr), 0, budget))
+if (!re.reify(nf, seed, 0, budget))
     /* β-budget exhausted */;
 // nf equals id by deep structural comparison of the trees
 ```
