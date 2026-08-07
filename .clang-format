@@ -5,7 +5,7 @@ IndentWidth: 4
 TabWidth: 4
 UseTab: Never
 ColumnLimit: 80
-BreakBeforeBraces: Allman
+BreakBeforeBraces: Attach
 IndentCaseLabels: true
 SpaceBeforeParens: Never
 SpaceInEmptyParentheses: false

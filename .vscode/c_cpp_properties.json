@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "name": "Linux",
+      "includePath": [
+        "${workspaceFolder}/core/hpp",
+        "${workspaceFolder}/core/test",
+        "${workspaceFolder}/googletest/googletest/include",
+        "${workspaceFolder}/googletest/googlemock/include",
+        "${workspaceFolder}"
+      ],
+      "defines": ["DEBUG"],
+      "cStandard": "c17",
+      "cppStandard": "c++20",
+      "intelliSenseMode": "linux-gcc-x64"
+    }
+  ],
+  "version": 4
+}
