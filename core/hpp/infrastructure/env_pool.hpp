@@ -7,7 +7,6 @@
 #include "value_objects/val.hpp"
 
 struct env_pool {
-    env_pool();
     const env* make_delayed(const expr* arg, const env* arg_env, const env* parent);
     const env* make_ready(const val* value, const env* parent);
 

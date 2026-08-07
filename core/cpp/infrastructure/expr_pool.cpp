@@ -1,7 +1,5 @@
 #include "infrastructure/expr_pool.hpp"
 
-expr_pool::expr_pool() : exprs_() {}
-
 const expr* expr_pool::make_var(uint32_t index) {
     return alloc(expr{expr::var{index}});
 }

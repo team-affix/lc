@@ -1,7 +1,5 @@
 #include "infrastructure/val_pool.hpp"
 
-val_pool::val_pool() : vals_() {}
-
 const val* val_pool::make_clo(const expr* body, const env* e) {
     return alloc(val{val::clo{body, e}});
 }

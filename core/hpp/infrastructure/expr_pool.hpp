@@ -6,7 +6,6 @@
 #include "value_objects/expr.hpp"
 
 struct expr_pool {
-    expr_pool();
     const expr* make_var(uint32_t index);
     const expr* make_abs(const expr* body);
     const expr* make_app(const expr* fun, const expr* arg);

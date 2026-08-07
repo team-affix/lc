@@ -8,7 +8,6 @@
 #include "value_objects/val.hpp"
 
 struct val_pool {
-    val_pool();
     const val* make_clo(const expr* body, const env* e);
     const val* make_fvar(uint32_t depth);
     const val* make_napp(const val* head, const expr* arg, const env* arg_env);
