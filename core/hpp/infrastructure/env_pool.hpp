@@ -12,6 +12,7 @@ struct env_pool {
     const env* make_ready(const val* value, const env* parent);
 
 private:
+    const env* alloc(env e);
     std::deque<env> envs_;
 };
 

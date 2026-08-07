@@ -14,6 +14,7 @@ struct val_pool {
     const val* make_napp(const val* head, const expr* arg, const env* arg_env);
 
 private:
+    const val* alloc(val v);
     std::deque<val> vals_;
 };
 
