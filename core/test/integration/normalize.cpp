@@ -784,6 +784,26 @@ TEST_F(NormalizeIntegrationTest, YFactNineIs362880) {
         exprs_eq(normalize(ap(fact_comb(), church(9))), church(362880)));
 }
 
+TEST_F(NormalizeIntegrationTest, IterFactZeroIsOne) {
+    EXPECT_TRUE(
+        exprs_eq(normalize(ap(fact_iter_comb(), church(0))), church(1)));
+}
+
+TEST_F(NormalizeIntegrationTest, IterFactThreeIsSix) {
+    EXPECT_TRUE(
+        exprs_eq(normalize(ap(fact_iter_comb(), church(3))), church(6)));
+}
+
+TEST_F(NormalizeIntegrationTest, IterFactFiveIsOneTwenty) {
+    EXPECT_TRUE(
+        exprs_eq(normalize(ap(fact_iter_comb(), church(5))), church(120)));
+}
+
+TEST_F(NormalizeIntegrationTest, IterFactNineIs362880) {
+    EXPECT_TRUE(
+        exprs_eq(normalize(ap(fact_iter_comb(), church(9))), church(362880)));
+}
+
 // Unshared n (two thunks): stress test. 8! = 40320; 9! = 362880.
 TEST_F(NormalizeIntegrationTest, YFactEightNoshareStress) {
     EXPECT_TRUE(

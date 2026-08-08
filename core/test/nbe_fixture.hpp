@@ -90,6 +90,13 @@ struct nbe_fixture {
     // exp = λm.λn. n m  (Church m^n)
     const expr* exp_comb() { return lm(lm(ap(dv(0), dv(1)))); }
 
+    // pair = λa.λb.λf. f a b;  fst / snd project.
+    const expr* pair_comb() {
+        return lm(lm(lm(ap(ap(dv(0), dv(2)), dv(1)))));
+    }
+    const expr* fst_comb() { return lm(ap(dv(0), lm(lm(dv(1))))); }
+    const expr* snd_comb() { return lm(ap(dv(0), lm(lm(dv(0))))); }
+
     // fact = Y (λr. λn. if (iszero n) 1 (times n (r (pred n))))
     const expr* fact_comb() {
         const expr* else_branch =
@@ -98,6 +105,22 @@ struct nbe_fixture {
             ap(ap(ap(if_comb(), ap(iszero_comb(), dv(0))), church(1)),
                else_branch);
         return ap(y_comb(), lm(lm(body)));
+    }
+
+    // Iterative fact via Church n as a loop (no Y):
+    //   fact n = snd (n (λp. (λk. pair k (× k (snd p))) (succ (fst p)))
+    //                  (pair 0 1))
+    const expr* fact_iter_comb() {
+        // under λp λk: k=0, p=1
+        const expr* with_k =
+            ap(ap(pair_comb(), dv(0)),
+               ap(ap(times_comb(), dv(0)), ap(snd_comb(), dv(1))));
+        const expr* step =
+            lm(ap(lm(with_k), ap(succ_comb(), ap(fst_comb(), dv(0)))));
+        const expr* init =
+            ap(ap(pair_comb(), church(0)), church(1));
+        // under λn: n=0
+        return lm(ap(snd_comb(), ap(ap(dv(0), step), init)));
     }
 
     // Like fact_comb, but duplicates n into two distinct env cells so call-by-need
