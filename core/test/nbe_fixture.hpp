@@ -123,6 +123,119 @@ struct nbe_fixture {
         return lm(ap(snd_comb(), ap(ap(dv(0), step), init)));
     }
 
+    // Little-endian binary: Church list of bits (true=1, false=0), LSB at head.
+    // nil = λc.λn. n;  cons = λh.λt.λc.λn. c h t
+    const expr* bin_nil() { return lm(lm(dv(0))); }
+    const expr* bin_cons() {
+        return lm(lm(lm(lm(ap(ap(dv(1), dv(3)), dv(2))))));
+    }
+    const expr* bin(uint32_t n) {
+        if(n == 0)
+            return bin_nil();
+        const expr* bit = (n & 1u) != 0u ? true_comb() : false_comb();
+        return ap(ap(bin_cons(), bit), bin(n >> 1));
+    }
+
+    // succ [] = [1];  succ (0:xs) = 1:xs;  succ (1:xs) = 0:(succ xs)
+    const expr* bin_succ_comb() {
+        // under λs λxs λb λbs: bs=0, b=1, xs=2, s=3
+        const expr* on_cons = lm(lm(ap(
+            ap(dv(1),
+               ap(ap(bin_cons(), false_comb()), ap(dv(3), dv(0)))),
+            ap(ap(bin_cons(), true_comb()), dv(0)))));
+        const expr* body = lm(ap(ap(dv(0), on_cons),
+                                 ap(ap(bin_cons(), true_comb()), bin_nil())));
+        return ap(y_comb(), lm(body));
+    }
+
+    // dbl [] = [];  dbl xs = 0:xs  (×2)
+    const expr* bin_dbl_comb() {
+        return lm(ap(ap(dv(0), lm(lm(ap(ap(bin_cons(), false_comb()), dv(2))))),
+                     bin_nil()));
+    }
+
+    const expr* bin_xor_comb() {
+        // λa.λb. a (not b) b
+        return lm(lm(ap(ap(dv(1), ap(not_comb(), dv(0))), dv(0))));
+    }
+    const expr* bin_maj_comb() {
+        // λx.λy.λc. (x∧y) ∨ (x∧c) ∨ (y∧c)
+        const expr* xy = ap(ap(and_comb(), dv(2)), dv(1));
+        const expr* xc = ap(ap(and_comb(), dv(2)), dv(0));
+        const expr* yc = ap(ap(and_comb(), dv(1)), dv(0));
+        return lm(lm(lm(ap(ap(or_comb(), xy), ap(ap(or_comb(), xc), yc)))));
+    }
+
+    // addc xs ys cin — schoolbook add, bits LE
+    const expr* bin_addc_comb() {
+        // under λr λxs λys λcin λx λxs' λy λys':
+        //   ys'=0 y=1 xs'=2 x=3 cin=4 ys=5 xs=6 r=7
+        const expr* sum_bit = ap(
+            ap(bin_xor_comb(), ap(ap(bin_xor_comb(), dv(3)), dv(1))), dv(4));
+        const expr* cout =
+            ap(ap(ap(bin_maj_comb(), dv(3)), dv(1)), dv(4));
+        const expr* both = ap(
+            ap(bin_cons(), sum_bit),
+            ap(ap(ap(dv(7), dv(2)), dv(0)), cout));
+        const expr* on_y = lm(lm(both));
+        // under λr λxs λys λcin λx λxs': xs'=0 x=1 cin=2 ys=3 xs=4 r=5
+        const expr* ys_nil = ap(
+            ap(dv(2),
+               ap(ap(dv(1),
+                     ap(ap(bin_cons(), false_comb()),
+                        ap(bin_succ_comb(), dv(0)))),
+                  ap(ap(bin_cons(), true_comb()), dv(0)))),
+            ap(ap(bin_cons(), dv(1)), dv(0)));
+        const expr* on_x = lm(lm(ap(ap(dv(3), on_y), ys_nil)));
+        // under λr λxs λys λcin: cin=0 ys=1 xs=2 r=3
+        const expr* xs_nil_ys_nil = ap(
+            ap(dv(0), ap(ap(bin_cons(), true_comb()), bin_nil())), bin_nil());
+        // under λr λxs λys λcin λy λys': ys'=0 y=1 cin=2 ys=3 xs=4 r=5
+        const expr* xs_nil_on_y = lm(lm(ap(
+            ap(dv(2),
+               ap(ap(dv(1),
+                     ap(ap(bin_cons(), false_comb()),
+                        ap(bin_succ_comb(), dv(0)))),
+                  ap(ap(bin_cons(), true_comb()), dv(0)))),
+            ap(ap(bin_cons(), dv(1)), dv(0)))));
+        const expr* xs_nil =
+            ap(ap(dv(1), xs_nil_on_y), xs_nil_ys_nil);
+        // λxs λys λcin. xs on_x xs_nil
+        const expr* body =
+            lm(lm(lm(ap(ap(dv(2), on_x), xs_nil))));
+        return ap(y_comb(), lm(body));
+    }
+
+    const expr* bin_add_comb() {
+        return lm(lm(ap(ap(ap(bin_addc_comb(), dv(1)), dv(0)), false_comb())));
+    }
+
+    // mul xs ys: shift-and-add on LE bits
+    const expr* bin_times_comb() {
+        // under λm λxs λys λb λbs: bs=0 b=1 ys=2 xs=3 m=4
+        const expr* shifted =
+            ap(bin_dbl_comb(), ap(ap(dv(4), dv(0)), dv(2)));
+        // under λm λxs λys λb λbs λp: p=0 bs=1 b=2 ys=3 xs=4 m=5
+        const expr* with_p = ap(
+            ap(dv(2), ap(ap(bin_add_comb(), dv(3)), dv(0))), dv(0));
+        const expr* on_cons = lm(lm(ap(lm(with_p), shifted)));
+        const expr* body =
+            lm(lm(ap(ap(dv(1), on_cons), bin_nil()))); // λxs λys
+        return ap(y_comb(), lm(body));
+    }
+
+    // Same iterative fact loop as fact_iter_comb, but counters/products are LE binary.
+    const expr* fact_bin_iter_comb() {
+        // under λp λk: k=0, p=1
+        const expr* with_k =
+            ap(ap(pair_comb(), dv(0)),
+               ap(ap(bin_times_comb(), dv(0)), ap(snd_comb(), dv(1))));
+        const expr* step = lm(
+            ap(lm(with_k), ap(bin_succ_comb(), ap(fst_comb(), dv(0)))));
+        const expr* init = ap(ap(pair_comb(), bin(0)), bin(1));
+        return lm(ap(snd_comb(), ap(ap(dv(0), step), init)));
+    }
+
     // Like fact_comb, but duplicates n into two distinct env cells so call-by-need
     // cannot share WHNF between the iszero/times use and the pred use:
     //   Y (λr. λn. (λn1. λn2. if (iszero n1) 1 (times n1 (r (pred n2)))) n n)

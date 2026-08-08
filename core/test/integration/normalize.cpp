@@ -804,6 +804,39 @@ TEST_F(NormalizeIntegrationTest, IterFactNineIs362880) {
         exprs_eq(normalize(ap(fact_iter_comb(), church(9))), church(362880)));
 }
 
+TEST_F(NormalizeIntegrationTest, BinSuccZeroIsOne) {
+    EXPECT_TRUE(exprs_eq(normalize(ap(bin_succ_comb(), bin(0))), normalize(bin(1))));
+}
+
+TEST_F(NormalizeIntegrationTest, BinSuccThreeIsFour) {
+    EXPECT_TRUE(exprs_eq(normalize(ap(bin_succ_comb(), bin(3))), normalize(bin(4))));
+}
+
+TEST_F(NormalizeIntegrationTest, BinAddTwoThreeIsFive) {
+    EXPECT_TRUE(exprs_eq(
+        normalize(ap(ap(bin_add_comb(), bin(2)), bin(3))), normalize(bin(5))));
+}
+
+TEST_F(NormalizeIntegrationTest, BinTimesThreeFourIsTwelve) {
+    EXPECT_TRUE(exprs_eq(
+        normalize(ap(ap(bin_times_comb(), bin(3)), bin(4))), normalize(bin(12))));
+}
+
+TEST_F(NormalizeIntegrationTest, BinFactZeroIsOne) {
+    EXPECT_TRUE(exprs_eq(normalize(ap(fact_bin_iter_comb(), church(0))),
+                         normalize(bin(1))));
+}
+
+TEST_F(NormalizeIntegrationTest, BinFactFiveIsOneTwenty) {
+    EXPECT_TRUE(exprs_eq(normalize(ap(fact_bin_iter_comb(), church(5))),
+                         normalize(bin(120))));
+}
+
+TEST_F(NormalizeIntegrationTest, BinFactNineIs362880) {
+    EXPECT_TRUE(exprs_eq(normalize(ap(fact_bin_iter_comb(), church(9))),
+                         normalize(bin(362880))));
+}
+
 // Unshared n (two thunks): stress test. 8! = 40320; 9! = 362880.
 TEST_F(NormalizeIntegrationTest, YFactEightNoshareStress) {
     EXPECT_TRUE(
