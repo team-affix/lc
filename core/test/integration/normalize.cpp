@@ -779,6 +779,11 @@ TEST_F(NormalizeIntegrationTest, YFactFiveIsOneTwenty) {
     EXPECT_TRUE(exprs_eq(normalize(ap(fact_comb(), church(5))), church(120)));
 }
 
+TEST_F(NormalizeIntegrationTest, YFactNineIs362880) {
+    EXPECT_TRUE(
+        exprs_eq(normalize(ap(fact_comb(), church(9))), church(362880)));
+}
+
 // Unshared n (two thunks): stress test. 8! = 40320; 9! = 362880.
 TEST_F(NormalizeIntegrationTest, YFactEightNoshareStress) {
     EXPECT_TRUE(
