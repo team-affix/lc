@@ -214,16 +214,14 @@ TEST_F(NormalizeIntegrationTest, KIdDiscardsOmega) {
     // Call-by-value / force-at-β would exhaust any small budget on Ω.
     const expr* term = ap(ap(k_term(), id_term()), omega_term());
     const expr* out = nullptr;
-    uint64_t budget = 32;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
 TEST_F(NormalizeIntegrationTest, KOmegaDiscardsOmegaKeepsConst) {
     const expr* term = ap(ap(k_term(), k_term()), omega_term());
     const expr* out = nullptr;
-    uint64_t budget = 32;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, k_term()));
 }
 
@@ -231,8 +229,7 @@ TEST_F(NormalizeIntegrationTest, FalseIfDiscardsThenOmega) {
     const expr* term =
         ap(ap(ap(if_comb(), false_comb()), omega_term()), id_term());
     const expr* out = nullptr;
-    uint64_t budget = 32;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -240,8 +237,7 @@ TEST_F(NormalizeIntegrationTest, TrueIfDiscardsElseOmega) {
     const expr* term =
         ap(ap(ap(if_comb(), true_comb()), id_term()), omega_term());
     const expr* out = nullptr;
-    uint64_t budget = 32;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -249,8 +245,7 @@ TEST_F(NormalizeIntegrationTest, NestedKDiscardOmegaUnderAbs) {
     // λz. K z Ω → λz. z
     const expr* term = lm(ap(ap(k_term(), dv(0)), omega_term()));
     const expr* out = nullptr;
-    uint64_t budget = 32;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -259,56 +254,52 @@ TEST_F(NormalizeIntegrationTest, ChurchFalseDiscardsSuccOmega) {
     const expr* diverging = ap(succ_comb(), omega_term());
     const expr* term = ap(ap(false_comb(), diverging), id_term());
     const expr* out = nullptr;
-    uint64_t budget = 32;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
 // ---------------------------------------------------------------------------
-// Priority: budget / out untouched
+// Priority: early stop / out untouched
 // ---------------------------------------------------------------------------
 
-TEST_F(NormalizeIntegrationTest, OutUntouchedOnOmegaBudgetFail) {
+TEST_F(NormalizeIntegrationTest, OutUntouchedOnOmegaEarlyStop) {
     const expr* sentinel = id_term();
     const expr* out = sentinel;
-    uint64_t budget = 10;
-    EXPECT_FALSE(normalize_with_budget(out, omega_term(), budget));
+    uint64_t steps = 10;
+    EXPECT_FALSE(normalize_with_step_limit(out, omega_term(), steps));
     EXPECT_EQ(out, sentinel);
 }
 
-TEST_F(NormalizeIntegrationTest, OutUntouchedOnTightChurchFail) {
+TEST_F(NormalizeIntegrationTest, OutUntouchedOnZeroStepLimit) {
     const expr* sentinel = id_term();
     const expr* out = sentinel;
     const expr* term = ap(ap(times_comb(), church(2)), church(2));
-    uint64_t budget = 0;
-    EXPECT_FALSE(normalize_with_budget(out, term, budget));
+    EXPECT_FALSE(normalize_with_step_limit(out, term, 0));
     EXPECT_EQ(out, sentinel);
 }
 
-TEST_F(NormalizeIntegrationTest, MinimalBudgetIISucceeds) {
+TEST_F(NormalizeIntegrationTest, MinimalStepLimitIISucceeds) {
     const expr* term = ap(id_term(), id_term());
     const expr* sentinel = k_term();
     const expr* out = sentinel;
-    uint64_t budget0 = 0;
-    EXPECT_FALSE(normalize_with_budget(out, term, budget0));
+    EXPECT_FALSE(normalize_with_step_limit(out, term, 0));
     EXPECT_EQ(out, sentinel);
 
     out = sentinel;
-    uint64_t budget1 = 1;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget1));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
-TEST_F(NormalizeIntegrationTest, OmegaExhaustsBudget) {
+TEST_F(NormalizeIntegrationTest, OmegaEarlyStopLeavesOutUntouched) {
     const expr* sentinel = id_term();
     const expr* out = sentinel;
-    uint64_t budget = 64;
-    EXPECT_FALSE(normalize_with_budget(out, omega_term(), budget));
+    uint64_t steps = 64;
+    EXPECT_FALSE(normalize_with_step_limit(out, omega_term(), steps));
     EXPECT_EQ(out, sentinel);
 }
 
 // ---------------------------------------------------------------------------
-// Priority: call-by-need memo vs call-by-name budget
+// Priority: call-by-need memo (shared thunks)
 // ---------------------------------------------------------------------------
 
 TEST_F(NormalizeIntegrationTest, SharedArgChargedOnceUnderW) {
@@ -316,8 +307,7 @@ TEST_F(NormalizeIntegrationTest, SharedArgChargedOnceUnderW) {
     // its WHNF once. Empirically needs 5 β-steps; an extra force of (I I) needs ≥6.
     const expr* term = ap(ap(w_term(), k_term()), ap(id_term(), id_term()));
     const expr* out = nullptr;
-    uint64_t budget = 5;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -326,8 +316,7 @@ TEST_F(NormalizeIntegrationTest, SelfAppSharedThunkKI) {
     const expr* kii = ap(ap(k_term(), id_term()), id_term());
     const expr* term = ap(lm(ap(dv(0), dv(0))), kii);
     const expr* out = nullptr;
-    uint64_t budget = 8;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -337,8 +326,7 @@ TEST_F(NormalizeIntegrationTest, DuplicateUseSameBindingNotDoubleForce) {
         ap(ap(k_term(), ap(dv(0), id_term())), ap(dv(0), k_term()));
     const expr* term = ap(lm(body), ap(id_term(), id_term()));
     const expr* out = nullptr;
-    uint64_t budget = 8;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -348,8 +336,7 @@ TEST_F(NormalizeIntegrationTest, WKKIdDiscardsOmega) {
     const expr* ki = ap(k_term(), id_term());
     const expr* term = ap(ap(w_term(), ap(k_term(), ki)), omega_term());
     const expr* out = nullptr;
-    uint64_t budget = 16;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -392,8 +379,7 @@ TEST_F(NormalizeIntegrationTest, NappArgSeesAppEnv) {
     const expr* term = lm(lm(ap(dv(0), arg)));
     const expr* expected = lm(lm(ap(dv(0), dv(1))));
     const expr* out = nullptr;
-    uint64_t budget = 32;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, expected));
 }
 
@@ -406,8 +392,7 @@ TEST_F(NormalizeIntegrationTest, BetaExtendsFunEnvOnlyWithOmega) {
     // λz. (λx.λy. x) z Ω → λz. z
     const expr* term = lm(ap(ap(lm(lm(dv(1))), dv(0)), omega_term()));
     const expr* out = nullptr;
-    uint64_t budget = 32;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -517,14 +502,12 @@ TEST_F(NormalizeIntegrationTest, DeepIdentitySpine) {
 TEST_F(NormalizeIntegrationTest, SequentialNormalizeIndependent) {
     const expr* keep = ap(ap(k_term(), id_term()), omega_term());
     const expr* out1 = nullptr;
-    uint64_t b1 = 32;
-    ASSERT_TRUE(normalize_with_budget(out1, keep, b1));
+    run_normalize(out1, keep);
     EXPECT_TRUE(exprs_eq(out1, id_term()));
 
     const expr* sentinel = k_term();
     const expr* out2 = sentinel;
-    uint64_t b2 = 16;
-    EXPECT_FALSE(normalize_with_budget(out2, omega_term(), b2));
+    EXPECT_FALSE(normalize_with_step_limit(out2, omega_term(), 16));
     EXPECT_EQ(out2, sentinel);
 }
 
@@ -731,8 +714,7 @@ TEST_F(NormalizeIntegrationTest, NormalOrderKDiscardsInnerOmega) {
     // ((λx.λy. y) Ω) I → I
     const expr* term = ap(ap(lm(lm(dv(0))), omega_term()), id_term());
     const expr* out = nullptr;
-    uint64_t budget = 32;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -741,8 +723,7 @@ TEST_F(NormalizeIntegrationTest, NormalOrderComposeDiscards) {
     const expr* junk = ap(omega_term(), omega_term());
     const expr* term = ap(lm(id_term()), junk);
     const expr* out = nullptr;
-    uint64_t budget = 16;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -750,8 +731,7 @@ TEST_F(NormalizeIntegrationTest, NormalOrderUnderBinder) {
     // λz. (λx. z) Ω → λz. z
     const expr* term = lm(ap(lm(dv(1)), omega_term()));
     const expr* out = nullptr;
-    uint64_t budget = 16;
-    ASSERT_TRUE(normalize_with_budget(out, term, budget));
+    run_normalize(out, term);
     EXPECT_TRUE(exprs_eq(out, id_term()));
 }
 
@@ -779,7 +759,7 @@ TEST_F(NormalizeIntegrationTest, YOmegaLikeDiverges) {
     const expr* sentinel = k_term();
     const expr* out = sentinel;
     uint64_t budget = 64;
-    EXPECT_FALSE(normalize_with_budget(out, term, budget));
+    EXPECT_FALSE(normalize_with_step_limit(out, term, budget));
     EXPECT_EQ(out, sentinel);
 }
 
@@ -799,11 +779,15 @@ TEST_F(NormalizeIntegrationTest, YFactFiveIsOneTwenty) {
     EXPECT_TRUE(exprs_eq(normalize(ap(fact_comb(), church(5))), church(120)));
 }
 
-// Unshared n (two thunks): stress test. 8! = 40320; ~4s on core_debug, <<15s.
-// fact 9 overflows the recursive evaluator stack on this machine.
+// Unshared n (two thunks): stress test. 8! = 40320; 9! = 362880.
 TEST_F(NormalizeIntegrationTest, YFactEightNoshareStress) {
     EXPECT_TRUE(
         exprs_eq(normalize(ap(fact_noshare_comb(), church(8))), church(40320)));
+}
+
+TEST_F(NormalizeIntegrationTest, YFactNineNoshareStress) {
+    EXPECT_TRUE(exprs_eq(normalize(ap(fact_noshare_comb(), church(9))),
+                         church(362880)));
 }
 
 TEST_F(NormalizeIntegrationTest, YFibZeroIsZero) {

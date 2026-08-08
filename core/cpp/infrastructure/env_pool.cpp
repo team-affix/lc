@@ -1,6 +1,6 @@
 #include "infrastructure/env_pool.hpp"
 
-env* env_pool::make_frame(const val* bound_value, env* parent) {
+env* env_pool::make_env(const val* bound_value, env* parent) {
     return alloc(env{bound_value, parent});
 }
 

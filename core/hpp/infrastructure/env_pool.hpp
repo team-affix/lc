@@ -6,7 +6,7 @@
 #include "value_objects/val.hpp"
 
 struct env_pool {
-    env* make_frame(const val* bound_value, env* parent);
+    env* make_env(const val* bound_value, env* parent);
 
 private:
     env* alloc(env e);

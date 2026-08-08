@@ -1,32 +1,28 @@
 #ifndef NORMALIZER_HPP
 #define NORMALIZER_HPP
 
-#include "value_objects/env.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/frame.hpp"
+#include "value_objects/reify_val_frame.hpp"
+#include "value_objects/reify_val_stage.hpp"
 #include "value_objects/val.hpp"
-#include <cstdint>
 
-template <typename IMakeClo, typename IReify> struct normalizer {
-    normalizer(IMakeClo& make_clo, IReify& reify);
-    bool normalize(const expr*& out, const expr* term,
-                   uint64_t& reductions_left);
+template <typename IMakeClo> struct normalizer {
+    normalizer(IMakeClo& make_clo);
+    frame normalize(const expr*& out, const expr* term);
 
   private:
     IMakeClo& make_clo_;
-    IReify& reify_;
 };
 
-template <typename IMakeClo, typename IReify>
-normalizer<IMakeClo, IReify>::normalizer(IMakeClo& make_clo, IReify& reify)
-    : make_clo_(make_clo), reify_(reify) {
+template <typename IMakeClo>
+normalizer<IMakeClo>::normalizer(IMakeClo& make_clo) : make_clo_(make_clo) {
 }
 
-template <typename IMakeClo, typename IReify>
-bool normalizer<IMakeClo, IReify>::normalize(const expr*& out,
-                                             const expr* term,
-                                             uint64_t& reductions_left) {
+template <typename IMakeClo>
+frame normalizer<IMakeClo>::normalize(const expr*& out, const expr* term) {
     const val* seed = make_clo_.make_clo(term, nullptr);
-    return reify_.reify(out, seed, 0, reductions_left);
+    return reify_val_frame{out, seed, 0, reify_val_stage::need_whnf};
 }
 
 #endif

@@ -5,12 +5,14 @@
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/interpreter.hpp"
 #include "infrastructure/normalizer.hpp"
+#include "infrastructure/processor.hpp"
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
+#include "value_objects/frame.hpp"
 #include <cstdint>
-#include <limits>
 
 struct nbe_fixture {
     nbe_fixture() : pool() {}
@@ -73,7 +75,7 @@ struct nbe_fixture {
         return lm(lm(lm(ap(ap(dv(2), dv(1)), dv(0)))));
     }
 
-    // Ω = (λx. x x)(λx. x x) — diverges under β; for budget / non-strict tests.
+    // Ω = (λx. x x)(λx. x x) — diverges under β; for non-strict / early-stop tests.
     const expr* omega_term() {
         const expr* xx = lm(ap(dv(0), dv(0)));
         return ap(xx, xx);
@@ -130,26 +132,46 @@ struct nbe_fixture {
         return ap(y_comb(), lm(lm(body)));
     }
 
-    bool normalize_with_budget(const expr*& out, const expr* term,
-                               uint64_t reductions_left) {
+    using red_t = reducer<val_pool, val_pool, env_pool, env_lookup>;
+    using re_t =
+        reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool>;
+    using proc_t = processor<red_t, red_t, red_t, re_t, re_t, re_t>;
+    using interp_t = interpreter<frame, proc_t>;
+
+    bool normalize_with_step_limit(const expr*& out, const expr* term,
+                                   uint64_t max_steps) {
         env_pool envs;
         val_pool vals;
         env_lookup lookup;
-        using red_t = reducer<val_pool, val_pool, env_pool, env_lookup>;
-        using re_t =
-            reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
-                    val_pool, red_t>;
         red_t red{vals, vals, envs, lookup};
-        re_t re{pool, pool, pool, vals, envs, vals, red};
-        normalizer<val_pool, re_t> norm{vals, re};
-        return norm.normalize(out, term, reductions_left);
+        re_t re{pool, pool, pool, vals, envs, vals};
+        proc_t proc{red, red, red, re, re, re};
+        normalizer<val_pool> norm{vals};
+        interp_t interp{proc, norm.normalize(out, term)};
+        for(uint64_t i = 0; i < max_steps; ++i) {
+            if(!interp.step())
+                break;
+        }
+        return interp.done();
+    }
+
+    void run_normalize(const expr*& out, const expr* term) {
+        env_pool envs;
+        val_pool vals;
+        env_lookup lookup;
+        red_t red{vals, vals, envs, lookup};
+        re_t re{pool, pool, pool, vals, envs, vals};
+        proc_t proc{red, red, red, re, re, re};
+        normalizer<val_pool> norm{vals};
+        interp_t interp{proc, norm.normalize(out, term)};
+        while(interp.step()) {
+        }
+        DEBUG_ASSERT(interp.done());
     }
 
     const expr* normalize(const expr* term) {
         const expr* out;
-        uint64_t budget = std::numeric_limits<uint64_t>::max();
-        bool ok = normalize_with_budget(out, term, budget);
-        DEBUG_ASSERT(ok);
+        run_normalize(out, term);
         return out;
     }
 

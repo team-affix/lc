@@ -1,23 +1,24 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <cstdint>
-#include <limits>
+#include <deque>
+#include <optional>
 #include <variant>
 #include "exprs_eq.hpp"
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/interpreter.hpp"
+#include "infrastructure/processor.hpp"
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
-#include "value_objects/env.hpp"
+#include "value_objects/frame.hpp"
+#include "value_objects/reify_val_frame.hpp"
+#include "value_objects/reify_val_stage.hpp"
 #include "value_objects/val.hpp"
 
-using ::testing::DoAll;
 using ::testing::NiceMock;
 using ::testing::Return;
-using ::testing::SetArgReferee;
-using ::testing::_;
 
 struct MockMakeVar {
     MOCK_METHOD(const expr*, make_var, (uint32_t), ());
@@ -35,99 +36,39 @@ struct MockMakeFvar {
     MOCK_METHOD(const val*, make_fvar, (uint32_t), ());
 };
 
-struct MockMakeFrame {
-    MOCK_METHOD(env*, make_frame, (const val*, env*), ());
+struct MockMakeEnv {
+    MOCK_METHOD(env*, make_env, (const val*, env*), ());
 };
 
 struct MockMakeClo {
     MOCK_METHOD(const val*, make_clo, (const expr*, env*), ());
 };
 
-struct MockWhnf {
-    MOCK_METHOD(bool, whnf, (const val*&, uint64_t&), ());
-};
-
 using test_reifier_t =
-    reifier<MockMakeVar, MockMakeAbs, MockMakeApp, MockMakeFvar, MockMakeFrame,
-            MockMakeClo, MockWhnf>;
+    reifier<MockMakeVar, MockMakeAbs, MockMakeApp, MockMakeFvar, MockMakeEnv,
+            MockMakeClo>;
 
 struct ReifierMockTest : public ::testing::Test {
     NiceMock<MockMakeVar> make_var;
     NiceMock<MockMakeAbs> make_abs;
     NiceMock<MockMakeApp> make_app;
     NiceMock<MockMakeFvar> make_fvar;
-    NiceMock<MockMakeFrame> make_frame;
+    NiceMock<MockMakeEnv> make_env;
     NiceMock<MockMakeClo> make_clo;
-    NiceMock<MockWhnf> whnf;
-    test_reifier_t re{make_var, make_abs, make_app, make_fvar, make_frame,
-                      make_clo, whnf};
+    test_reifier_t re{make_var, make_abs, make_app, make_fvar, make_env,
+                      make_clo};
     expr_pool pool;
     val_pool vals;
-    uint64_t budget{std::numeric_limits<uint64_t>::max()};
-
-    void SetUp() override {
-        ON_CALL(whnf, whnf(_, _)).WillByDefault(Return(true));
-    }
 };
 
-TEST_F(ReifierMockTest, ReifyFvarAtImmediateLevel) {
+TEST_F(ReifierMockTest, ProcessValOnFvarAfterWhnfWritesVar) {
     const val* fv = vals.make_fvar(0);
     const expr* expected = pool.make_var(0);
     EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(expected));
-    const expr* got;
-    ASSERT_TRUE(re.reify(got, fv, 1, budget));
-    EXPECT_EQ(got, expected);
-}
-
-TEST_F(ReifierMockTest, ReifyCloYieldsAbsOfQuotedBody) {
-    const expr* body = pool.make_var(0);
-    const expr* abs_term = pool.make_abs(body);
-    val clo{val::clo{abs_term, nullptr}};
-    val fresh{val::fvar{0}};
-    env extended{&fresh, nullptr};
-    const val* body_clo = vals.make_clo(body, &extended);
-    const expr* quoted_var = pool.make_var(0);
-    const expr* expected_abs = pool.make_abs(quoted_var);
-
-    EXPECT_CALL(make_fvar, make_fvar(0)).WillOnce(Return(&fresh));
-    EXPECT_CALL(make_frame, make_frame(&fresh, nullptr))
-        .WillOnce(Return(&extended));
-    EXPECT_CALL(make_clo, make_clo(body, &extended)).WillOnce(Return(body_clo));
-    EXPECT_CALL(whnf, whnf(_, _))
-        .WillOnce(Return(true))
-        .WillOnce(DoAll(SetArgReferee<0>(&fresh), Return(true)));
-    EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(quoted_var));
-    EXPECT_CALL(make_abs, make_abs(quoted_var)).WillOnce(Return(expected_abs));
-
-    const expr* got;
-    const val* v = &clo;
-    ASSERT_TRUE(re.reify(got, v, 0, budget));
-    EXPECT_EQ(got, expected_abs);
-}
-
-TEST_F(ReifierMockTest, ReifyNappYieldsApp) {
-    val head{val::fvar{0}};
-    const expr* arg_term = pool.make_var(0);
-    val napp_v{val::napp{&head, arg_term, nullptr}};
-    const val* arg_clo = vals.make_clo(arg_term, nullptr);
-    val arg_whnf{val::fvar{0}};
-    const expr* fun_nf = pool.make_var(0);
-    const expr* arg_nf = pool.make_var(0);
-    const expr* expected = pool.make_app(fun_nf, arg_nf);
-
-    EXPECT_CALL(make_var, make_var(0))
-        .WillOnce(Return(fun_nf))
-        .WillOnce(Return(arg_nf));
-    EXPECT_CALL(make_clo, make_clo(arg_term, nullptr)).WillOnce(Return(arg_clo));
-    EXPECT_CALL(whnf, whnf(_, _))
-        .WillOnce(Return(true))
-        .WillOnce(Return(true))
-        .WillOnce(DoAll(SetArgReferee<0>(&arg_whnf), Return(true)));
-    EXPECT_CALL(make_app, make_app(fun_nf, arg_nf)).WillOnce(Return(expected));
-
-    const expr* got;
-    const val* v = &napp_v;
-    ASSERT_TRUE(re.reify(got, v, 1, budget));
+    const expr* got = nullptr;
+    reify_val_frame f{got, fv, 1, reify_val_stage::after_whnf};
+    std::optional<frame> child = re.process_val(f);
+    EXPECT_FALSE(child.has_value());
     EXPECT_EQ(got, expected);
 }
 
@@ -138,19 +79,30 @@ struct ReifierTest : public ::testing::Test {
     env_lookup lookup;
     reducer<val_pool, val_pool, env_pool, env_lookup> red{vals, vals, envs,
                                                          lookup};
-    reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool,
-            reducer<val_pool, val_pool, env_pool, env_lookup>>
-        re{pool, pool, pool, vals, envs, vals, red};
-    uint64_t budget{std::numeric_limits<uint64_t>::max()};
+    reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool> re{
+        pool, pool, pool, vals, envs, vals};
+    processor<reducer<val_pool, val_pool, env_pool, env_lookup>,
+              reducer<val_pool, val_pool, env_pool, env_lookup>,
+              reducer<val_pool, val_pool, env_pool, env_lookup>,
+              reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
+                      val_pool>,
+              reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
+                      val_pool>,
+              reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
+                      val_pool>>
+        proc{red, red, red, re, re, re};
 
     const expr* dv(uint32_t i) { return pool.make_var(i); }
     const expr* lm(const expr* b) { return pool.make_abs(b); }
     const expr* ap(const expr* f, const expr* a) { return pool.make_app(f, a); }
 
     const expr* must_reify(const val* v, uint32_t depth) {
-        const expr* e;
-        const val* reg = v;
-        EXPECT_TRUE(re.reify(e, reg, depth, budget));
+        const expr* e = nullptr;
+        interpreter<frame, decltype(proc)> interp{
+            proc, reify_val_frame{e, v, depth, reify_val_stage::need_whnf}};
+        while(interp.step()) {
+        }
+        EXPECT_TRUE(interp.done());
         return e;
     }
 };
@@ -192,8 +144,12 @@ TEST_F(ReifierTest, ReifyNestedNappGivesNestedApp) {
 }
 
 TEST_F(ReifierTest, ReifySeededCloNormalizesIdentityApp) {
-    const expr* out;
+    const expr* out = nullptr;
     const val* seed = vals.make_clo(ap(lm(dv(0)), lm(dv(0))), nullptr);
-    ASSERT_TRUE(re.reify(out, seed, 0, budget));
+    interpreter<frame, decltype(proc)> interp{
+        proc, reify_val_frame{out, seed, 0, reify_val_stage::need_whnf}};
+    while(interp.step()) {
+    }
+    ASSERT_TRUE(interp.done());
     EXPECT_TRUE(exprs_eq(out, lm(dv(0))));
 }
