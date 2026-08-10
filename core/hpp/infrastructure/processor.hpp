@@ -48,35 +48,35 @@ template <typename IReducer, typename IReifier> struct processor {
     continuation init_continuation(reify_val_funcall fc);
     continuation init_continuation(reify_clo_funcall fc);
     continuation init_continuation(reify_napp_funcall fc);
-    std::pair<reduce_whnf_stage, std::optional<funcall>>
+    std::optional<std::pair<reduce_whnf_stage, funcall>>
     process(reduce_whnf_frame& f, whnf_start_stage s);
-    std::pair<reduce_whnf_stage, std::optional<funcall>>
+    std::optional<std::pair<reduce_whnf_stage, funcall>>
     process(reduce_whnf_frame& f, whnf_after_child_stage s);
-    std::pair<reduce_app_stage, std::optional<funcall>>
+    std::optional<std::pair<reduce_app_stage, funcall>>
     process(reduce_app_frame& f, app_need_fun_stage s);
-    std::pair<reduce_app_stage, std::optional<funcall>>
+    std::optional<std::pair<reduce_app_stage, funcall>>
     process(reduce_app_frame& f, app_after_fun_stage s);
-    std::pair<reduce_app_stage, std::optional<funcall>>
+    std::optional<std::pair<reduce_app_stage, funcall>>
     process(reduce_app_frame& f, app_after_body_stage s);
-    std::pair<reduce_var_stage, std::optional<funcall>>
+    std::optional<std::pair<reduce_var_stage, funcall>>
     process(reduce_var_frame& f, var_start_stage s);
-    std::pair<reduce_var_stage, std::optional<funcall>>
+    std::optional<std::pair<reduce_var_stage, funcall>>
     process(reduce_var_frame& f, var_after_force_stage s);
-    std::pair<reify_val_stage, std::optional<funcall>>
+    std::optional<std::pair<reify_val_stage, funcall>>
     process(reify_val_frame& f, reify_val_need_whnf_stage s);
-    std::pair<reify_val_stage, std::optional<funcall>>
+    std::optional<std::pair<reify_val_stage, funcall>>
     process(reify_val_frame& f, reify_val_after_whnf_stage s);
-    std::pair<reify_val_stage, std::optional<funcall>>
+    std::optional<std::pair<reify_val_stage, funcall>>
     process(reify_val_frame& f, reify_val_after_quote_stage s);
-    std::pair<reify_clo_stage, std::optional<funcall>>
+    std::optional<std::pair<reify_clo_stage, funcall>>
     process(reify_clo_frame& f, reify_clo_need_body_stage s);
-    std::pair<reify_clo_stage, std::optional<funcall>>
+    std::optional<std::pair<reify_clo_stage, funcall>>
     process(reify_clo_frame& f, reify_clo_after_body_stage s);
-    std::pair<reify_napp_stage, std::optional<funcall>>
+    std::optional<std::pair<reify_napp_stage, funcall>>
     process(reify_napp_frame& f, reify_napp_need_head_stage s);
-    std::pair<reify_napp_stage, std::optional<funcall>>
+    std::optional<std::pair<reify_napp_stage, funcall>>
     process(reify_napp_frame& f, reify_napp_need_arg_stage s);
-    std::pair<reify_napp_stage, std::optional<funcall>>
+    std::optional<std::pair<reify_napp_stage, funcall>>
     process(reify_napp_frame& f, reify_napp_after_arg_stage s);
 
   private:
@@ -137,104 +137,104 @@ processor<IReducer, IReifier>::init_continuation(reify_napp_funcall fc) {
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reduce_whnf_stage, std::optional<funcall>>
+std::optional<std::pair<reduce_whnf_stage, funcall>>
 processor<IReducer, IReifier>::process(reduce_whnf_frame& f,
                                        whnf_start_stage s) {
     return reducer_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reduce_whnf_stage, std::optional<funcall>>
+std::optional<std::pair<reduce_whnf_stage, funcall>>
 processor<IReducer, IReifier>::process(reduce_whnf_frame& f,
                                        whnf_after_child_stage s) {
     return reducer_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reduce_app_stage, std::optional<funcall>>
+std::optional<std::pair<reduce_app_stage, funcall>>
 processor<IReducer, IReifier>::process(reduce_app_frame& f,
                                        app_need_fun_stage s) {
     return reducer_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reduce_app_stage, std::optional<funcall>>
+std::optional<std::pair<reduce_app_stage, funcall>>
 processor<IReducer, IReifier>::process(reduce_app_frame& f,
                                        app_after_fun_stage s) {
     return reducer_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reduce_app_stage, std::optional<funcall>>
+std::optional<std::pair<reduce_app_stage, funcall>>
 processor<IReducer, IReifier>::process(reduce_app_frame& f,
                                        app_after_body_stage s) {
     return reducer_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reduce_var_stage, std::optional<funcall>>
+std::optional<std::pair<reduce_var_stage, funcall>>
 processor<IReducer, IReifier>::process(reduce_var_frame& f, var_start_stage s) {
     return reducer_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reduce_var_stage, std::optional<funcall>>
+std::optional<std::pair<reduce_var_stage, funcall>>
 processor<IReducer, IReifier>::process(reduce_var_frame& f,
                                        var_after_force_stage s) {
     return reducer_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reify_val_stage, std::optional<funcall>>
+std::optional<std::pair<reify_val_stage, funcall>>
 processor<IReducer, IReifier>::process(reify_val_frame& f,
                                        reify_val_need_whnf_stage s) {
     return reifier_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reify_val_stage, std::optional<funcall>>
+std::optional<std::pair<reify_val_stage, funcall>>
 processor<IReducer, IReifier>::process(reify_val_frame& f,
                                        reify_val_after_whnf_stage s) {
     return reifier_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reify_val_stage, std::optional<funcall>>
+std::optional<std::pair<reify_val_stage, funcall>>
 processor<IReducer, IReifier>::process(reify_val_frame& f,
                                        reify_val_after_quote_stage s) {
     return reifier_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reify_clo_stage, std::optional<funcall>>
+std::optional<std::pair<reify_clo_stage, funcall>>
 processor<IReducer, IReifier>::process(reify_clo_frame& f,
                                        reify_clo_need_body_stage s) {
     return reifier_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reify_clo_stage, std::optional<funcall>>
+std::optional<std::pair<reify_clo_stage, funcall>>
 processor<IReducer, IReifier>::process(reify_clo_frame& f,
                                        reify_clo_after_body_stage s) {
     return reifier_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reify_napp_stage, std::optional<funcall>>
+std::optional<std::pair<reify_napp_stage, funcall>>
 processor<IReducer, IReifier>::process(reify_napp_frame& f,
                                        reify_napp_need_head_stage s) {
     return reifier_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reify_napp_stage, std::optional<funcall>>
+std::optional<std::pair<reify_napp_stage, funcall>>
 processor<IReducer, IReifier>::process(reify_napp_frame& f,
                                        reify_napp_need_arg_stage s) {
     return reifier_.process(f, s);
 }
 
 template <typename IReducer, typename IReifier>
-std::pair<reify_napp_stage, std::optional<funcall>>
+std::optional<std::pair<reify_napp_stage, funcall>>
 processor<IReducer, IReifier>::process(reify_napp_frame& f,
                                        reify_napp_after_arg_stage s) {
     return reifier_.process(f, s);

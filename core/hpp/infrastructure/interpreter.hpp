@@ -35,9 +35,11 @@ bool interpreter<IContinuation, IProcessor>::step() {
         [this](auto& c) -> std::optional<funcall> {
             return std::visit(
                 [this, &c](auto& s) -> std::optional<funcall> {
-                    auto [next, fc] = processor_.process(c.frame, s);
-                    c.stage = std::move(next);
-                    return std::move(fc);
+                    auto result = processor_.process(c.frame, s);
+                    if(!result.has_value())
+                        return std::nullopt;
+                    c.stage = std::move(result->first);
+                    return std::move(result->second);
                 },
                 c.stage);
         },

@@ -69,7 +69,7 @@ TEST_F(ReifierMockTest, ProcessValOnFvarAfterWhnfWritesVar) {
     const expr* got = nullptr;
     reify_val_frame f{got, fv, 1};
     auto result = re.process(f, reify_val_after_whnf_stage{});
-    EXPECT_FALSE(result.second.has_value());
+    EXPECT_FALSE(result.has_value());
     EXPECT_EQ(got, expected);
 }
 

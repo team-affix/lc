@@ -21,7 +21,7 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 | `env_pool` / `val_pool` | Bump storage for ephemeral env/val nodes (fresh per normalize) |
 | `funcall` | Entry request (args + refs to parent return registers) |
 | `continuation` | Stack item `{frame, stage}`; stage is a variant of distinct stage VOs |
-| `reducer` / `reifier` | Per-stage `process(frame&, stage)` → next stage + optional child `funcall` |
+| `reducer` / `reifier` | Per-stage `process(frame&, stage)` → `optional<pair<next_stage, child_funcall>>` (`nullopt` = pop) |
 | `processor` | `init_continuation(funcall)` + forwards `process` to reducer/reifier |
 | `interpreter` | Nested `visit` on continuation/stage; `step` / `done` |
 | `normalizer` | `make_clo(term, nil)` then returns root `reify_val_funcall` |

@@ -58,7 +58,7 @@ TEST_F(ReducerMockTest, ProcessWhnfAbsCloFinishes) {
     const val* slot = clo;
     reduce_whnf_frame f{slot};
     auto result = red.process(f, whnf_start_stage{});
-    EXPECT_FALSE(result.second.has_value());
+    EXPECT_FALSE(result.has_value());
     EXPECT_EQ(slot, clo);
 }
 
