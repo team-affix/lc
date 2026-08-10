@@ -1,6 +1,10 @@
 #ifndef REDUCE_VAR_STAGE_HPP
 #define REDUCE_VAR_STAGE_HPP
 
-enum class reduce_var_stage { start, after_force };
+#include <variant>
+#include "value_objects/var_after_force_stage.hpp"
+#include "value_objects/var_start_stage.hpp"
+
+using reduce_var_stage = std::variant<var_start_stage, var_after_force_stage>;
 
 #endif

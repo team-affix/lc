@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <deque>
 #include <optional>
+#include <utility>
 #include <variant>
 #include "exprs_eq.hpp"
 #include "infrastructure/env_lookup.hpp"
@@ -12,9 +12,10 @@
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
-#include "value_objects/frame.hpp"
+#include "value_objects/continuation.hpp"
+#include "value_objects/funcall.hpp"
+#include "value_objects/reify_val_after_whnf_stage.hpp"
 #include "value_objects/reify_val_frame.hpp"
-#include "value_objects/reify_val_stage.hpp"
 #include "value_objects/val.hpp"
 
 using ::testing::NiceMock;
@@ -66,9 +67,9 @@ TEST_F(ReifierMockTest, ProcessValOnFvarAfterWhnfWritesVar) {
     const expr* expected = pool.make_var(0);
     EXPECT_CALL(make_var, make_var(0)).WillOnce(Return(expected));
     const expr* got = nullptr;
-    reify_val_frame f{got, fv, 1, reify_val_stage::after_whnf};
-    std::optional<frame> child = re.process_val(f);
-    EXPECT_FALSE(child.has_value());
+    reify_val_frame f{got, fv, 1};
+    auto result = re.process(f, reify_val_after_whnf_stage{});
+    EXPECT_FALSE(result.second.has_value());
     EXPECT_EQ(got, expected);
 }
 
@@ -81,16 +82,7 @@ struct ReifierTest : public ::testing::Test {
                                                          lookup};
     reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool> re{
         pool, pool, pool, vals, envs, vals};
-    processor<reducer<val_pool, val_pool, env_pool, env_lookup>,
-              reducer<val_pool, val_pool, env_pool, env_lookup>,
-              reducer<val_pool, val_pool, env_pool, env_lookup>,
-              reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
-                      val_pool>,
-              reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
-                      val_pool>,
-              reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool,
-                      val_pool>>
-        proc{red, red, red, re, re, re};
+    processor<decltype(red), decltype(re)> proc{red, re};
 
     const expr* dv(uint32_t i) { return pool.make_var(i); }
     const expr* lm(const expr* b) { return pool.make_abs(b); }
@@ -98,8 +90,8 @@ struct ReifierTest : public ::testing::Test {
 
     const expr* must_reify(const val* v, uint32_t depth) {
         const expr* e = nullptr;
-        interpreter<frame, decltype(proc)> interp{
-            proc, reify_val_frame{e, v, depth, reify_val_stage::need_whnf}};
+        interpreter<continuation, decltype(proc)> interp{
+            proc, reify_val_funcall{e, v, depth}};
         while(interp.step()) {
         }
         EXPECT_TRUE(interp.done());
@@ -146,8 +138,8 @@ TEST_F(ReifierTest, ReifyNestedNappGivesNestedApp) {
 TEST_F(ReifierTest, ReifySeededCloNormalizesIdentityApp) {
     const expr* out = nullptr;
     const val* seed = vals.make_clo(ap(lm(dv(0)), lm(dv(0))), nullptr);
-    interpreter<frame, decltype(proc)> interp{
-        proc, reify_val_frame{out, seed, 0, reify_val_stage::need_whnf}};
+    interpreter<continuation, decltype(proc)> interp{
+        proc, reify_val_funcall{out, seed, 0}};
     while(interp.step()) {
     }
     ASSERT_TRUE(interp.done());

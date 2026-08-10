@@ -5,9 +5,8 @@
 #include "infrastructure/normalizer.hpp"
 #include "infrastructure/val_pool.hpp"
 #include "nbe_fixture.hpp"
-#include "value_objects/frame.hpp"
-#include "value_objects/reify_val_frame.hpp"
-#include "value_objects/reify_val_stage.hpp"
+#include "value_objects/funcall.hpp"
+#include "value_objects/reify_val_funcall.hpp"
 
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -25,17 +24,16 @@ struct NormalizerMockTest : public ::testing::Test {
     val_pool vals;
 };
 
-TEST_F(NormalizerMockTest, NormalizeSeedsCloAndReturnsReifyValFrame) {
+TEST_F(NormalizerMockTest, NormalizeSeedsCloAndReturnsReifyValFunCall) {
     const expr* term = pool.make_abs(pool.make_var(0));
     const val* seed = vals.make_clo(term, nullptr);
     EXPECT_CALL(make_clo, make_clo(term, nullptr)).WillOnce(Return(seed));
     const expr* got = nullptr;
-    frame root = norm.normalize(got, term);
-    reify_val_frame* f = std::get_if<reify_val_frame>(&root);
+    funcall root = norm.normalize(got, term);
+    reify_val_funcall* f = std::get_if<reify_val_funcall>(&root);
     ASSERT_NE(f, nullptr);
     EXPECT_EQ(f->v, seed);
     EXPECT_EQ(f->depth, 0u);
-    EXPECT_EQ(f->st, reify_val_stage::need_whnf);
 }
 
 struct NormalizeTest : public ::testing::Test, public nbe_fixture {};

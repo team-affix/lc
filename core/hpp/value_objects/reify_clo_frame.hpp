@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include "value_objects/expr.hpp"
-#include "value_objects/reify_clo_stage.hpp"
 #include "value_objects/val.hpp"
 
 struct reify_clo_frame {
@@ -12,7 +11,6 @@ struct reify_clo_frame {
     uint32_t depth;
     const expr* body_nf;
     const val* body_holder;
-    reify_clo_stage st;
 };
 
 #endif

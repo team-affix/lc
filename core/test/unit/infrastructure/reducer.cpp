@@ -3,17 +3,22 @@
 #include <deque>
 #include <optional>
 #include <stdexcept>
+#include <utility>
 #include <variant>
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/interpreter.hpp"
+#include "infrastructure/processor.hpp"
 #include "infrastructure/reducer.hpp"
+#include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
+#include "value_objects/continuation.hpp"
 #include "value_objects/env.hpp"
-#include "value_objects/frame.hpp"
+#include "value_objects/funcall.hpp"
 #include "value_objects/reduce_whnf_frame.hpp"
-#include "value_objects/reduce_whnf_stage.hpp"
 #include "value_objects/val.hpp"
+#include "value_objects/whnf_start_stage.hpp"
 
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -51,9 +56,9 @@ TEST_F(ReducerMockTest, ProcessWhnfAbsCloFinishes) {
     const expr* term = pool.make_abs(pool.make_var(0));
     const val* clo = vals.make_clo(term, nullptr);
     const val* slot = clo;
-    reduce_whnf_frame f{slot, reduce_whnf_stage::start};
-    std::optional<frame> child = red.process_whnf(f);
-    EXPECT_FALSE(child.has_value());
+    reduce_whnf_frame f{slot};
+    auto result = red.process(f, whnf_start_stage{});
+    EXPECT_FALSE(result.second.has_value());
     EXPECT_EQ(slot, clo);
 }
 
@@ -64,31 +69,21 @@ struct ReducerTest : public ::testing::Test {
     env_lookup lookup;
     reducer<val_pool, val_pool, env_pool, env_lookup> red{vals, vals, envs,
                                                          lookup};
+    reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool> re{
+        pool, pool, pool, vals, envs, vals};
+    processor<decltype(red), decltype(re)> proc{red, re};
 
     const expr* dv(uint32_t i) { return pool.make_var(i); }
     const expr* lm(const expr* b) { return pool.make_abs(b); }
     const expr* ap(const expr* f, const expr* a) { return pool.make_app(f, a); }
 
-    std::optional<frame> process_top(frame& top) {
-        if(reduce_whnf_frame* f = std::get_if<reduce_whnf_frame>(&top))
-            return red.process_whnf(*f);
-        if(reduce_app_frame* f = std::get_if<reduce_app_frame>(&top))
-            return red.process_app(*f);
-        return red.process_var(std::get<reduce_var_frame>(top));
-    }
-
     const val* must_whnf(const val* v) {
         const val* reg = v;
-        std::deque<frame> stack;
-        stack.push_back(
-            reduce_whnf_frame{reg, reduce_whnf_stage::start});
-        while(!stack.empty()) {
-            std::optional<frame> child = process_top(stack.back());
-            if(child.has_value())
-                stack.push_back(std::move(*child));
-            else
-                stack.pop_back();
+        interpreter<continuation, decltype(proc)> interp{
+            proc, reduce_whnf_funcall{reg}};
+        while(interp.step()) {
         }
+        EXPECT_TRUE(interp.done());
         return reg;
     }
 

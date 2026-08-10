@@ -11,7 +11,7 @@
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
-#include "value_objects/frame.hpp"
+#include "value_objects/continuation.hpp"
 #include <cstdint>
 
 struct nbe_fixture {
@@ -271,8 +271,8 @@ struct nbe_fixture {
     using red_t = reducer<val_pool, val_pool, env_pool, env_lookup>;
     using re_t =
         reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool>;
-    using proc_t = processor<red_t, red_t, red_t, re_t, re_t, re_t>;
-    using interp_t = interpreter<frame, proc_t>;
+    using proc_t = processor<red_t, re_t>;
+    using interp_t = interpreter<continuation, proc_t>;
 
     bool normalize_with_step_limit(const expr*& out, const expr* term,
                                    uint64_t max_steps) {
@@ -281,7 +281,7 @@ struct nbe_fixture {
         env_lookup lookup;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals};
-        proc_t proc{red, red, red, re, re, re};
+        proc_t proc{red, re};
         normalizer<val_pool> norm{vals};
         interp_t interp{proc, norm.normalize(out, term)};
         for(uint64_t i = 0; i < max_steps; ++i) {
@@ -297,7 +297,7 @@ struct nbe_fixture {
         env_lookup lookup;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals};
-        proc_t proc{red, red, red, re, re, re};
+        proc_t proc{red, re};
         normalizer<val_pool> norm{vals};
         interp_t interp{proc, norm.normalize(out, term)};
         while(interp.step()) {
