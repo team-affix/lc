@@ -1,7 +1,9 @@
 #ifndef REDUCER_HPP
 #define REDUCER_HPP
 
-#include "debug_assert.hpp"
+#include <optional>
+#include <utility>
+#include <variant>
 #include "value_objects/app_after_body_stage.hpp"
 #include "value_objects/app_after_fun_stage.hpp"
 #include "value_objects/app_need_fun_stage.hpp"
@@ -19,9 +21,7 @@
 #include "value_objects/var_start_stage.hpp"
 #include "value_objects/whnf_after_child_stage.hpp"
 #include "value_objects/whnf_start_stage.hpp"
-#include <optional>
-#include <utility>
-#include <variant>
+#include "debug_assert.hpp"
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
@@ -65,17 +65,13 @@ template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
 std::optional<std::pair<reduce_whnf_stage, funcall>>
 reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_whnf_frame& f,
                                                          whnf_start_stage) {
-
-    if(std::get_if<val::fvar>(&f.slot->content) != nullptr)
-        return std::nullopt;
-
-    if(std::holds_alternative<val::napp>(f.slot->content))
+    if(!std::holds_alternative<val::clo>(f.slot->content))
         return std::nullopt;
 
     auto& closure = std::get<val::clo>(f.slot->content);
 
     const expr* term = closure.term;
-    if(std::get_if<expr::abs>(&term->content) != nullptr)
+    if(std::holds_alternative<expr::abs>(term->content))
         return std::nullopt;
     if(const expr::var* variable = std::get_if<expr::var>(&term->content)) {
         return std::pair<reduce_whnf_stage, funcall>{
@@ -98,6 +94,43 @@ reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
+std::optional<std::pair<reduce_app_stage, funcall>>
+reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
+                                                         app_need_fun_stage) {
+    f.fun_holder = make_clo_.make_clo(f.application->fun, f.e);
+    return std::pair<reduce_app_stage, funcall>{
+        app_after_fun_stage{}, reduce_whnf_funcall{f.fun_holder}};
+}
+
+template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
+          typename ILookup>
+std::optional<std::pair<reduce_app_stage, funcall>>
+reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
+                                                         app_after_fun_stage) {
+    if(!std::holds_alternative<val::clo>(f.fun_holder->content)) {
+        f.slot = make_napp_.make_napp(f.fun_holder, f.application->arg, f.e);
+        return std::nullopt;
+    }
+    auto& fun_clo = std::get<val::clo>(f.fun_holder->content);
+    DEBUG_ASSERT(std::holds_alternative<expr::abs>(fun_clo.term->content));
+    const expr* body = std::get<expr::abs>(fun_clo.term->content).body;
+    env* extended = make_env_.make_env(
+        make_clo_.make_clo(f.application->arg, f.e), fun_clo.environment);
+    f.slot = make_clo_.make_clo(body, extended);
+    return std::pair<reduce_app_stage, funcall>{app_after_body_stage{},
+                                                reduce_whnf_funcall{f.slot}};
+}
+
+template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
+          typename ILookup>
+std::optional<std::pair<reduce_app_stage, funcall>>
+reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame&,
+                                                         app_after_body_stage) {
+    return std::nullopt;
+}
+
+template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
+          typename ILookup>
 std::optional<std::pair<reduce_var_stage, funcall>>
 reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_var_frame& f,
                                                          var_start_stage) {
@@ -112,43 +145,6 @@ std::optional<std::pair<reduce_var_stage, funcall>>
 reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(
     reduce_var_frame& f, var_after_force_stage) {
     f.slot = f.cell->bound_value;
-    return std::nullopt;
-}
-
-template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
-          typename ILookup>
-std::optional<std::pair<reduce_app_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
-                                                         app_need_fun_stage) {
-    f.fun_holder = make_clo_.make_clo(f.application->fun, f.e);
-    return std::pair<reduce_app_stage, funcall>{
-        app_after_fun_stage{}, reduce_whnf_funcall{f.fun_holder}};
-}
-
-template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
-          typename ILookup>
-std::optional<std::pair<reduce_app_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
-                                                         app_after_fun_stage) {
-    const val::clo* fun_clo = std::get_if<val::clo>(&f.fun_holder->content);
-    if(fun_clo == nullptr) {
-        f.slot = make_napp_.make_napp(f.fun_holder, f.application->arg, f.e);
-        return std::nullopt;
-    }
-    DEBUG_ASSERT(std::holds_alternative<expr::abs>(fun_clo->term->content));
-    const expr* body = std::get<expr::abs>(fun_clo->term->content).body;
-    env* extended = make_env_.make_env(
-        make_clo_.make_clo(f.application->arg, f.e), fun_clo->environment);
-    f.slot = make_clo_.make_clo(body, extended);
-    return std::pair<reduce_app_stage, funcall>{app_after_body_stage{},
-                                                reduce_whnf_funcall{f.slot}};
-}
-
-template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
-          typename ILookup>
-std::optional<std::pair<reduce_app_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame&,
-                                                         app_after_body_stage) {
     return std::nullopt;
 }
 

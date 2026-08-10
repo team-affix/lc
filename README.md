@@ -55,8 +55,8 @@ normalizer<val_pool> norm(vals);
 
 const expr* id = pool.make_abs(pool.make_var(0));
 const expr* nf;
-interpreter<continuation, decltype(proc)> interp(
-    proc, norm.normalize(nf, pool.make_app(id, id)));
+interpreter<continuation, decltype(proc), decltype(proc)> interp(
+    proc, proc, norm.normalize(nf, pool.make_app(id, id)));
 while (interp.step()) {
 }
 if (interp.done()) {

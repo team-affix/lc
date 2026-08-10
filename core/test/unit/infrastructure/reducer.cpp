@@ -79,8 +79,8 @@ struct ReducerTest : public ::testing::Test {
 
     const val* must_whnf(const val* v) {
         const val* reg = v;
-        interpreter<continuation, decltype(proc)> interp{
-            proc, reduce_whnf_funcall{reg}};
+        interpreter<continuation, decltype(proc), decltype(proc)> interp{
+            proc, proc, reduce_whnf_funcall{reg}};
         while(interp.step()) {
         }
         EXPECT_TRUE(interp.done());

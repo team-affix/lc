@@ -90,8 +90,8 @@ struct ReifierTest : public ::testing::Test {
 
     const expr* must_reify(const val* v, uint32_t depth) {
         const expr* e = nullptr;
-        interpreter<continuation, decltype(proc)> interp{
-            proc, reify_val_funcall{e, v, depth}};
+        interpreter<continuation, decltype(proc), decltype(proc)> interp{
+            proc, proc, reify_val_funcall{e, v, depth}};
         while(interp.step()) {
         }
         EXPECT_TRUE(interp.done());
@@ -138,8 +138,8 @@ TEST_F(ReifierTest, ReifyNestedNappGivesNestedApp) {
 TEST_F(ReifierTest, ReifySeededCloNormalizesIdentityApp) {
     const expr* out = nullptr;
     const val* seed = vals.make_clo(ap(lm(dv(0)), lm(dv(0))), nullptr);
-    interpreter<continuation, decltype(proc)> interp{
-        proc, reify_val_funcall{out, seed, 0}};
+    interpreter<continuation, decltype(proc), decltype(proc)> interp{
+        proc, proc, reify_val_funcall{out, seed, 0}};
     while(interp.step()) {
     }
     ASSERT_TRUE(interp.done());

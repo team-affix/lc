@@ -1,7 +1,9 @@
 #ifndef REIFIER_HPP
 #define REIFIER_HPP
 
-#include "debug_assert.hpp"
+#include <optional>
+#include <utility>
+#include <variant>
 #include "value_objects/env.hpp"
 #include "value_objects/expr.hpp"
 #include "value_objects/funcall.hpp"
@@ -20,10 +22,7 @@
 #include "value_objects/reify_val_need_whnf_stage.hpp"
 #include "value_objects/reify_val_stage.hpp"
 #include "value_objects/val.hpp"
-#include <cstdint>
-#include <optional>
-#include <utility>
-#include <variant>
+#include "debug_assert.hpp"
 
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>

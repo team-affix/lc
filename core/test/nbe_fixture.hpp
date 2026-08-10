@@ -272,7 +272,7 @@ struct nbe_fixture {
     using re_t =
         reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool>;
     using proc_t = processor<red_t, re_t>;
-    using interp_t = interpreter<continuation, proc_t>;
+    using interp_t = interpreter<continuation, proc_t, proc_t>;
 
     bool normalize_with_step_limit(const expr*& out, const expr* term,
                                    uint64_t max_steps) {
@@ -283,7 +283,7 @@ struct nbe_fixture {
         re_t re{pool, pool, pool, vals, envs, vals};
         proc_t proc{red, re};
         normalizer<val_pool> norm{vals};
-        interp_t interp{proc, norm.normalize(out, term)};
+        interp_t interp{proc, proc, norm.normalize(out, term)};
         for(uint64_t i = 0; i < max_steps; ++i) {
             if(!interp.step())
                 break;
@@ -299,7 +299,7 @@ struct nbe_fixture {
         re_t re{pool, pool, pool, vals, envs, vals};
         proc_t proc{red, re};
         normalizer<val_pool> norm{vals};
-        interp_t interp{proc, norm.normalize(out, term)};
+        interp_t interp{proc, proc, norm.normalize(out, term)};
         while(interp.step()) {
         }
         DEBUG_ASSERT(interp.done());
