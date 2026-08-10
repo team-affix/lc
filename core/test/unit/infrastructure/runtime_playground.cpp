@@ -20,8 +20,10 @@ struct RuntimePlaygroundTest : public ::testing::Test, public nbe_fixture {
         drive(const expr* term)
             : out(nullptr), rt(out, term), steps(0), ms(0) {
             const auto t0 = std::chrono::steady_clock::now();
-            while(rt.step())
+            while(!rt.done()) {
+                rt.step();
                 ++steps;
+            }
             const auto t1 = std::chrono::steady_clock::now();
             ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
             EXPECT_TRUE(rt.done());

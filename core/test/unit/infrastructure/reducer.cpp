@@ -81,8 +81,8 @@ struct ReducerTest : public ::testing::Test {
         const val* reg = v;
         interpreter<continuation, decltype(proc), decltype(proc)> interp{
             proc, proc, reduce_whnf_funcall{reg}};
-        while(interp.step()) {
-        }
+        while(!interp.done())
+            interp.step();
         EXPECT_TRUE(interp.done());
         return reg;
     }

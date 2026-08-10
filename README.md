@@ -8,7 +8,7 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 
 **Closed terms only:** every `var` must be bound by some enclosing `abs`. Unbound lookup is a debug assertion, not a runtime value.
 
-**Resumable interpreter:** construct a `runtime` with an output register and the term to normalize. Drive `step()` until it returns `false`, then check `done()`. The NF is written into `out` (allocated in the runtime’s owned `expr_pool`). There is no β-budget — stop calling `step()` to cap compute. Input terms need not live in any pool. Terms are not interned — compare with deep structural equality.
+**Resumable interpreter:** construct a `runtime` with an output register and the term to normalize. Call `step()` while `!done()`. The NF is written into `out` (allocated in the runtime’s owned `expr_pool`). There is no β-budget — stop calling `step()` to cap compute. Input terms need not live in any pool. Terms are not interned — compare with deep structural equality.
 
 ## Design
 
@@ -49,11 +49,10 @@ expr_pool pool; // only for building the input term, if desired
 const expr* id = pool.make_abs(pool.make_var(0));
 const expr* nf;
 runtime rt(nf, pool.make_app(id, id));
-while (rt.step()) {
+while (!rt.done()) {
+    rt.step();
 }
-if (rt.done()) {
-    // nf equals id by deep structural comparison of the trees
-}
+// nf equals id by deep structural comparison of the trees
 ```
 
 Keep the `runtime` alive as long as you use `nf` (NF nodes live in the manifest’s `expr_pool`).

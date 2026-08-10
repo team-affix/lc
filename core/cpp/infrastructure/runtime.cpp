@@ -3,8 +3,8 @@
 runtime::runtime(const expr*& out, const expr* term) : manifest_(out, term) {
 }
 
-bool runtime::step() {
-    return manifest_.interp.step();
+void runtime::step() {
+    manifest_.interp.step();
 }
 
 bool runtime::done() const {

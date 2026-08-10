@@ -6,7 +6,7 @@
 
 struct runtime {
     runtime(const expr*& out, const expr* term);
-    bool step();
+    void step();
     bool done() const;
 
   private:

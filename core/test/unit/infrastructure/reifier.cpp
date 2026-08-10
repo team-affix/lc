@@ -92,8 +92,8 @@ struct ReifierTest : public ::testing::Test {
         const expr* e = nullptr;
         interpreter<continuation, decltype(proc), decltype(proc)> interp{
             proc, proc, reify_val_funcall{e, v, depth}};
-        while(interp.step()) {
-        }
+        while(!interp.done())
+            interp.step();
         EXPECT_TRUE(interp.done());
         return e;
     }
@@ -140,8 +140,8 @@ TEST_F(ReifierTest, ReifySeededCloNormalizesIdentityApp) {
     const val* seed = vals.make_clo(ap(lm(dv(0)), lm(dv(0))), nullptr);
     interpreter<continuation, decltype(proc), decltype(proc)> interp{
         proc, proc, reify_val_funcall{out, seed, 0}};
-    while(interp.step()) {
-    }
+    while(!interp.done())
+        interp.step();
     ASSERT_TRUE(interp.done());
     EXPECT_TRUE(exprs_eq(out, lm(dv(0))));
 }

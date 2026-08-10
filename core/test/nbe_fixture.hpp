@@ -284,10 +284,8 @@ struct nbe_fixture {
         proc_t proc{red, re};
         normalizer<val_pool> norm{vals};
         interp_t interp{proc, proc, norm.normalize(out, term)};
-        for(uint64_t i = 0; i < max_steps; ++i) {
-            if(!interp.step())
-                break;
-        }
+        for(uint64_t i = 0; i < max_steps && !interp.done(); ++i)
+            interp.step();
         return interp.done();
     }
 
@@ -300,8 +298,8 @@ struct nbe_fixture {
         proc_t proc{red, re};
         normalizer<val_pool> norm{vals};
         interp_t interp{proc, proc, norm.normalize(out, term)};
-        while(interp.step()) {
-        }
+        while(!interp.done())
+            interp.step();
         DEBUG_ASSERT(interp.done());
     }
 

@@ -12,7 +12,7 @@ template <typename Continuation, typename IProcess, typename IInitContinuation>
 struct interpreter {
     interpreter(IProcess& process, IInitContinuation& init_continuation,
                 funcall initial);
-    bool step();
+    void step();
     bool done() const;
 
   private:
@@ -31,9 +31,9 @@ interpreter<Continuation, IProcess, IInitContinuation>::interpreter(
 }
 
 template <typename Continuation, typename IProcess, typename IInitContinuation>
-bool interpreter<Continuation, IProcess, IInitContinuation>::step() {
+void interpreter<Continuation, IProcess, IInitContinuation>::step() {
     if(stack_.empty())
-        return false;
+        return;
     std::optional<funcall> child = std::visit(
         [this](auto& c) -> std::optional<funcall> {
             return std::visit(
@@ -55,7 +55,6 @@ bool interpreter<Continuation, IProcess, IInitContinuation>::step() {
                 return init_continuation_.init_continuation(fc);
             },
             *child));
-    return true;
 }
 
 template <typename Continuation, typename IProcess, typename IInitContinuation>
