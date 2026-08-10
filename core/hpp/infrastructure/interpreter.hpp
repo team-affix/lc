@@ -29,16 +29,13 @@ template <typename IContinuation, typename IProcessor>
 bool interpreter<IContinuation, IProcessor>::step() {
     if(stack_.empty())
         return false;
-    std::optional<funcall> child;
-    std::visit(
-        [this, &child](auto& c) {
-            std::visit(
-                [this, &c, &child](auto& s) {
-                    auto result = processor_.process(c.frame, s);
-                    c.stage = std::move(result.first);
-                    child = std::nullopt;
-                    if(result.second.has_value())
-                        child.emplace(std::move(*result.second));
+    std::optional<funcall> child = std::visit(
+        [this](auto& c) -> std::optional<funcall> {
+            return std::visit(
+                [this, &c](auto& s) -> std::optional<funcall> {
+                    auto [next, fc] = processor_.process(c.frame, s);
+                    c.stage = std::move(next);
+                    return std::move(fc);
                 },
                 c.stage);
         },
