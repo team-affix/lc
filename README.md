@@ -8,7 +8,7 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 
 **Closed terms only:** every `var` must be bound by some enclosing `abs`. Unbound lookup is a debug assertion, not a runtime value.
 
-**Resumable interpreter:** `normalizer::normalize` returns a root `funcall`; construct an `interpreter` with that call and a `processor`. The caller drives `step()` until it returns `false`, then checks `done()` for successful completion. The NF is written into the caller’s `out` register (the interpreter does not return the solution). There is no β-budget — stop calling `step()` to cap compute. Terms are not interned — compare with deep structural equality (pointer identity and shallow `operator==` on `abs`/`app` are not meaningful across separately built trees).
+**Resumable interpreter:** construct a `runtime` with an output register and the term to normalize. Drive `step()` until it returns `false`, then check `done()`. The NF is written into `out` (allocated in the runtime’s owned `expr_pool`). There is no β-budget — stop calling `step()` to cap compute. Input terms need not live in any pool. Terms are not interned — compare with deep structural equality.
 
 ## Design
 
@@ -18,13 +18,15 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 | `expr_pool` | Bump ownership of terms (`deque`, `const expr*`) |
 | `val` | WHNF values: Krivine `clo(term, environment)` / `fvar` / `napp` |
 | `env` | Linked DAG cells: `bound_value` (`const val*`) + `parent` (`make_env`) |
-| `env_pool` / `val_pool` | Bump storage for ephemeral env/val nodes (fresh per normalize) |
+| `env_pool` / `val_pool` | Bump storage for ephemeral env/val nodes |
 | `funcall` | Entry request (args + refs to parent return registers) |
 | `continuation` | Stack item `{frame, stage}`; stage is a variant of distinct stage VOs |
 | `reducer` / `reifier` | Per-stage `process(frame&, stage)` → `optional<pair<next_stage, child_funcall>>` (`nullopt` = pop) |
 | `processor` | `init_continuation(funcall)` + forwards `process` to reducer/reifier |
 | `interpreter` | Nested `visit` on continuation/stage; `step` / `done` |
 | `normalizer` | `make_clo(term, nil)` then returns root `reify_val_funcall` |
+| `manifest` | VO composition root: owns pools + NbE stack; ctor seeds the interpreter |
+| `runtime` | Façade: owns `manifest`; `step` / `done` forward to `manifest.interp` |
 
 Variables use **de Bruijn indices** (`var(0)` = innermost binder). Function WHNF is a `clo` whose `term` is an `abs`. Fresh binders in reification use de Bruijn levels (`fvar`).
 
@@ -34,8 +36,8 @@ Variables use **de Bruijn indices** (`var(0)` = innermost binder). Function WHNF
 
 ```
 core/
-  hpp/value_objects/     expr, val, env, stages, frames, funcalls, continuations
-  hpp/infrastructure/    pools, reducer, reifier, processor, interpreter, normalizer
+  hpp/value_objects/     expr, val, env, stages, frames, funcalls, continuations, manifest
+  hpp/infrastructure/    pools, reducer, reifier, processor, interpreter, normalizer, runtime
   cpp/                   non-template implementations
   test/unit|integration/ Google Test
 ```
@@ -43,28 +45,18 @@ core/
 ## Example
 
 ```cpp
-expr_pool pool;
-env_pool envs;
-val_pool vals;
-env_lookup lookup;
-reducer<val_pool, val_pool, env_pool, env_lookup> red(vals, vals, envs, lookup);
-reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool> re(
-    pool, pool, pool, vals, envs, vals);
-processor<decltype(red), decltype(re)> proc(red, re);
-normalizer<val_pool> norm(vals);
-
+expr_pool pool; // only for building the input term, if desired
 const expr* id = pool.make_abs(pool.make_var(0));
 const expr* nf;
-interpreter<continuation, decltype(proc), decltype(proc)> interp(
-    proc, proc, norm.normalize(nf, pool.make_app(id, id)));
-while (interp.step()) {
+runtime rt(nf, pool.make_app(id, id));
+while (rt.step()) {
 }
-if (interp.done()) {
+if (rt.done()) {
     // nf equals id by deep structural comparison of the trees
 }
 ```
 
-Prefer constructing **fresh** `env_pool` / `val_pool` for each normalize job (no `reset`).
+Keep the `runtime` alive as long as you use `nf` (NF nodes live in the manifest’s `expr_pool`).
 
 ## Build & test
 
