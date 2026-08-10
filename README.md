@@ -62,7 +62,16 @@ Keep the `runtime` alive as long as you use `nf` (NF nodes live in the manifestâ
 ```bash
 make core                 # release library
 make core_debug_fast      # preferred local test binary
+make core_profile         # -O3 -g -pg test binary for gprof
 ./build/core_debug_fast
+```
+
+Profile (gprof), e.g. on a heavy case:
+
+```bash
+make core_profile
+./build/core_profile --gtest_filter='RuntimePlaygroundTest.FactIterSeven'
+gprof ./build/core_profile gmon.out | less
 ```
 
 Requires C++20 and the GoogleTest git submodule (`git submodule update --init`).
