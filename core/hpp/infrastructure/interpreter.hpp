@@ -22,7 +22,9 @@ template <typename IContinuation, typename IProcessor>
 interpreter<IContinuation, IProcessor>::interpreter(IProcessor& processor,
                                                     funcall initial)
     : stack_(), processor_(processor) {
-    stack_.push_back(processor_.init_continuation(std::move(initial)));
+    stack_.push_back(std::visit(
+        [this](auto& fc) { return processor_.init_continuation(fc); },
+        initial));
 }
 
 template <typename IContinuation, typename IProcessor>
@@ -43,7 +45,9 @@ bool interpreter<IContinuation, IProcessor>::step() {
     if(!child.has_value())
         stack_.pop_back();
     else
-        stack_.push_back(processor_.init_continuation(std::move(*child)));
+        stack_.push_back(std::visit(
+            [this](auto& fc) { return processor_.init_continuation(fc); },
+            *child));
     return true;
 }
 

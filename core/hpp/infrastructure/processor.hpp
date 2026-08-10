@@ -42,7 +42,12 @@
 
 template <typename IReducer, typename IReifier> struct processor {
     processor(IReducer& reducer, IReifier& reifier);
-    continuation init_continuation(funcall fc);
+    continuation init_continuation(reduce_whnf_funcall fc);
+    continuation init_continuation(reduce_app_funcall fc);
+    continuation init_continuation(reduce_var_funcall fc);
+    continuation init_continuation(reify_val_funcall fc);
+    continuation init_continuation(reify_clo_funcall fc);
+    continuation init_continuation(reify_napp_funcall fc);
     std::pair<reduce_whnf_stage, std::optional<funcall>>
     process(reduce_whnf_frame& f, whnf_start_stage s);
     std::pair<reduce_whnf_stage, std::optional<funcall>>
@@ -75,13 +80,6 @@ template <typename IReducer, typename IReifier> struct processor {
     process(reify_napp_frame& f, reify_napp_after_arg_stage s);
 
   private:
-    continuation init_reduce_whnf(reduce_whnf_funcall fc);
-    continuation init_reduce_app(reduce_app_funcall fc);
-    continuation init_reduce_var(reduce_var_funcall fc);
-    continuation init_reify_val(reify_val_funcall fc);
-    continuation init_reify_clo(reify_clo_funcall fc);
-    continuation init_reify_napp(reify_napp_funcall fc);
-
     IReducer& reducer_;
     IReifier& reifier_;
 };
@@ -93,14 +91,14 @@ processor<IReducer, IReifier>::processor(IReducer& reducer, IReifier& reifier)
 
 template <typename IReducer, typename IReifier>
 continuation
-processor<IReducer, IReifier>::init_reduce_whnf(reduce_whnf_funcall fc) {
+processor<IReducer, IReifier>::init_continuation(reduce_whnf_funcall fc) {
     return reduce_whnf_continuation{reduce_whnf_frame{fc.slot},
                                     whnf_start_stage{}};
 }
 
 template <typename IReducer, typename IReifier>
 continuation
-processor<IReducer, IReifier>::init_reduce_app(reduce_app_funcall fc) {
+processor<IReducer, IReifier>::init_continuation(reduce_app_funcall fc) {
     return reduce_app_continuation{
         reduce_app_frame{fc.slot, fc.application, fc.e, nullptr},
         app_need_fun_stage{}};
@@ -108,7 +106,7 @@ processor<IReducer, IReifier>::init_reduce_app(reduce_app_funcall fc) {
 
 template <typename IReducer, typename IReifier>
 continuation
-processor<IReducer, IReifier>::init_reduce_var(reduce_var_funcall fc) {
+processor<IReducer, IReifier>::init_continuation(reduce_var_funcall fc) {
     return reduce_var_continuation{
         reduce_var_frame{fc.slot, fc.variable, fc.e, nullptr},
         var_start_stage{}};
@@ -116,14 +114,14 @@ processor<IReducer, IReifier>::init_reduce_var(reduce_var_funcall fc) {
 
 template <typename IReducer, typename IReifier>
 continuation
-processor<IReducer, IReifier>::init_reify_val(reify_val_funcall fc) {
+processor<IReducer, IReifier>::init_continuation(reify_val_funcall fc) {
     return reify_val_continuation{reify_val_frame{fc.out, fc.v, fc.depth},
                                   reify_val_need_whnf_stage{}};
 }
 
 template <typename IReducer, typename IReifier>
 continuation
-processor<IReducer, IReifier>::init_reify_clo(reify_clo_funcall fc) {
+processor<IReducer, IReifier>::init_continuation(reify_clo_funcall fc) {
     return reify_clo_continuation{
         reify_clo_frame{fc.out, fc.closure, fc.depth, nullptr, nullptr},
         reify_clo_need_body_stage{}};
@@ -131,26 +129,11 @@ processor<IReducer, IReifier>::init_reify_clo(reify_clo_funcall fc) {
 
 template <typename IReducer, typename IReifier>
 continuation
-processor<IReducer, IReifier>::init_reify_napp(reify_napp_funcall fc) {
+processor<IReducer, IReifier>::init_continuation(reify_napp_funcall fc) {
     return reify_napp_continuation{
         reify_napp_frame{fc.out, fc.neutral, fc.depth, nullptr, nullptr,
                          nullptr, nullptr},
         reify_napp_need_head_stage{}};
-}
-
-template <typename IReducer, typename IReifier>
-continuation processor<IReducer, IReifier>::init_continuation(funcall fc) {
-    if(reduce_whnf_funcall* f = std::get_if<reduce_whnf_funcall>(&fc))
-        return init_reduce_whnf(*f);
-    if(reduce_app_funcall* f = std::get_if<reduce_app_funcall>(&fc))
-        return init_reduce_app(*f);
-    if(reduce_var_funcall* f = std::get_if<reduce_var_funcall>(&fc))
-        return init_reduce_var(*f);
-    if(reify_val_funcall* f = std::get_if<reify_val_funcall>(&fc))
-        return init_reify_val(*f);
-    if(reify_clo_funcall* f = std::get_if<reify_clo_funcall>(&fc))
-        return init_reify_clo(*f);
-    return init_reify_napp(std::get<reify_napp_funcall>(fc));
 }
 
 template <typename IReducer, typename IReifier>
