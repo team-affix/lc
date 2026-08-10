@@ -1,19 +1,19 @@
 #ifndef INTERPRETER_HPP
 #define INTERPRETER_HPP
 
+#include "value_objects/continuation.hpp"
+#include "value_objects/funcall.hpp"
 #include <deque>
 #include <optional>
 #include <utility>
 #include <variant>
-#include "value_objects/continuation.hpp"
-#include "value_objects/funcall.hpp"
 
 template <typename Continuation, typename IProcess, typename IInitContinuation>
 struct interpreter {
     interpreter(IProcess& process, IInitContinuation& init_continuation,
                 funcall initial);
     bool step();
-    bool done();
+    bool done() const;
 
   private:
     std::deque<Continuation> stack_;
@@ -59,7 +59,7 @@ bool interpreter<Continuation, IProcess, IInitContinuation>::step() {
 }
 
 template <typename Continuation, typename IProcess, typename IInitContinuation>
-bool interpreter<Continuation, IProcess, IInitContinuation>::done() {
+bool interpreter<Continuation, IProcess, IInitContinuation>::done() const {
     return stack_.empty();
 }
 
