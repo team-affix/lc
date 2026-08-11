@@ -29,20 +29,33 @@ auto id = std::make_shared<expr>(
 
 runtime rt(id);           // optional 2nd arg: garbage collection interval (default 1024 steps)
 while (!rt.done())
-    rt.step();            // stop early anytime to cap work
+    rt.step();
 
 std::shared_ptr<expr> nf = rt.output();  // standalone copy of the normal form
 ```
 
 `step()` / `done()` make the interpreter resumable. `output()` is only valid
 after `done()` and returns a self-contained tree you can keep after `runtime`
-is destroyed. `space_usage()` returns an approximate retained-bytes figure
-(pools + control stack) useful as a soft cap between `step()` calls.
+is destroyed.
+
+How to cap time and memory:
+
+```cpp
+runtime rt(term);
+for (uint64_t steps = 0;
+     !rt.done() && steps < MAX_STEPS && rt.space_usage() < MAX_BYTES;
+     ++steps)
+    rt.step();
+```
+
+`space_usage()` is the approximate number of bytes the lambda calculus program
+currently takes up. In the worst case, peak space is on the order of the number
+of steps run so far — it grows linearly with the step count.
 
 ## Garbage collection
 
 Ephemeral nodes allocated during evaluation live in freelist pools. The runtime
-runs garbage collection every N steps (`gc_interval`, default 1024) and once
+cleans up resources with zero reference count every N steps (`gc_interval`, default 1024) and once
 more on destruction.
 
 ## Build & test
