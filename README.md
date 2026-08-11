@@ -25,7 +25,7 @@ Build a term as a `std::shared_ptr<expr>` tree (`var` / `abs` / `app`), then dri
 #include "value_objects/expr.hpp"
 
 auto id = std::make_shared<expr>(
-    expr{expr::abs{std::make_shared<expr>(expr{expr::var{0}})}});
+    expr::abs{std::make_shared<expr>(expr::var{0})});
 
 runtime rt(id);           // optional 2nd arg: garbage collection interval (default 1024 steps)
 while (!rt.done())
