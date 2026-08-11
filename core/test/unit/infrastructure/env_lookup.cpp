@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <cstdint>
+#include <memory>
 #include <stdexcept>
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
@@ -14,16 +15,14 @@ struct EnvLookupTest : public ::testing::Test {
 };
 
 TEST_F(EnvLookupTest, IndexZeroReturnsSameCell) {
-    env* e = envs.make_env(vals.make_clo(pool.make_var(0), nullptr), nullptr);
-    EXPECT_EQ(lookup.lookup(e, 0), e);
+    auto e = envs.make_env(vals.make_clo(pool.make_var(0), {}), {});
+    EXPECT_EQ(lookup.lookup(e.get(), 0), e.get());
 }
 
 TEST_F(EnvLookupTest, IndexOneReturnsParent) {
-    env* outer =
-        envs.make_env(vals.make_clo(pool.make_var(1), nullptr), nullptr);
-    env* inner =
-        envs.make_env(vals.make_clo(pool.make_var(0), nullptr), outer);
-    EXPECT_EQ(lookup.lookup(inner, 1), outer);
+    auto outer = envs.make_env(vals.make_clo(pool.make_var(1), {}), {});
+    auto inner = envs.make_env(vals.make_clo(pool.make_var(0), {}), outer);
+    EXPECT_EQ(lookup.lookup(inner.get(), 1), outer.get());
 }
 
 TEST_F(EnvLookupTest, NullEnvThrows) {
@@ -31,6 +30,6 @@ TEST_F(EnvLookupTest, NullEnvThrows) {
 }
 
 TEST_F(EnvLookupTest, MissingParentThrows) {
-    env* e = envs.make_env(vals.make_clo(pool.make_var(0), nullptr), nullptr);
-    EXPECT_THROW(lookup.lookup(e, 1), std::logic_error);
+    auto e = envs.make_env(vals.make_clo(pool.make_var(0), {}), {});
+    EXPECT_THROW(lookup.lookup(e.get(), 1), std::logic_error);
 }

@@ -1,6 +1,7 @@
 #ifndef MANIFEST_HPP
 #define MANIFEST_HPP
 
+#include <memory>
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
@@ -22,7 +23,7 @@ struct manifest {
     using interpreter_t =
         ::interpreter<continuation, processor_t, processor_t>;
 
-    manifest(const expr*& out, const expr* term);
+    manifest(std::shared_ptr<expr>& out, const expr* term);
 
     expr_pool exprs;
     env_pool envs;

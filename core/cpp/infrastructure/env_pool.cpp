@@ -1,10 +1,9 @@
 #include "infrastructure/env_pool.hpp"
 
-env* env_pool::make_env(const val* bound_value, env* parent) {
-    return alloc(env{bound_value, parent});
+env_pool::env_pool() : nodes_() {
 }
 
-env* env_pool::alloc(env e) {
-    envs_.push_back(std::move(e));
-    return &envs_.back();
+std::shared_ptr<env> env_pool::make_env(std::shared_ptr<val> bound_value,
+                                        std::shared_ptr<env> parent) {
+    return nodes_.make(env{std::move(bound_value), std::move(parent)});
 }

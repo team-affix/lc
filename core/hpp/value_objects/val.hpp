@@ -2,29 +2,25 @@
 #define VAL_HPP
 
 #include <cstdint>
+#include <memory>
 #include <variant>
+#include "value_objects/env.hpp"
 #include "value_objects/expr.hpp"
-
-struct env;
 
 struct val {
     struct clo {
-        const expr* term;
-        env* environment;
-        auto operator<=>(const clo&) const = default;
+        std::shared_ptr<expr> term;
+        std::shared_ptr<env> environment;
     };
     struct fvar {
         uint32_t depth;
-        auto operator<=>(const fvar&) const = default;
     };
     struct napp {
-        const val* head;
-        const expr* arg;
-        env* arg_env;
-        auto operator<=>(const napp&) const = default;
+        std::shared_ptr<val> head;
+        std::shared_ptr<expr> arg;
+        std::shared_ptr<env> arg_env;
     };
     std::variant<clo, fvar, napp> content;
-    auto operator<=>(const val&) const = default;
 };
 
 #endif

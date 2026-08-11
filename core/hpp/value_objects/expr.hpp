@@ -2,24 +2,21 @@
 #define EXPR_HPP
 
 #include <cstdint>
+#include <memory>
 #include <variant>
 
 struct expr {
     struct var {
         uint32_t index;
-        auto operator<=>(const var&) const = default;
     };
     struct abs {
-        const expr* body;
-        auto operator<=>(const abs&) const = default;
+        std::shared_ptr<expr> body;
     };
     struct app {
-        const expr* fun;
-        const expr* arg;
-        auto operator<=>(const app&) const = default;
+        std::shared_ptr<expr> fun;
+        std::shared_ptr<expr> arg;
     };
     std::variant<var, abs, app> content;
-    auto operator<=>(const expr&) const = default;
 };
 
 #endif

@@ -1,10 +1,11 @@
 #ifndef REDUCE_WHNF_FUNCALL_HPP
 #define REDUCE_WHNF_FUNCALL_HPP
 
+#include <memory>
 #include "value_objects/val.hpp"
 
 struct reduce_whnf_funcall {
-    const val*& slot;
+    std::shared_ptr<val>& slot;
 };
 
 #endif

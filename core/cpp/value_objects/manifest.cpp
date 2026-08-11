@@ -1,6 +1,6 @@
 #include "value_objects/manifest.hpp"
 
-manifest::manifest(const expr*& out, const expr* term)
+manifest::manifest(std::shared_ptr<expr>& out, const expr* term)
     : exprs()
     , envs()
     , vals()
@@ -9,5 +9,5 @@ manifest::manifest(const expr*& out, const expr* term)
     , re(exprs, exprs, exprs, vals, envs, vals)
     , proc(red, re)
     , norm(vals)
-    , interp(proc, proc, norm.normalize(out, term)) {
+    , interp(proc, proc, norm.normalize(out, exprs.import(term))) {
 }

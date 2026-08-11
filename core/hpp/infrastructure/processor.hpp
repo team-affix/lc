@@ -1,6 +1,7 @@
 #ifndef PROCESSOR_HPP
 #define PROCESSOR_HPP
 
+#include <memory>
 #include <optional>
 #include <utility>
 #include <variant>
@@ -101,7 +102,7 @@ template <typename IProcessReduce, typename IProcessReify>
 continuation
 processor<IProcessReduce, IProcessReify>::init_continuation(reduce_app_funcall fc) {
     return reduce_app_continuation{
-        reduce_app_frame{fc.slot, fc.application, fc.e, nullptr},
+        reduce_app_frame{fc.slot, fc.application, fc.e, std::shared_ptr<val>{}},
         app_need_fun_stage{}};
 }
 
@@ -124,7 +125,8 @@ template <typename IProcessReduce, typename IProcessReify>
 continuation
 processor<IProcessReduce, IProcessReify>::init_continuation(reify_clo_funcall fc) {
     return reify_clo_continuation{
-        reify_clo_frame{fc.out, fc.closure, fc.depth, nullptr, nullptr},
+        reify_clo_frame{fc.out, fc.closure, fc.depth, std::shared_ptr<expr>{},
+                        std::shared_ptr<val>{}},
         reify_clo_need_body_stage{}};
 }
 
@@ -132,8 +134,9 @@ template <typename IProcessReduce, typename IProcessReify>
 continuation
 processor<IProcessReduce, IProcessReify>::init_continuation(reify_napp_funcall fc) {
     return reify_napp_continuation{
-        reify_napp_frame{fc.out, fc.neutral, fc.depth, nullptr, nullptr,
-                         nullptr, nullptr},
+        reify_napp_frame{fc.out, fc.neutral, fc.depth, std::shared_ptr<expr>{},
+                         std::shared_ptr<expr>{}, std::shared_ptr<val>{},
+                         std::shared_ptr<val>{}},
         reify_napp_need_head_stage{}};
 }
 

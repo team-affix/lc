@@ -1,18 +1,20 @@
 #include "infrastructure/val_pool.hpp"
 
-const val* val_pool::make_clo(const expr* term, env* e) {
-    return alloc(val{val::clo{term, e}});
+val_pool::val_pool() : nodes_() {
 }
 
-const val* val_pool::make_fvar(uint32_t depth) {
-    return alloc(val{val::fvar{depth}});
+std::shared_ptr<val> val_pool::make_clo(std::shared_ptr<expr> term,
+                                        std::shared_ptr<env> e) {
+    return nodes_.make(val{val::clo{std::move(term), std::move(e)}});
 }
 
-const val* val_pool::make_napp(const val* head, const expr* arg, env* arg_env) {
-    return alloc(val{val::napp{head, arg, arg_env}});
+std::shared_ptr<val> val_pool::make_fvar(uint32_t depth) {
+    return nodes_.make(val{val::fvar{depth}});
 }
 
-const val* val_pool::alloc(val v) {
-    vals_.push_back(std::move(v));
-    return &vals_.back();
+std::shared_ptr<val> val_pool::make_napp(std::shared_ptr<val> head,
+                                         std::shared_ptr<expr> arg,
+                                         std::shared_ptr<env> arg_env) {
+    return nodes_.make(
+        val{val::napp{std::move(head), std::move(arg), std::move(arg_env)}});
 }

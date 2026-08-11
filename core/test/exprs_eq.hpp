@@ -2,6 +2,7 @@
 #define EXPRS_EQ_HPP
 
 #include "value_objects/expr.hpp"
+#include <memory>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -25,15 +26,29 @@ inline bool exprs_eq(const expr* a, const expr* b) {
             continue;
         }
         if(const expr::abs* la = std::get_if<expr::abs>(&l->content)) {
-            stack.emplace_back(la->body, std::get<expr::abs>(r->content).body);
+            stack.emplace_back(la->body.get(),
+                               std::get<expr::abs>(r->content).body.get());
             continue;
         }
         const expr::app& la = std::get<expr::app>(l->content);
         const expr::app& ra = std::get<expr::app>(r->content);
-        stack.emplace_back(la.arg, ra.arg);
-        stack.emplace_back(la.fun, ra.fun);
+        stack.emplace_back(la.arg.get(), ra.arg.get());
+        stack.emplace_back(la.fun.get(), ra.fun.get());
     }
     return true;
+}
+
+inline bool exprs_eq(const std::shared_ptr<expr>& a,
+                     const std::shared_ptr<expr>& b) {
+    return exprs_eq(a.get(), b.get());
+}
+
+inline bool exprs_eq(const std::shared_ptr<expr>& a, const expr* b) {
+    return exprs_eq(a.get(), b);
+}
+
+inline bool exprs_eq(const expr* a, const std::shared_ptr<expr>& b) {
+    return exprs_eq(a, b.get());
 }
 
 #endif

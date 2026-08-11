@@ -8,9 +8,9 @@ struct ExprPoolTest : public ::testing::Test {
 };
 
 TEST_F(ExprPoolTest, StructurallyEqualVarsCompareEqual) {
-    const expr* a = pool.make_var(0);
-    const expr* b = pool.make_var(0);
-    EXPECT_NE(a, b);
+    auto a = pool.make_var(0);
+    auto b = pool.make_var(0);
+    EXPECT_NE(a.get(), b.get());
     EXPECT_TRUE(exprs_eq(a, b));
 }
 
@@ -19,16 +19,16 @@ TEST_F(ExprPoolTest, DifferentVarsCompareUnequal) {
 }
 
 TEST_F(ExprPoolTest, StructurallyEqualAbsCompareEqual) {
-    const expr* a = pool.make_abs(pool.make_var(0));
-    const expr* b = pool.make_abs(pool.make_var(0));
-    EXPECT_NE(a, b);
+    auto a = pool.make_abs(pool.make_var(0));
+    auto b = pool.make_abs(pool.make_var(0));
+    EXPECT_NE(a.get(), b.get());
     EXPECT_TRUE(exprs_eq(a, b));
 }
 
 TEST_F(ExprPoolTest, StructurallyEqualAppsCompareEqual) {
-    const expr* a = pool.make_app(pool.make_var(0), pool.make_var(1));
-    const expr* b = pool.make_app(pool.make_var(0), pool.make_var(1));
-    EXPECT_NE(a, b);
+    auto a = pool.make_app(pool.make_var(0), pool.make_var(1));
+    auto b = pool.make_app(pool.make_var(0), pool.make_var(1));
+    EXPECT_NE(a.get(), b.get());
     EXPECT_TRUE(exprs_eq(a, b));
 }
 

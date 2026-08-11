@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <memory>
 #include <variant>
 #include "exprs_eq.hpp"
 #include "infrastructure/normalizer.hpp"
@@ -12,7 +13,8 @@ using ::testing::NiceMock;
 using ::testing::Return;
 
 struct MockMakeClo {
-    MOCK_METHOD(const val*, make_clo, (const expr*, env*), ());
+    MOCK_METHOD(std::shared_ptr<val>, make_clo,
+                (std::shared_ptr<expr>, std::shared_ptr<env>), ());
 };
 
 using test_normalizer_t = normalizer<MockMakeClo>;
@@ -25,10 +27,11 @@ struct NormalizerMockTest : public ::testing::Test {
 };
 
 TEST_F(NormalizerMockTest, NormalizeSeedsCloAndReturnsReifyValFunCall) {
-    const expr* term = pool.make_abs(pool.make_var(0));
-    const val* seed = vals.make_clo(term, nullptr);
-    EXPECT_CALL(make_clo, make_clo(term, nullptr)).WillOnce(Return(seed));
-    const expr* got = nullptr;
+    auto term = pool.make_abs(pool.make_var(0));
+    auto seed = vals.make_clo(term, {});
+    EXPECT_CALL(make_clo, make_clo(term, std::shared_ptr<env>{}))
+        .WillOnce(Return(seed));
+    std::shared_ptr<expr> got;
     funcall root = norm.normalize(got, term);
     reify_val_funcall* f = std::get_if<reify_val_funcall>(&root);
     ASSERT_NE(f, nullptr);
@@ -47,7 +50,7 @@ TEST_F(NormalizeTest, NormalizeIdentityOnIdentity) {
 }
 
 TEST_F(NormalizeTest, EarlyStopLeavesWorkIncomplete) {
-    const expr* term = ap(id_term(), id_term());
-    const expr* out = nullptr;
+    auto term = ap(id_term(), id_term());
+    std::shared_ptr<expr> out;
     EXPECT_FALSE(normalize_with_step_limit(out, term, 0));
 }

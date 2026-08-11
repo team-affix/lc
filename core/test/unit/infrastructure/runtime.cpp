@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <memory>
 #include "exprs_eq.hpp"
 #include "infrastructure/runtime.hpp"
 #include "nbe_fixture.hpp"
@@ -6,67 +7,74 @@
 struct RuntimeTest : public ::testing::Test, public nbe_fixture {};
 
 TEST_F(RuntimeTest, IdentityNormalizesToItself) {
-    const expr* out = nullptr;
-    runtime rt{out, id_term()};
+    std::shared_ptr<expr> out;
+    runtime rt{out, id_term().get()};
     while(!rt.done())
         rt.step();
     EXPECT_TRUE(rt.done());
     EXPECT_TRUE(exprs_eq(out, id_term()));
+    out.reset();
 }
 
 TEST_F(RuntimeTest, IdentityAppNormalizesToIdentity) {
-    const expr* out = nullptr;
-    runtime rt{out, ap(id_term(), id_term())};
+    std::shared_ptr<expr> out;
+    runtime rt{out, ap(id_term(), id_term()).get()};
     while(!rt.done())
         rt.step();
     EXPECT_TRUE(rt.done());
     EXPECT_TRUE(exprs_eq(out, id_term()));
+    out.reset();
 }
 
 TEST_F(RuntimeTest, ZeroStepLimitLeavesOutUntouched) {
-    const expr* sentinel = id_term();
-    const expr* out = sentinel;
-    runtime rt{out, ap(id_term(), id_term())};
+    std::shared_ptr<expr> sentinel = id_term();
+    std::shared_ptr<expr> out = sentinel;
+    runtime rt{out, ap(id_term(), id_term()).get()};
     EXPECT_FALSE(rt.done());
     EXPECT_EQ(out, sentinel);
+    out.reset();
 }
 
 TEST_F(RuntimeTest, StackAllocatedAbsNormalizes) {
-    expr body{expr::var{0}};
-    expr term{expr::abs{&body}};
-    const expr* out = nullptr;
-    runtime rt{out, &term};
+    auto body = std::make_shared<expr>(expr{expr::var{0}});
+    auto term = std::make_shared<expr>(expr{expr::abs{body}});
+    std::shared_ptr<expr> out;
+    runtime rt{out, term.get()};
     while(!rt.done())
         rt.step();
     EXPECT_TRUE(rt.done());
     EXPECT_TRUE(exprs_eq(out, id_term()));
+    out.reset();
 }
 
 TEST_F(RuntimeTest, LimitedStepsOnOmegaLeavesOutUntouched) {
-    const expr* sentinel = id_term();
-    const expr* out = sentinel;
-    runtime rt{out, omega_term()};
+    std::shared_ptr<expr> sentinel = id_term();
+    std::shared_ptr<expr> out = sentinel;
+    runtime rt{out, omega_term().get()};
     for(uint64_t i = 0; i < 64 && !rt.done(); ++i)
         rt.step();
     EXPECT_FALSE(rt.done());
     EXPECT_EQ(out, sentinel);
+    out.reset();
 }
 
 TEST_F(RuntimeTest, KIdDiscardsOmega) {
-    const expr* out = nullptr;
-    const expr* term = ap(ap(k_term(), id_term()), omega_term());
-    runtime rt{out, term};
+    std::shared_ptr<expr> out;
+    auto term = ap(ap(k_term(), id_term()), omega_term());
+    runtime rt{out, term.get()};
     while(!rt.done())
         rt.step();
     EXPECT_TRUE(rt.done());
     EXPECT_TRUE(exprs_eq(out, id_term()));
+    out.reset();
 }
 
 TEST_F(RuntimeTest, ChurchSuccZeroIsOne) {
-    const expr* out = nullptr;
-    runtime rt{out, ap(succ_comb(), church(0))};
+    std::shared_ptr<expr> out;
+    runtime rt{out, ap(succ_comb(), church(0)).get()};
     while(!rt.done())
         rt.step();
     EXPECT_TRUE(rt.done());
     EXPECT_TRUE(exprs_eq(out, church(1)));
+    out.reset();
 }

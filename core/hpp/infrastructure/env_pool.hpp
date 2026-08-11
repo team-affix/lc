@@ -1,16 +1,18 @@
 #ifndef ENV_POOL_HPP
 #define ENV_POOL_HPP
 
-#include <deque>
+#include <memory>
+#include "infrastructure/rc_pool.hpp"
 #include "value_objects/env.hpp"
 #include "value_objects/val.hpp"
 
 struct env_pool {
-    env* make_env(const val* bound_value, env* parent);
+    env_pool();
+    std::shared_ptr<env> make_env(std::shared_ptr<val> bound_value,
+                                  std::shared_ptr<env> parent);
 
-private:
-    env* alloc(env e);
-    std::deque<env> envs_;
+  private:
+    rc_pool<env> nodes_;
 };
 
 #endif

@@ -1,6 +1,7 @@
 #ifndef REIFIER_HPP
 #define REIFIER_HPP
 
+#include <memory>
 #include <optional>
 #include <utility>
 #include <variant>
@@ -107,10 +108,11 @@ std::optional<std::pair<reify_clo_stage, funcall>>
 reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
     reify_clo_frame& f, reify_clo_need_body_stage) {
     DEBUG_ASSERT(std::holds_alternative<expr::abs>(f.closure->term->content));
-    const val* fresh = make_fvar_.make_fvar(f.depth);
-    env* extended = make_env_.make_env(fresh, f.closure->environment);
-    const expr* body = std::get<expr::abs>(f.closure->term->content).body;
-    f.body_holder = make_clo_.make_clo(body, extended);
+    std::shared_ptr<val> fresh = make_fvar_.make_fvar(f.depth);
+    std::shared_ptr<env> extended =
+        make_env_.make_env(fresh, f.closure->environment);
+    std::shared_ptr<expr> body = std::get<expr::abs>(f.closure->term->content).body;
+    f.body_holder = make_clo_.make_clo(std::move(body), std::move(extended));
     return std::pair<reify_clo_stage, funcall>{
         reify_clo_after_body_stage{},
         reify_val_funcall{f.body_nf, f.body_holder, f.depth + 1}};

@@ -1,6 +1,7 @@
 #include "infrastructure/runtime.hpp"
 
-runtime::runtime(const expr*& out, const expr* term) : manifest_(out, term) {
+runtime::runtime(std::shared_ptr<expr>& out, const expr* term)
+    : manifest_(out, term) {
 }
 
 void runtime::step() {

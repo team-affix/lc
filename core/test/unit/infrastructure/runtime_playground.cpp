@@ -1,4 +1,5 @@
 #include <chrono>
+#include <memory>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <iostream>
@@ -12,13 +13,13 @@
 
 struct RuntimePlaygroundTest : public ::testing::Test, public nbe_fixture {
     struct drive {
-        const expr* out;
+        std::shared_ptr<expr> out;
         runtime rt;
         uint64_t steps;
         double ms;
 
-        drive(const expr* term)
-            : out(nullptr), rt(out, term), steps(0), ms(0) {
+        drive(std::shared_ptr<expr> term)
+            : out(), rt(out, term.get()), steps(0), ms(0) {
             const auto t0 = std::chrono::steady_clock::now();
             while(!rt.done()) {
                 rt.step();
@@ -28,6 +29,8 @@ struct RuntimePlaygroundTest : public ::testing::Test, public nbe_fixture {
             ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
             EXPECT_TRUE(rt.done());
         }
+
+        ~drive() { out.reset(); }
     };
 
     void note(const char* label, const drive& d) {
@@ -48,7 +51,7 @@ TEST_F(RuntimePlaygroundTest, SKKIsIdentity) {
 
 TEST_F(RuntimePlaygroundTest, SKSIIsIdentity) {
     // S (K I) I → I
-    const expr* ki = ap(k_term(), id_term());
+    std::shared_ptr<expr> ki = ap(k_term(), id_term());
     drive d{ap(ap(s_term(), ki), id_term())};
     note("S (K I) I", d);
     EXPECT_TRUE(exprs_eq(d.out, id_term()));
@@ -88,15 +91,15 @@ TEST_F(RuntimePlaygroundTest, PredOfSeven) {
 
 TEST_F(RuntimePlaygroundTest, NestedKDiscardsJunk) {
     // K (K I Ω) (succ Ω) → I
-    const expr* keep = ap(ap(k_term(), id_term()), omega_term());
-    const expr* junk = ap(succ_comb(), omega_term());
+    std::shared_ptr<expr> keep = ap(ap(k_term(), id_term()), omega_term());
+    std::shared_ptr<expr> junk = ap(succ_comb(), omega_term());
     drive d{ap(ap(k_term(), keep), junk)};
     note("K (K I Ω) (succ Ω)", d);
     EXPECT_TRUE(exprs_eq(d.out, id_term()));
 }
 
 TEST_F(RuntimePlaygroundTest, PairFstSndRoundtrip) {
-    const expr* p = ap(ap(pair_comb(), church(2)), church(5));
+    std::shared_ptr<expr> p = ap(ap(pair_comb(), church(2)), church(5));
     drive fst_d{ap(fst_comb(), p)};
     note("fst (pair 2 5)", fst_d);
     EXPECT_TRUE(exprs_eq(fst_d.out, church(2)));
@@ -140,10 +143,10 @@ TEST_F(RuntimePlaygroundTest, FactBinIterSix) {
 
 TEST_F(RuntimePlaygroundTest, BooleanXorViaChurch) {
     // (a ∧ ¬b) ∨ (¬a ∧ b) for a=T b=F → T
-    const expr* a = true_comb();
-    const expr* b = false_comb();
-    const expr* left = ap(ap(and_comb(), a), ap(not_comb(), b));
-    const expr* right = ap(ap(and_comb(), ap(not_comb(), a)), b);
+    std::shared_ptr<expr> a = true_comb();
+    std::shared_ptr<expr> b = false_comb();
+    std::shared_ptr<expr> left = ap(ap(and_comb(), a), ap(not_comb(), b));
+    std::shared_ptr<expr> right = ap(ap(and_comb(), ap(not_comb(), a)), b);
     drive d{ap(ap(or_comb(), left), right)};
     note("xor T F", d);
     EXPECT_TRUE(exprs_eq(d.out, true_comb()));
@@ -151,7 +154,7 @@ TEST_F(RuntimePlaygroundTest, BooleanXorViaChurch) {
 
 TEST_F(RuntimePlaygroundTest, DeepISpine) {
     // I (I (I … x)) under λx — collapses to λx.x
-    const expr* spine = dv(0);
+    std::shared_ptr<expr> spine = dv(0);
     for(int i = 0; i < 8; ++i)
         spine = ap(id_term(), spine);
     drive d{lm(spine)};
