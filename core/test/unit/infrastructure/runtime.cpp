@@ -71,14 +71,17 @@ TEST_F(RuntimeTest, DestroyIncompleteRuntimeDoesNotThrow) {
     EXPECT_NO_THROW(rt.reset());
 }
 
-TEST_F(RuntimeTest, SpaceUsagePositiveAndGrowsOverall) {
-    runtime rt{omega_term(), 16};
-    rt.step();
-    std::size_t early = rt.space_usage();
-    EXPECT_GT(early, 0u);
-    for(uint64_t i = 0; i < 255; ++i)
-        rt.step();
-    EXPECT_GE(rt.space_usage(), early);
+TEST_F(RuntimeTest, SpaceUsageClimbsOnOmega) {
+    runtime rt{omega_term(), 1};
+    std::size_t prev = rt.space_usage();
+    EXPECT_GT(prev, 0u);
+    for(uint64_t i = 0; i < 10; ++i) {
+        for(uint64_t j = 0; j < 100; ++j)
+            rt.step();
+        std::size_t cur = rt.space_usage();
+        EXPECT_GT(cur, prev);
+        prev = cur;
+    }
 }
 
 TEST_F(RuntimeTest, KIdDiscardsOmega) {
