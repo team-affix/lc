@@ -62,6 +62,15 @@ TEST_F(RuntimeTest, LimitedStepsOnOmegaLeavesIncomplete) {
     EXPECT_FALSE(rt.done());
 }
 
+TEST_F(RuntimeTest, DestroyIncompleteRuntimeDoesNotThrow) {
+    {
+        runtime rt{omega_term(), 16};
+        for(uint64_t i = 0; i < 256 && !rt.done(); ++i)
+            rt.step();
+        EXPECT_FALSE(rt.done());
+    }
+}
+
 TEST_F(RuntimeTest, KIdDiscardsOmega) {
     std::shared_ptr<expr> out;
     auto term = ap(ap(k_term(), id_term()), omega_term());
