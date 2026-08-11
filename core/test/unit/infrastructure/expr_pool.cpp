@@ -1,9 +1,13 @@
 #include <gtest/gtest.h>
 #include "exprs_eq.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/rc_pool.hpp"
 
 struct ExprPoolInfraTest : public ::testing::Test {
-    expr_pool pool;
+    rc_pool<expr> nodes;
+    expr_pool<rc_pool<expr>> pool;
+
+    ExprPoolInfraTest() : nodes(), pool(nodes) {}
 };
 
 TEST_F(ExprPoolInfraTest, NestedAbsAppStructuralEquality) {
@@ -24,7 +28,7 @@ TEST_F(ExprPoolInfraTest, ImportCopiesHandBuiltTree) {
 }
 
 TEST_F(ExprPoolInfraTest, CollectOneFalseWhenEmpty) {
-    EXPECT_FALSE(pool.collect_one());
+    EXPECT_FALSE(nodes.collect_one());
 }
 
 TEST_F(ExprPoolInfraTest, ReleaseThenCollectOneRetiresSlot) {
@@ -33,7 +37,7 @@ TEST_F(ExprPoolInfraTest, ReleaseThenCollectOneRetiresSlot) {
         auto b = pool.make_var(1);
         (void)b;
     }
-    EXPECT_TRUE(pool.collect_one());
-    EXPECT_TRUE(pool.collect_one());
-    EXPECT_FALSE(pool.collect_one());
+    EXPECT_TRUE(nodes.collect_one());
+    EXPECT_TRUE(nodes.collect_one());
+    EXPECT_FALSE(nodes.collect_one());
 }

@@ -11,6 +11,7 @@
 #include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/processor.hpp"
+#include "infrastructure/rc_pool.hpp"
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
@@ -55,8 +56,10 @@ using test_reifier_t =
             MockMakeClo>;
 
 struct ReifierMockTest : public ::testing::Test {
-    expr_pool pool;
-    val_pool vals;
+    rc_pool<expr> expr_nodes;
+    rc_pool<val> val_nodes;
+    expr_pool<rc_pool<expr>> pool;
+    val_pool<rc_pool<val>> vals;
     NiceMock<MockMakeVar> make_var;
     NiceMock<MockMakeAbs> make_abs;
     NiceMock<MockMakeApp> make_app;
@@ -65,6 +68,10 @@ struct ReifierMockTest : public ::testing::Test {
     NiceMock<MockMakeClo> make_clo;
     test_reifier_t re{make_var, make_abs, make_app, make_fvar, make_env,
                       make_clo};
+
+    ReifierMockTest()
+        : expr_nodes(), val_nodes(), pool(expr_nodes), vals(val_nodes) {
+    }
 };
 
 TEST_F(ReifierMockTest, ProcessValOnFvarAfterWhnfWritesVar) {
@@ -79,18 +86,38 @@ TEST_F(ReifierMockTest, ProcessValOnFvarAfterWhnfWritesVar) {
 }
 
 struct ReifierTest : public ::testing::Test {
-    expr_pool pool;
-    env_pool envs;
-    val_pool vals;
+    rc_pool<expr> expr_nodes;
+    rc_pool<val> val_nodes;
+    rc_pool<env> env_nodes;
+    expr_pool<rc_pool<expr>> pool;
+    env_pool<rc_pool<env>> envs;
+    val_pool<rc_pool<val>> vals;
     env_lookup lookup;
-    reducer<val_pool, val_pool, env_pool, env_lookup> red{vals, vals, envs,
-                                                         lookup};
-    reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool> re{
-        pool, pool, pool, vals, envs, vals};
-    processor<decltype(red), decltype(re)> proc{red, re};
+    reducer<val_pool<rc_pool<val>>, val_pool<rc_pool<val>>,
+            env_pool<rc_pool<env>>, env_lookup>
+        red;
+    reifier<expr_pool<rc_pool<expr>>, expr_pool<rc_pool<expr>>,
+            expr_pool<rc_pool<expr>>, val_pool<rc_pool<val>>,
+            env_pool<rc_pool<env>>, val_pool<rc_pool<val>>>
+        re;
+    processor<decltype(red), decltype(re)> proc;
+
+    ReifierTest()
+        : expr_nodes()
+        , val_nodes()
+        , env_nodes()
+        , pool(expr_nodes)
+        , envs(env_nodes)
+        , vals(val_nodes)
+        , lookup()
+        , red(vals, vals, envs, lookup)
+        , re(pool, pool, pool, vals, envs, vals)
+        , proc(red, re) {
+    }
 
     ~ReifierTest() {
-        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        garbage_collector<rc_pool<expr>, rc_pool<val>, rc_pool<env>> gc{
+            expr_nodes, val_nodes, env_nodes};
         gc.collect();
     }
 

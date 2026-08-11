@@ -9,6 +9,7 @@
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/normalizer.hpp"
 #include "infrastructure/processor.hpp"
+#include "infrastructure/rc_pool.hpp"
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
@@ -17,7 +18,14 @@
 #include <memory>
 
 struct nbe_fixture {
-    nbe_fixture() : pool() {}
+    using expr_nodes_t = rc_pool<expr>;
+    using val_nodes_t = rc_pool<val>;
+    using env_nodes_t = rc_pool<env>;
+    using expr_pool_t = expr_pool<expr_nodes_t>;
+    using val_pool_t = val_pool<val_nodes_t>;
+    using env_pool_t = env_pool<env_nodes_t>;
+
+    nbe_fixture() : expr_nodes(), pool(expr_nodes) {}
 
     std::shared_ptr<expr> dv(uint32_t index) { return pool.make_var(index); }
     std::shared_ptr<expr> lm(std::shared_ptr<expr> body) {
@@ -272,22 +280,24 @@ struct nbe_fixture {
         return ap(y_comb(), lm(lm(body)));
     }
 
-    using red_t = reducer<val_pool, val_pool, env_pool, env_lookup>;
-    using re_t =
-        reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool>;
+    using red_t = reducer<val_pool_t, val_pool_t, env_pool_t, env_lookup>;
+    using re_t = reifier<expr_pool_t, expr_pool_t, expr_pool_t, val_pool_t,
+                         env_pool_t, val_pool_t>;
     using proc_t = processor<red_t, re_t>;
     using interp_t = interpreter<continuation, proc_t, proc_t>;
 
     bool normalize_with_step_limit(std::shared_ptr<expr>& out,
                                    std::shared_ptr<expr> term,
                                    uint64_t max_steps) {
-        env_pool envs;
-        val_pool vals;
+        env_nodes_t env_nodes;
+        val_nodes_t val_nodes;
+        env_pool_t envs{env_nodes};
+        val_pool_t vals{val_nodes};
         env_lookup lookup;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals};
         proc_t proc{red, re};
-        normalizer<val_pool> norm{vals};
+        normalizer<val_pool_t> norm{vals};
         bool finished;
         {
             interp_t interp{proc, proc, norm.normalize(out, std::move(term))};
@@ -295,26 +305,30 @@ struct nbe_fixture {
                 interp.step();
             finished = interp.done();
         }
-        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        garbage_collector<expr_nodes_t, val_nodes_t, env_nodes_t> gc{
+            expr_nodes, val_nodes, env_nodes};
         gc.collect();
         return finished;
     }
 
     void run_normalize(std::shared_ptr<expr>& out, std::shared_ptr<expr> term) {
-        env_pool envs;
-        val_pool vals;
+        env_nodes_t env_nodes;
+        val_nodes_t val_nodes;
+        env_pool_t envs{env_nodes};
+        val_pool_t vals{val_nodes};
         env_lookup lookup;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals};
         proc_t proc{red, re};
-        normalizer<val_pool> norm{vals};
+        normalizer<val_pool_t> norm{vals};
         {
             interp_t interp{proc, proc, norm.normalize(out, std::move(term))};
             while(!interp.done())
                 interp.step();
             DEBUG_ASSERT(interp.done());
         }
-        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        garbage_collector<expr_nodes_t, val_nodes_t, env_nodes_t> gc{
+            expr_nodes, val_nodes, env_nodes};
         gc.collect();
     }
 
@@ -324,7 +338,8 @@ struct nbe_fixture {
         return out;
     }
 
-    expr_pool pool;
+    expr_nodes_t expr_nodes;
+    expr_pool_t pool;
 };
 
 #endif

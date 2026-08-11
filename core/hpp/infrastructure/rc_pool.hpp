@@ -9,7 +9,7 @@
 
 template <typename T> struct rc_pool {
     rc_pool();
-    std::shared_ptr<T> make(T value);
+    std::shared_ptr<T> alloc(T value);
     void release(std::optional<T>& slot);
     bool collect_one();
 
@@ -34,7 +34,7 @@ template <typename T>
 rc_pool<T>::rc_pool() : pending_collection_(), free_(), storage_() {
 }
 
-template <typename T> std::shared_ptr<T> rc_pool<T>::make(T value) {
+template <typename T> std::shared_ptr<T> rc_pool<T>::alloc(T value) {
     std::optional<T>* slot = take_slot();
     slot->emplace(std::move(value));
     return std::shared_ptr<T>(&slot->value(), rc_pool_deleter<T>{*this, *slot});

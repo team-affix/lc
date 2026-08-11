@@ -9,7 +9,7 @@
 #include "nbe_fixture.hpp"
 
 // Exploratory runtime drives: count steps / wall time, assert NF while the
-// runtime (and its expr_pool) is still alive.
+// runtime (and its rc_pools) is still alive.
 
 struct RuntimePlaygroundTest : public ::testing::Test, public nbe_fixture {
     struct drive {

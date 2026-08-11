@@ -11,6 +11,7 @@
 #include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/processor.hpp"
+#include "infrastructure/rc_pool.hpp"
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
 #include "infrastructure/val_pool.hpp"
@@ -49,13 +50,19 @@ using test_reducer_t =
     reducer<MockMakeClo, MockMakeNapp, MockMakeEnv, MockLookup>;
 
 struct ReducerMockTest : public ::testing::Test {
-    expr_pool pool;
-    val_pool vals;
+    rc_pool<expr> expr_nodes;
+    rc_pool<val> val_nodes;
+    expr_pool<rc_pool<expr>> pool;
+    val_pool<rc_pool<val>> vals;
     NiceMock<MockMakeClo> make_clo;
     NiceMock<MockMakeNapp> make_napp;
     NiceMock<MockMakeEnv> make_env;
     NiceMock<MockLookup> lookup;
     test_reducer_t red{make_clo, make_napp, make_env, lookup};
+
+    ReducerMockTest()
+        : expr_nodes(), val_nodes(), pool(expr_nodes), vals(val_nodes) {
+    }
 };
 
 TEST_F(ReducerMockTest, ProcessWhnfAbsCloFinishes) {
@@ -69,18 +76,38 @@ TEST_F(ReducerMockTest, ProcessWhnfAbsCloFinishes) {
 }
 
 struct ReducerTest : public ::testing::Test {
-    expr_pool pool;
-    env_pool envs;
-    val_pool vals;
+    rc_pool<expr> expr_nodes;
+    rc_pool<val> val_nodes;
+    rc_pool<env> env_nodes;
+    expr_pool<rc_pool<expr>> pool;
+    env_pool<rc_pool<env>> envs;
+    val_pool<rc_pool<val>> vals;
     env_lookup lookup;
-    reducer<val_pool, val_pool, env_pool, env_lookup> red{vals, vals, envs,
-                                                         lookup};
-    reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool> re{
-        pool, pool, pool, vals, envs, vals};
-    processor<decltype(red), decltype(re)> proc{red, re};
+    reducer<val_pool<rc_pool<val>>, val_pool<rc_pool<val>>,
+            env_pool<rc_pool<env>>, env_lookup>
+        red;
+    reifier<expr_pool<rc_pool<expr>>, expr_pool<rc_pool<expr>>,
+            expr_pool<rc_pool<expr>>, val_pool<rc_pool<val>>,
+            env_pool<rc_pool<env>>, val_pool<rc_pool<val>>>
+        re;
+    processor<decltype(red), decltype(re)> proc;
+
+    ReducerTest()
+        : expr_nodes()
+        , val_nodes()
+        , env_nodes()
+        , pool(expr_nodes)
+        , envs(env_nodes)
+        , vals(val_nodes)
+        , lookup()
+        , red(vals, vals, envs, lookup)
+        , re(pool, pool, pool, vals, envs, vals)
+        , proc(red, re) {
+    }
 
     ~ReducerTest() {
-        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        garbage_collector<rc_pool<expr>, rc_pool<val>, rc_pool<env>> gc{
+            expr_nodes, val_nodes, env_nodes};
         gc.collect();
     }
 

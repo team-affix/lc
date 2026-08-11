@@ -3,7 +3,9 @@
 #include <memory>
 #include <variant>
 #include "exprs_eq.hpp"
+#include "infrastructure/expr_pool.hpp"
 #include "infrastructure/normalizer.hpp"
+#include "infrastructure/rc_pool.hpp"
 #include "infrastructure/val_pool.hpp"
 #include "nbe_fixture.hpp"
 #include "value_objects/funcall.hpp"
@@ -20,10 +22,16 @@ struct MockMakeClo {
 using test_normalizer_t = normalizer<MockMakeClo>;
 
 struct NormalizerMockTest : public ::testing::Test {
-    expr_pool pool;
-    val_pool vals;
+    rc_pool<expr> expr_nodes;
+    rc_pool<val> val_nodes;
+    expr_pool<rc_pool<expr>> pool;
+    val_pool<rc_pool<val>> vals;
     NiceMock<MockMakeClo> make_clo;
     test_normalizer_t norm{make_clo};
+
+    NormalizerMockTest()
+        : expr_nodes(), val_nodes(), pool(expr_nodes), vals(val_nodes) {
+    }
 };
 
 TEST_F(NormalizerMockTest, NormalizeSeedsCloAndReturnsReifyValFunCall) {

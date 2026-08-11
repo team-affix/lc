@@ -6,16 +6,31 @@
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
 #include "infrastructure/garbage_collector.hpp"
+#include "infrastructure/rc_pool.hpp"
 #include "infrastructure/val_pool.hpp"
 
 struct EnvLookupTest : public ::testing::Test {
+    rc_pool<expr> expr_nodes;
+    rc_pool<val> val_nodes;
+    rc_pool<env> env_nodes;
+    expr_pool<rc_pool<expr>> pool;
+    val_pool<rc_pool<val>> vals;
+    env_pool<rc_pool<env>> envs;
     env_lookup lookup;
-    env_pool envs;
-    expr_pool pool;
-    val_pool vals;
+
+    EnvLookupTest()
+        : expr_nodes()
+        , val_nodes()
+        , env_nodes()
+        , pool(expr_nodes)
+        , vals(val_nodes)
+        , envs(env_nodes)
+        , lookup() {
+    }
 
     ~EnvLookupTest() {
-        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        garbage_collector<rc_pool<expr>, rc_pool<val>, rc_pool<env>> gc{
+            expr_nodes, val_nodes, env_nodes};
         gc.collect();
     }
 };
