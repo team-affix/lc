@@ -1,9 +1,9 @@
-#include <gtest/gtest.h>
-#include <cstdint>
-#include <memory>
-#include "exprs_eq.hpp"
 #include "infrastructure/runtime.hpp"
+#include "exprs_eq.hpp"
 #include "nbe_fixture.hpp"
+#include <cstdint>
+#include <gtest/gtest.h>
+#include <memory>
 
 struct RuntimeTest : public ::testing::Test, public nbe_fixture {
     static constexpr uint64_t k_gc_interval = 1024;
@@ -65,7 +65,7 @@ TEST_F(RuntimeTest, LimitedStepsOnOmegaLeavesIncomplete) {
 TEST_F(RuntimeTest, DestroyIncompleteRuntimeDoesNotThrow) {
     {
         runtime rt{omega_term(), 16};
-        for(uint64_t i = 0; i < 256 && !rt.done(); ++i)
+        for(uint64_t i = 0; i < 256; ++i)
             rt.step();
         EXPECT_FALSE(rt.done());
     }
