@@ -8,18 +8,19 @@
 #include "infrastructure/runtime.hpp"
 #include "nbe_fixture.hpp"
 
-// Exploratory runtime drives: count steps / wall time, assert NF while the
-// runtime (and its rc_pools) is still alive.
+// Exploratory runtime drives: count steps / wall time, assert prepared NF.
 
 struct RuntimePlaygroundTest : public ::testing::Test, public nbe_fixture {
+    static constexpr uint64_t k_gc_interval = 1024;
+
     struct drive {
-        std::shared_ptr<expr> out;
         nbe_runtime rt;
         uint64_t steps;
         double ms;
+        std::shared_ptr<expr> out;
 
         drive(std::shared_ptr<expr> term)
-            : out(), rt(out, term.get()), steps(0), ms(0) {
+            : rt(std::move(term), k_gc_interval), steps(0), ms(0), out() {
             const auto t0 = std::chrono::steady_clock::now();
             while(!rt.done()) {
                 rt.step();
@@ -28,9 +29,8 @@ struct RuntimePlaygroundTest : public ::testing::Test, public nbe_fixture {
             const auto t1 = std::chrono::steady_clock::now();
             ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
             EXPECT_TRUE(rt.done());
+            out = rt.output();
         }
-
-        ~drive() { out.reset(); }
     };
 
     void note(const char* label, const drive& d) {

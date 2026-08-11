@@ -3,19 +3,19 @@
 #include <memory>
 #include <stdexcept>
 #include "infrastructure/env_lookup.hpp"
-#include "infrastructure/env_pool.hpp"
-#include "infrastructure/expr_pool.hpp"
+#include "infrastructure/env_factory.hpp"
+#include "infrastructure/expr_factory.hpp"
 #include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/rc_pool.hpp"
-#include "infrastructure/val_pool.hpp"
+#include "infrastructure/val_factory.hpp"
 
 struct EnvLookupTest : public ::testing::Test {
     rc_pool<expr> expr_nodes;
     rc_pool<val> val_nodes;
     rc_pool<env> env_nodes;
-    expr_pool<rc_pool<expr>> pool;
-    val_pool<rc_pool<val>> vals;
-    env_pool<rc_pool<env>> envs;
+    expr_factory<rc_pool<expr>> pool;
+    val_factory<rc_pool<val>> vals;
+    env_factory<rc_pool<env>> envs;
     env_lookup lookup;
 
     EnvLookupTest()

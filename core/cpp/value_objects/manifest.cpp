@@ -1,6 +1,6 @@
 #include "value_objects/manifest.hpp"
 
-manifest::manifest(std::shared_ptr<expr>& out, const expr* term)
+manifest::manifest(std::shared_ptr<expr>& out, std::shared_ptr<expr> term)
     : expr_nodes()
     , val_nodes()
     , env_nodes()
@@ -12,7 +12,7 @@ manifest::manifest(std::shared_ptr<expr>& out, const expr* term)
     , red(vals, vals, envs, lookup)
     , re(exprs, exprs, exprs, vals, envs, vals)
     , proc(red, re)
-    , norm(vals)
+    , initial_frame_gen(vals)
     , interp(std::in_place, proc, proc,
-             norm.normalize(out, exprs.import(term))) {
+             initial_frame_gen.generate_initial_frame(out, std::move(term))) {
 }

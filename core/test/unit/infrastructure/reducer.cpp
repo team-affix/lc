@@ -6,15 +6,15 @@
 #include <utility>
 #include <variant>
 #include "infrastructure/env_lookup.hpp"
-#include "infrastructure/env_pool.hpp"
-#include "infrastructure/expr_pool.hpp"
+#include "infrastructure/env_factory.hpp"
+#include "infrastructure/expr_factory.hpp"
 #include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/processor.hpp"
 #include "infrastructure/rc_pool.hpp"
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
-#include "infrastructure/val_pool.hpp"
+#include "infrastructure/val_factory.hpp"
 #include "value_objects/continuation.hpp"
 #include "value_objects/env.hpp"
 #include "value_objects/funcall.hpp"
@@ -52,8 +52,8 @@ using test_reducer_t =
 struct ReducerMockTest : public ::testing::Test {
     rc_pool<expr> expr_nodes;
     rc_pool<val> val_nodes;
-    expr_pool<rc_pool<expr>> pool;
-    val_pool<rc_pool<val>> vals;
+    expr_factory<rc_pool<expr>> pool;
+    val_factory<rc_pool<val>> vals;
     NiceMock<MockMakeClo> make_clo;
     NiceMock<MockMakeNapp> make_napp;
     NiceMock<MockMakeEnv> make_env;
@@ -79,16 +79,16 @@ struct ReducerTest : public ::testing::Test {
     rc_pool<expr> expr_nodes;
     rc_pool<val> val_nodes;
     rc_pool<env> env_nodes;
-    expr_pool<rc_pool<expr>> pool;
-    env_pool<rc_pool<env>> envs;
-    val_pool<rc_pool<val>> vals;
+    expr_factory<rc_pool<expr>> pool;
+    env_factory<rc_pool<env>> envs;
+    val_factory<rc_pool<val>> vals;
     env_lookup lookup;
-    reducer<val_pool<rc_pool<val>>, val_pool<rc_pool<val>>,
-            env_pool<rc_pool<env>>, env_lookup>
+    reducer<val_factory<rc_pool<val>>, val_factory<rc_pool<val>>,
+            env_factory<rc_pool<env>>, env_lookup>
         red;
-    reifier<expr_pool<rc_pool<expr>>, expr_pool<rc_pool<expr>>,
-            expr_pool<rc_pool<expr>>, val_pool<rc_pool<val>>,
-            env_pool<rc_pool<env>>, val_pool<rc_pool<val>>>
+    reifier<expr_factory<rc_pool<expr>>, expr_factory<rc_pool<expr>>,
+            expr_factory<rc_pool<expr>>, val_factory<rc_pool<val>>,
+            env_factory<rc_pool<env>>, val_factory<rc_pool<val>>>
         re;
     processor<decltype(red), decltype(re)> proc;
 

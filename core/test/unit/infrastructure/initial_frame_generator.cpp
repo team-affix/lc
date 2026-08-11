@@ -3,10 +3,10 @@
 #include <memory>
 #include <variant>
 #include "exprs_eq.hpp"
-#include "infrastructure/expr_pool.hpp"
-#include "infrastructure/normalizer.hpp"
+#include "infrastructure/expr_factory.hpp"
+#include "infrastructure/initial_frame_generator.hpp"
 #include "infrastructure/rc_pool.hpp"
-#include "infrastructure/val_pool.hpp"
+#include "infrastructure/val_factory.hpp"
 #include "nbe_fixture.hpp"
 #include "value_objects/funcall.hpp"
 #include "value_objects/reify_val_funcall.hpp"
@@ -19,28 +19,29 @@ struct MockMakeClo {
                 (std::shared_ptr<expr>, std::shared_ptr<env>), ());
 };
 
-using test_normalizer_t = normalizer<MockMakeClo>;
+using test_initial_frame_generator_t = initial_frame_generator<MockMakeClo>;
 
-struct NormalizerMockTest : public ::testing::Test {
+struct InitialFrameGeneratorMockTest : public ::testing::Test {
     rc_pool<expr> expr_nodes;
     rc_pool<val> val_nodes;
-    expr_pool<rc_pool<expr>> pool;
-    val_pool<rc_pool<val>> vals;
+    expr_factory<rc_pool<expr>> pool;
+    val_factory<rc_pool<val>> vals;
     NiceMock<MockMakeClo> make_clo;
-    test_normalizer_t norm{make_clo};
+    test_initial_frame_generator_t initial_frame_gen{make_clo};
 
-    NormalizerMockTest()
+    InitialFrameGeneratorMockTest()
         : expr_nodes(), val_nodes(), pool(expr_nodes), vals(val_nodes) {
     }
 };
 
-TEST_F(NormalizerMockTest, NormalizeSeedsCloAndReturnsReifyValFunCall) {
+TEST_F(InitialFrameGeneratorMockTest,
+       GenerateInitialFrameSeedsCloAndReturnsReifyValFunCall) {
     auto term = pool.make_abs(pool.make_var(0));
     auto seed = vals.make_clo(term, {});
     EXPECT_CALL(make_clo, make_clo(term, std::shared_ptr<env>{}))
         .WillOnce(Return(seed));
     std::shared_ptr<expr> got;
-    funcall root = norm.normalize(got, term);
+    funcall root = initial_frame_gen.generate_initial_frame(got, term);
     reify_val_funcall* f = std::get_if<reify_val_funcall>(&root);
     ASSERT_NE(f, nullptr);
     EXPECT_EQ(f->v, seed);

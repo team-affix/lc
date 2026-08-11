@@ -1,42 +1,42 @@
 #include <gtest/gtest.h>
 #include "exprs_eq.hpp"
-#include "infrastructure/expr_pool.hpp"
+#include "infrastructure/expr_factory.hpp"
 #include "infrastructure/rc_pool.hpp"
 #include "value_objects/expr.hpp"
 
-struct ExprPoolTest : public ::testing::Test {
+struct ExprFactoryTest : public ::testing::Test {
     rc_pool<expr> nodes;
-    expr_pool<rc_pool<expr>> pool;
+    expr_factory<rc_pool<expr>> pool;
 
-    ExprPoolTest() : nodes(), pool(nodes) {}
+    ExprFactoryTest() : nodes(), pool(nodes) {}
 };
 
-TEST_F(ExprPoolTest, StructurallyEqualVarsCompareEqual) {
+TEST_F(ExprFactoryTest, StructurallyEqualVarsCompareEqual) {
     auto a = pool.make_var(0);
     auto b = pool.make_var(0);
     EXPECT_NE(a.get(), b.get());
     EXPECT_TRUE(exprs_eq(a, b));
 }
 
-TEST_F(ExprPoolTest, DifferentVarsCompareUnequal) {
+TEST_F(ExprFactoryTest, DifferentVarsCompareUnequal) {
     EXPECT_FALSE(exprs_eq(pool.make_var(0), pool.make_var(1)));
 }
 
-TEST_F(ExprPoolTest, StructurallyEqualAbsCompareEqual) {
+TEST_F(ExprFactoryTest, StructurallyEqualAbsCompareEqual) {
     auto a = pool.make_abs(pool.make_var(0));
     auto b = pool.make_abs(pool.make_var(0));
     EXPECT_NE(a.get(), b.get());
     EXPECT_TRUE(exprs_eq(a, b));
 }
 
-TEST_F(ExprPoolTest, StructurallyEqualAppsCompareEqual) {
+TEST_F(ExprFactoryTest, StructurallyEqualAppsCompareEqual) {
     auto a = pool.make_app(pool.make_var(0), pool.make_var(1));
     auto b = pool.make_app(pool.make_var(0), pool.make_var(1));
     EXPECT_NE(a.get(), b.get());
     EXPECT_TRUE(exprs_eq(a, b));
 }
 
-TEST_F(ExprPoolTest, DifferentAppsCompareUnequal) {
+TEST_F(ExprFactoryTest, DifferentAppsCompareUnequal) {
     EXPECT_FALSE(exprs_eq(pool.make_app(pool.make_var(0), pool.make_var(1)),
                           pool.make_app(pool.make_var(1), pool.make_var(0))));
 }

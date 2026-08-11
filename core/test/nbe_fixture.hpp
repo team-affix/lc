@@ -3,16 +3,16 @@
 
 #include "debug_assert.hpp"
 #include "infrastructure/env_lookup.hpp"
-#include "infrastructure/env_pool.hpp"
-#include "infrastructure/expr_pool.hpp"
+#include "infrastructure/env_factory.hpp"
+#include "infrastructure/expr_factory.hpp"
 #include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
-#include "infrastructure/normalizer.hpp"
+#include "infrastructure/initial_frame_generator.hpp"
 #include "infrastructure/processor.hpp"
 #include "infrastructure/rc_pool.hpp"
 #include "infrastructure/reducer.hpp"
 #include "infrastructure/reifier.hpp"
-#include "infrastructure/val_pool.hpp"
+#include "infrastructure/val_factory.hpp"
 #include "value_objects/continuation.hpp"
 #include <cstdint>
 #include <memory>
@@ -21,9 +21,9 @@ struct nbe_fixture {
     using expr_nodes_t = rc_pool<expr>;
     using val_nodes_t = rc_pool<val>;
     using env_nodes_t = rc_pool<env>;
-    using expr_pool_t = expr_pool<expr_nodes_t>;
-    using val_pool_t = val_pool<val_nodes_t>;
-    using env_pool_t = env_pool<env_nodes_t>;
+    using expr_factory_t = expr_factory<expr_nodes_t>;
+    using val_factory_t = val_factory<val_nodes_t>;
+    using env_factory_t = env_factory<env_nodes_t>;
 
     nbe_fixture() : expr_nodes(), pool(expr_nodes) {}
 
@@ -280,9 +280,9 @@ struct nbe_fixture {
         return ap(y_comb(), lm(lm(body)));
     }
 
-    using red_t = reducer<val_pool_t, val_pool_t, env_pool_t, env_lookup>;
-    using re_t = reifier<expr_pool_t, expr_pool_t, expr_pool_t, val_pool_t,
-                         env_pool_t, val_pool_t>;
+    using red_t = reducer<val_factory_t, val_factory_t, env_factory_t, env_lookup>;
+    using re_t = reifier<expr_factory_t, expr_factory_t, expr_factory_t, val_factory_t,
+                         env_factory_t, val_factory_t>;
     using proc_t = processor<red_t, re_t>;
     using interp_t = interpreter<continuation, proc_t, proc_t>;
 
@@ -291,16 +291,18 @@ struct nbe_fixture {
                                    uint64_t max_steps) {
         env_nodes_t env_nodes;
         val_nodes_t val_nodes;
-        env_pool_t envs{env_nodes};
-        val_pool_t vals{val_nodes};
+        env_factory_t envs{env_nodes};
+        val_factory_t vals{val_nodes};
         env_lookup lookup;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals};
         proc_t proc{red, re};
-        normalizer<val_pool_t> norm{vals};
+        initial_frame_generator<val_factory_t> initial_frame_gen{vals};
         bool finished;
         {
-            interp_t interp{proc, proc, norm.normalize(out, std::move(term))};
+            interp_t interp{proc, proc,
+                            initial_frame_gen.generate_initial_frame(
+                                out, std::move(term))};
             for(uint64_t i = 0; i < max_steps && !interp.done(); ++i)
                 interp.step();
             finished = interp.done();
@@ -314,15 +316,17 @@ struct nbe_fixture {
     void run_normalize(std::shared_ptr<expr>& out, std::shared_ptr<expr> term) {
         env_nodes_t env_nodes;
         val_nodes_t val_nodes;
-        env_pool_t envs{env_nodes};
-        val_pool_t vals{val_nodes};
+        env_factory_t envs{env_nodes};
+        val_factory_t vals{val_nodes};
         env_lookup lookup;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals};
         proc_t proc{red, re};
-        normalizer<val_pool_t> norm{vals};
+        initial_frame_generator<val_factory_t> initial_frame_gen{vals};
         {
-            interp_t interp{proc, proc, norm.normalize(out, std::move(term))};
+            interp_t interp{proc, proc,
+                            initial_frame_gen.generate_initial_frame(
+                                out, std::move(term))};
             while(!interp.done())
                 interp.step();
             DEBUG_ASSERT(interp.done());
@@ -339,7 +343,7 @@ struct nbe_fixture {
     }
 
     expr_nodes_t expr_nodes;
-    expr_pool_t pool;
+    expr_factory_t pool;
 };
 
 #endif
