@@ -409,11 +409,10 @@ TEST_F(NormalizeIntegrationTest, SIIxIsSelfApp) {
 }
 
 TEST_F(NormalizeIntegrationTest, SKIAppliedIsIdentity) {
-    // S (K I) I → I  (when applied, or as combinator NF of S(KI)I)
+    // S (K I) I → I
     EXPECT_TRUE(exprs_eq(
-        normalize(ap(ap(ap(s_term(), ap(k_term(), id_term())), id_term()),
-                     k_term())),
-        k_term()));
+        normalize(ap(ap(s_term(), ap(k_term(), id_term())), id_term())),
+        id_term()));
 }
 
 TEST_F(NormalizeIntegrationTest, PredSuccCancellationZero) {

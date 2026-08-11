@@ -60,6 +60,8 @@ TEST_F(NormalizeTest, NormalizeIdentityOnIdentity) {
 
 TEST_F(NormalizeTest, EarlyStopLeavesWorkIncomplete) {
     auto term = ap(id_term(), id_term());
-    std::shared_ptr<expr> out;
+    std::shared_ptr<expr> sentinel = k_term();
+    std::shared_ptr<expr> out = sentinel;
     EXPECT_FALSE(normalize_with_step_limit(out, term, 0));
+    EXPECT_EQ(out, sentinel);
 }

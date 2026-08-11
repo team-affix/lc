@@ -63,12 +63,11 @@ TEST_F(RuntimeTest, LimitedStepsOnOmegaLeavesIncomplete) {
 }
 
 TEST_F(RuntimeTest, DestroyIncompleteRuntimeDoesNotThrow) {
-    {
-        runtime rt{omega_term(), 16};
-        for(uint64_t i = 0; i < 256; ++i)
-            rt.step();
-        EXPECT_FALSE(rt.done());
-    }
+    auto rt = std::make_unique<runtime>(omega_term(), 16);
+    for(uint64_t i = 0; i < 256; ++i)
+        rt->step();
+    EXPECT_FALSE(rt->done());
+    EXPECT_NO_THROW(rt.reset());
 }
 
 TEST_F(RuntimeTest, KIdDiscardsOmega) {

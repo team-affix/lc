@@ -217,6 +217,9 @@ TEST_F(ReducerTest, WhnfAppNappBuildsNestedNapp) {
     auto v = must_whnf_term(ap(ap(dv(0), id), id), e);
     const val::napp* outer = std::get_if<val::napp>(&v->content);
     ASSERT_NE(outer, nullptr);
+    EXPECT_EQ(outer->arg, id);
     const val::napp* inner = std::get_if<val::napp>(&outer->head->content);
     ASSERT_NE(inner, nullptr);
+    EXPECT_EQ(inner->head, head);
+    EXPECT_EQ(inner->arg, id);
 }
