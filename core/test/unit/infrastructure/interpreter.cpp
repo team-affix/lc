@@ -7,12 +7,6 @@
 #include <variant>
 #include "infrastructure/interpreter.hpp"
 #include "value_objects/expr.hpp"
-#include "value_objects/funcall.hpp"
-#include "value_objects/reduce_app_funcall.hpp"
-#include "value_objects/reduce_var_funcall.hpp"
-#include "value_objects/reduce_whnf_funcall.hpp"
-#include "value_objects/reify_clo_funcall.hpp"
-#include "value_objects/reify_napp_funcall.hpp"
 #include "value_objects/reify_val_funcall.hpp"
 #include "value_objects/val.hpp"
 
@@ -29,9 +23,10 @@ struct test_continuation_alt {
     std::variant<test_stage> stage;
 };
 using test_continuation = std::variant<test_continuation_alt>;
+using test_funcall = std::variant<reify_val_funcall>;
 
 using process_result_t =
-    std::optional<std::pair<std::variant<test_stage>, std::optional<funcall>>>;
+    std::optional<std::pair<std::variant<test_stage>, test_funcall>>;
 
 struct MockProcess {
     MOCK_METHOD(process_result_t, process, (test_frame&, test_stage&), ());
@@ -42,21 +37,6 @@ struct MockInitContinuation {
 
     test_continuation init_continuation(reify_val_funcall& fc) {
         return init_reify_val(fc);
-    }
-    test_continuation init_continuation(reduce_whnf_funcall&) {
-        throw std::logic_error("unexpected reduce_whnf_funcall");
-    }
-    test_continuation init_continuation(reduce_app_funcall&) {
-        throw std::logic_error("unexpected reduce_app_funcall");
-    }
-    test_continuation init_continuation(reduce_var_funcall&) {
-        throw std::logic_error("unexpected reduce_var_funcall");
-    }
-    test_continuation init_continuation(reify_clo_funcall&) {
-        throw std::logic_error("unexpected reify_clo_funcall");
-    }
-    test_continuation init_continuation(reify_napp_funcall&) {
-        throw std::logic_error("unexpected reify_napp_funcall");
     }
 };
 
@@ -86,8 +66,9 @@ TEST_F(InterpreterTest, StepOnEmptyStackThrows) {
         .WillOnce(Return(make_cont()));
     EXPECT_CALL(process, process(_, _)).WillOnce(Return(std::nullopt));
 
-    interpreter<test_continuation, MockProcess, MockInitContinuation> interp{
-        process, init_continuation, reify_val_funcall{out, seed, 0}};
+    interpreter<test_continuation, test_funcall, MockProcess,
+                MockInitContinuation>
+        interp{process, init_continuation, reify_val_funcall{out, seed, 0}};
     EXPECT_FALSE(interp.done());
     interp.step();
     EXPECT_TRUE(interp.done());

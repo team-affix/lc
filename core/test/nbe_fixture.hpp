@@ -2,18 +2,21 @@
 #define NBE_FIXTURE_HPP
 
 #include "debug_assert.hpp"
+#include "infrastructure/entrypoint_processor.hpp"
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_factory.hpp"
 #include "infrastructure/expr_factory.hpp"
 #include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/initial_frame_generator.hpp"
+#include "infrastructure/output_detacher.hpp"
 #include "infrastructure/processor.hpp"
 #include "infrastructure/rc_pool.hpp"
-#include "infrastructure/reducer.hpp"
-#include "infrastructure/reifier.hpp"
+#include "infrastructure/reduction_processor.hpp"
+#include "infrastructure/reification_processor.hpp"
 #include "infrastructure/val_factory.hpp"
 #include "value_objects/continuation.hpp"
+#include "value_objects/funcall.hpp"
 #include <cstdint>
 #include <memory>
 
@@ -280,11 +283,11 @@ struct nbe_fixture {
         return ap(y_comb(), lm(lm(body)));
     }
 
-    using red_t = reducer<val_factory_t, val_factory_t, env_factory_t, env_lookup>;
-    using re_t = reifier<expr_factory_t, expr_factory_t, expr_factory_t, val_factory_t,
+    using red_t = reduction_processor<val_factory_t, val_factory_t, env_factory_t, env_lookup>;
+    using re_t = reification_processor<expr_factory_t, expr_factory_t, expr_factory_t, val_factory_t,
                          env_factory_t, val_factory_t>;
-    using proc_t = processor<red_t, re_t>;
-    using interp_t = interpreter<continuation, proc_t, proc_t>;
+    using proc_t = processor<red_t, re_t, entrypoint_processor, output_detacher>;
+    using interp_t = interpreter<continuation, funcall, proc_t, proc_t>;
 
     bool normalize_with_step_limit(std::shared_ptr<expr>& out,
                                    std::shared_ptr<expr> term,
@@ -296,7 +299,9 @@ struct nbe_fixture {
         env_lookup lookup;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals};
-        proc_t proc{red, re};
+        entrypoint_processor entrypoint;
+        output_detacher detacher;
+        proc_t proc{red, re, entrypoint, detacher};
         initial_frame_generator<val_factory_t> initial_frame_gen{vals};
         bool finished;
         {
@@ -321,7 +326,9 @@ struct nbe_fixture {
         env_lookup lookup;
         red_t red{vals, vals, envs, lookup};
         re_t re{pool, pool, pool, vals, envs, vals};
-        proc_t proc{red, re};
+        entrypoint_processor entrypoint;
+        output_detacher detacher;
+        proc_t proc{red, re, entrypoint, detacher};
         initial_frame_generator<val_factory_t> initial_frame_gen{vals};
         {
             interp_t interp{proc, proc,

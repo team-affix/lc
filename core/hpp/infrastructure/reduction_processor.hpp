@@ -1,5 +1,5 @@
-#ifndef REDUCER_HPP
-#define REDUCER_HPP
+#ifndef REDUCTION_PROCESSOR_HPP
+#define REDUCTION_PROCESSOR_HPP
 
 #include <optional>
 #include <utility>
@@ -25,8 +25,8 @@
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
-struct reducer {
-    reducer(IMakeClo& make_clo, IMakeNapp& make_napp, IMakeEnv& make_env,
+struct reduction_processor {
+    reduction_processor(IMakeClo& make_clo, IMakeNapp& make_napp, IMakeEnv& make_env,
             ILookup& lookup);
     std::optional<std::pair<reduce_whnf_stage, funcall>>
     process(reduce_whnf_frame& f, whnf_start_stage);
@@ -52,7 +52,7 @@ struct reducer {
 
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::reducer(IMakeClo& make_clo,
+reduction_processor<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::reduction_processor(IMakeClo& make_clo,
                                                          IMakeNapp& make_napp,
                                                          IMakeEnv& make_env,
                                                          ILookup& lookup)
@@ -63,7 +63,7 @@ reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::reducer(IMakeClo& make_clo,
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
 std::optional<std::pair<reduce_whnf_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_whnf_frame& f,
+reduction_processor<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_whnf_frame& f,
                                                          whnf_start_stage) {
     if(!std::holds_alternative<val::clo>(f.slot->content))
         return std::nullopt;
@@ -87,7 +87,7 @@ reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_whnf_frame& f,
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
 std::optional<std::pair<reduce_whnf_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(
+reduction_processor<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(
     reduce_whnf_frame&, whnf_after_child_stage) {
     return std::nullopt;
 }
@@ -95,7 +95,7 @@ reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
 std::optional<std::pair<reduce_app_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
+reduction_processor<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
                                                          app_need_fun_stage) {
     f.fun_holder = make_clo_.make_clo(f.application->fun, f.e);
     return std::pair<reduce_app_stage, funcall>{
@@ -105,7 +105,7 @@ reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
 std::optional<std::pair<reduce_app_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
+reduction_processor<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
                                                          app_after_fun_stage) {
     if(!std::holds_alternative<val::clo>(f.fun_holder->content)) {
         f.slot = make_napp_.make_napp(f.fun_holder, f.application->arg, f.e);
@@ -124,7 +124,7 @@ reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame& f,
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
 std::optional<std::pair<reduce_app_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame&,
+reduction_processor<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame&,
                                                          app_after_body_stage) {
     return std::nullopt;
 }
@@ -132,7 +132,7 @@ reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_app_frame&,
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
 std::optional<std::pair<reduce_var_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_var_frame& f,
+reduction_processor<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_var_frame& f,
                                                          var_start_stage) {
     f.cell = lookup_.lookup(f.e.get(), f.variable->index);
     return std::pair<reduce_var_stage, funcall>{
@@ -142,7 +142,7 @@ reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(reduce_var_frame& f,
 template <typename IMakeClo, typename IMakeNapp, typename IMakeEnv,
           typename ILookup>
 std::optional<std::pair<reduce_var_stage, funcall>>
-reducer<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(
+reduction_processor<IMakeClo, IMakeNapp, IMakeEnv, ILookup>::process(
     reduce_var_frame& f, var_after_force_stage) {
     f.slot = f.cell->bound_value;
     return std::nullopt;

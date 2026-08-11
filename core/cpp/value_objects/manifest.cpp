@@ -9,10 +9,11 @@ manifest::manifest(std::shared_ptr<expr>& out, std::shared_ptr<expr> term)
     , vals(val_nodes)
     , gc(expr_nodes, val_nodes, env_nodes)
     , detacher()
+    , entrypoint()
     , lookup()
     , red(vals, vals, envs, lookup)
     , re(exprs, exprs, exprs, vals, envs, vals)
-    , proc(red, re)
+    , proc(red, re, entrypoint, detacher)
     , initial_frame_gen(vals)
     , interp(std::in_place, proc, proc,
              initial_frame_gen.generate_initial_frame(out, std::move(term))) {

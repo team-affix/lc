@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <optional>
+#include "infrastructure/entrypoint_processor.hpp"
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_factory.hpp"
 #include "infrastructure/expr_factory.hpp"
@@ -12,11 +13,12 @@
 #include "infrastructure/output_detacher.hpp"
 #include "infrastructure/processor.hpp"
 #include "infrastructure/rc_pool.hpp"
-#include "infrastructure/reducer.hpp"
-#include "infrastructure/reifier.hpp"
+#include "infrastructure/reduction_processor.hpp"
+#include "infrastructure/reification_processor.hpp"
 #include "infrastructure/val_factory.hpp"
 #include "value_objects/continuation.hpp"
 #include "value_objects/expr.hpp"
+#include "value_objects/funcall.hpp"
 #include "value_objects/val.hpp"
 
 struct manifest {
@@ -26,15 +28,19 @@ struct manifest {
     using expr_factory_t = ::expr_factory<expr_nodes_t>;
     using val_factory_t = ::val_factory<val_nodes_t>;
     using env_factory_t = ::env_factory<env_nodes_t>;
-    using reducer_t =
-        ::reducer<val_factory_t, val_factory_t, env_factory_t, env_lookup>;
-    using reifier_t =
-        ::reifier<expr_factory_t, expr_factory_t, expr_factory_t, val_factory_t, env_factory_t,
-                  val_factory_t>;
-    using processor_t = ::processor<reducer_t, reifier_t>;
+    using reduction_processor_t =
+        ::reduction_processor<val_factory_t, val_factory_t, env_factory_t,
+                              env_lookup>;
+    using reification_processor_t =
+        ::reification_processor<expr_factory_t, expr_factory_t, expr_factory_t,
+                                val_factory_t, env_factory_t, val_factory_t>;
+    using entrypoint_processor_t = ::entrypoint_processor;
+    using processor_t =
+        ::processor<reduction_processor_t, reification_processor_t,
+                    entrypoint_processor_t, output_detacher>;
     using initial_frame_generator_t = ::initial_frame_generator<val_factory_t>;
     using interpreter_t =
-        ::interpreter<continuation, processor_t, processor_t>;
+        ::interpreter<continuation, funcall, processor_t, processor_t>;
     using garbage_collector_t =
         ::garbage_collector<expr_nodes_t, val_nodes_t, env_nodes_t>;
 
@@ -48,9 +54,10 @@ struct manifest {
     val_factory_t vals;
     garbage_collector_t gc;
     output_detacher detacher;
+    entrypoint_processor_t entrypoint;
     env_lookup lookup;
-    reducer_t red;
-    reifier_t re;
+    reduction_processor_t red;
+    reification_processor_t re;
     processor_t proc;
     initial_frame_generator_t initial_frame_gen;
     std::optional<interpreter_t> interp;

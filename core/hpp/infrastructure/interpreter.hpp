@@ -2,18 +2,17 @@
 #define INTERPRETER_HPP
 
 #include "debug_assert.hpp"
-#include "value_objects/continuation.hpp"
-#include "value_objects/funcall.hpp"
 #include <cstddef>
 #include <deque>
 #include <optional>
 #include <utility>
 #include <variant>
 
-template <typename Continuation, typename IProcess, typename IInitContinuation>
+template <typename Continuation, typename Funcall, typename IProcess,
+          typename IInitContinuation>
 struct interpreter {
     interpreter(IProcess& process, IInitContinuation& init_continuation,
-                funcall initial);
+                Funcall initial);
     void step();
     bool done() const;
     std::size_t space_usage() const;
@@ -24,22 +23,24 @@ struct interpreter {
     IInitContinuation& init_continuation_;
 };
 
-template <typename Continuation, typename IProcess, typename IInitContinuation>
-interpreter<Continuation, IProcess, IInitContinuation>::interpreter(
-    IProcess& process, IInitContinuation& init_continuation, funcall initial)
+template <typename Continuation, typename Funcall, typename IProcess,
+          typename IInitContinuation>
+interpreter<Continuation, Funcall, IProcess, IInitContinuation>::interpreter(
+    IProcess& process, IInitContinuation& init_continuation, Funcall initial)
     : stack_(), process_(process), init_continuation_(init_continuation) {
     stack_.push_back(std::visit(
         [this](auto& fc) { return init_continuation_.init_continuation(fc); },
         initial));
 }
 
-template <typename Continuation, typename IProcess, typename IInitContinuation>
-void interpreter<Continuation, IProcess, IInitContinuation>::step() {
+template <typename Continuation, typename Funcall, typename IProcess,
+          typename IInitContinuation>
+void interpreter<Continuation, Funcall, IProcess, IInitContinuation>::step() {
     DEBUG_ASSERT(!stack_.empty());
-    std::optional<funcall> child = std::visit(
-        [this](auto& c) -> std::optional<funcall> {
+    std::optional<Funcall> child = std::visit(
+        [this](auto& c) -> std::optional<Funcall> {
             return std::visit(
-                [this, &c](auto& s) -> std::optional<funcall> {
+                [this, &c](auto& s) -> std::optional<Funcall> {
                     auto result = process_.process(c.frame, s);
                     if(!result.has_value())
                         return std::nullopt;
@@ -59,14 +60,17 @@ void interpreter<Continuation, IProcess, IInitContinuation>::step() {
             *child));
 }
 
-template <typename Continuation, typename IProcess, typename IInitContinuation>
-bool interpreter<Continuation, IProcess, IInitContinuation>::done() const {
+template <typename Continuation, typename Funcall, typename IProcess,
+          typename IInitContinuation>
+bool interpreter<Continuation, Funcall, IProcess,
+                 IInitContinuation>::done() const {
     return stack_.empty();
 }
 
-template <typename Continuation, typename IProcess, typename IInitContinuation>
-std::size_t
-interpreter<Continuation, IProcess, IInitContinuation>::space_usage() const {
+template <typename Continuation, typename Funcall, typename IProcess,
+          typename IInitContinuation>
+std::size_t interpreter<Continuation, Funcall, IProcess,
+                        IInitContinuation>::space_usage() const {
     return stack_.size() * sizeof(Continuation);
 }
 

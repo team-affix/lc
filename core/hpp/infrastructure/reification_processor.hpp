@@ -1,5 +1,5 @@
-#ifndef REIFIER_HPP
-#define REIFIER_HPP
+#ifndef REIFICATION_PROCESSOR_HPP
+#define REIFICATION_PROCESSOR_HPP
 
 #include <memory>
 #include <optional>
@@ -27,8 +27,8 @@
 
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
-struct reifier {
-    reifier(IMakeVar& make_var, IMakeAbs& make_abs, IMakeApp& make_app,
+struct reification_processor {
+    reification_processor(IMakeVar& make_var, IMakeAbs& make_abs, IMakeApp& make_app,
             IMakeFvar& make_fvar, IMakeEnv& make_env, IMakeClo& make_clo);
     std::optional<std::pair<reify_val_stage, funcall>>
     process(reify_val_frame& f, reify_val_need_whnf_stage);
@@ -58,7 +58,7 @@ struct reifier {
 
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::reifier(
+reification_processor<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::reification_processor(
     IMakeVar& make_var, IMakeAbs& make_abs, IMakeApp& make_app,
     IMakeFvar& make_fvar, IMakeEnv& make_env, IMakeClo& make_clo)
     : make_var_(make_var), make_abs_(make_abs), make_app_(make_app),
@@ -68,7 +68,7 @@ reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::reifier(
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
 std::optional<std::pair<reify_val_stage, funcall>>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
+reification_processor<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
     reify_val_frame& f, reify_val_need_whnf_stage) {
     return std::pair<reify_val_stage, funcall>{reify_val_after_whnf_stage{},
                                                reduce_whnf_funcall{f.v}};
@@ -77,7 +77,7 @@ reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
 std::optional<std::pair<reify_val_stage, funcall>>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
+reification_processor<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
     reify_val_frame& f, reify_val_after_whnf_stage) {
     if(const val::clo* closure = std::get_if<val::clo>(&f.v->content)) {
         return std::pair<reify_val_stage, funcall>{
@@ -97,7 +97,7 @@ reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
 std::optional<std::pair<reify_val_stage, funcall>>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
+reification_processor<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
     reify_val_frame&, reify_val_after_quote_stage) {
     return std::nullopt;
 }
@@ -105,7 +105,7 @@ reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
 std::optional<std::pair<reify_clo_stage, funcall>>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
+reification_processor<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
     reify_clo_frame& f, reify_clo_need_body_stage) {
     DEBUG_ASSERT(std::holds_alternative<expr::abs>(f.closure->term->content));
     std::shared_ptr<val> fresh = make_fvar_.make_fvar(f.depth);
@@ -121,7 +121,7 @@ reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
 std::optional<std::pair<reify_clo_stage, funcall>>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
+reification_processor<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
     reify_clo_frame& f, reify_clo_after_body_stage) {
     f.out = make_abs_.make_abs(f.body_nf);
     return std::nullopt;
@@ -130,7 +130,7 @@ reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
 std::optional<std::pair<reify_napp_stage, funcall>>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
+reification_processor<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
     reify_napp_frame& f, reify_napp_need_head_stage) {
     f.head_holder = f.neutral.head;
     return std::pair<reify_napp_stage, funcall>{
@@ -141,7 +141,7 @@ reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
 std::optional<std::pair<reify_napp_stage, funcall>>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
+reification_processor<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
     reify_napp_frame& f, reify_napp_need_arg_stage) {
     f.arg_holder = make_clo_.make_clo(f.neutral.arg, f.neutral.arg_env);
     return std::pair<reify_napp_stage, funcall>{
@@ -152,7 +152,7 @@ reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
 template <typename IMakeVar, typename IMakeAbs, typename IMakeApp,
           typename IMakeFvar, typename IMakeEnv, typename IMakeClo>
 std::optional<std::pair<reify_napp_stage, funcall>>
-reifier<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
+reification_processor<IMakeVar, IMakeAbs, IMakeApp, IMakeFvar, IMakeEnv, IMakeClo>::process(
     reify_napp_frame& f, reify_napp_after_arg_stage) {
     f.out = make_app_.make_app(f.fun_term, f.arg_term);
     return std::nullopt;

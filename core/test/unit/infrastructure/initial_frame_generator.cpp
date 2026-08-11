@@ -9,7 +9,7 @@
 #include "infrastructure/val_factory.hpp"
 #include "nbe_fixture.hpp"
 #include "value_objects/funcall.hpp"
-#include "value_objects/reify_val_funcall.hpp"
+#include "value_objects/main_funcall.hpp"
 
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -35,17 +35,17 @@ struct InitialFrameGeneratorMockTest : public ::testing::Test {
 };
 
 TEST_F(InitialFrameGeneratorMockTest,
-       GenerateInitialFrameSeedsCloAndReturnsReifyValFunCall) {
+       GenerateInitialFrameSeedsCloAndReturnsMainFunCall) {
     auto term = pool.make_abs(pool.make_var(0));
     auto seed = vals.make_clo(term, {});
     EXPECT_CALL(make_clo, make_clo(term, std::shared_ptr<env>{}))
         .WillOnce(Return(seed));
     std::shared_ptr<expr> got;
     funcall root = initial_frame_gen.generate_initial_frame(got, term);
-    reify_val_funcall* f = std::get_if<reify_val_funcall>(&root);
+    main_funcall* f = std::get_if<main_funcall>(&root);
     ASSERT_NE(f, nullptr);
-    EXPECT_EQ(f->v, seed);
-    EXPECT_EQ(f->depth, 0u);
+    EXPECT_EQ(f->seed, seed);
+    EXPECT_EQ(&f->detached_out, &got);
 }
 
 struct NormalizeTest : public ::testing::Test, public nbe_fixture {};

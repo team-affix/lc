@@ -10,10 +10,12 @@
 #include "infrastructure/expr_factory.hpp"
 #include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
+#include "infrastructure/entrypoint_processor.hpp"
+#include "infrastructure/output_detacher.hpp"
 #include "infrastructure/processor.hpp"
 #include "infrastructure/rc_pool.hpp"
-#include "infrastructure/reducer.hpp"
-#include "infrastructure/reifier.hpp"
+#include "infrastructure/reduction_processor.hpp"
+#include "infrastructure/reification_processor.hpp"
 #include "infrastructure/val_factory.hpp"
 #include "value_objects/continuation.hpp"
 #include "value_objects/env.hpp"
@@ -46,8 +48,8 @@ struct MockLookup {
     MOCK_METHOD(env*, lookup, (env*, uint32_t), ());
 };
 
-using test_reducer_t =
-    reducer<MockMakeClo, MockMakeNapp, MockMakeEnv, MockLookup>;
+using test_reduction_processor_t =
+    reduction_processor<MockMakeClo, MockMakeNapp, MockMakeEnv, MockLookup>;
 
 struct ReducerMockTest : public ::testing::Test {
     rc_pool<expr> expr_nodes;
@@ -58,7 +60,7 @@ struct ReducerMockTest : public ::testing::Test {
     NiceMock<MockMakeNapp> make_napp;
     NiceMock<MockMakeEnv> make_env;
     NiceMock<MockLookup> lookup;
-    test_reducer_t red{make_clo, make_napp, make_env, lookup};
+    test_reduction_processor_t red{make_clo, make_napp, make_env, lookup};
 
     ReducerMockTest()
         : expr_nodes(), val_nodes(), pool(expr_nodes), vals(val_nodes) {
@@ -83,14 +85,18 @@ struct ReducerTest : public ::testing::Test {
     env_factory<rc_pool<env>> envs;
     val_factory<rc_pool<val>> vals;
     env_lookup lookup;
-    reducer<val_factory<rc_pool<val>>, val_factory<rc_pool<val>>,
+    reduction_processor<val_factory<rc_pool<val>>, val_factory<rc_pool<val>>,
             env_factory<rc_pool<env>>, env_lookup>
         red;
-    reifier<expr_factory<rc_pool<expr>>, expr_factory<rc_pool<expr>>,
+    reification_processor<expr_factory<rc_pool<expr>>, expr_factory<rc_pool<expr>>,
             expr_factory<rc_pool<expr>>, val_factory<rc_pool<val>>,
             env_factory<rc_pool<env>>, val_factory<rc_pool<val>>>
         re;
-    processor<decltype(red), decltype(re)> proc;
+    entrypoint_processor entrypoint;
+    output_detacher detacher;
+    processor<decltype(red), decltype(re), entrypoint_processor,
+              output_detacher>
+        proc;
 
     ReducerTest()
         : expr_nodes()
@@ -102,7 +108,9 @@ struct ReducerTest : public ::testing::Test {
         , lookup()
         , red(vals, vals, envs, lookup)
         , re(pool, pool, pool, vals, envs, vals)
-        , proc(red, re) {
+        , entrypoint()
+        , detacher()
+        , proc(red, re, entrypoint, detacher) {
     }
 
     ~ReducerTest() {
@@ -121,7 +129,7 @@ struct ReducerTest : public ::testing::Test {
 
     std::shared_ptr<val> must_whnf(std::shared_ptr<val> v) {
         std::shared_ptr<val> reg = std::move(v);
-        interpreter<continuation, decltype(proc), decltype(proc)> interp{
+        interpreter<continuation, funcall, decltype(proc), decltype(proc)> interp{
             proc, proc, reduce_whnf_funcall{reg}};
         while(!interp.done())
             interp.step();

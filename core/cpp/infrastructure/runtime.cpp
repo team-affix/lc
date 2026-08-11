@@ -27,7 +27,7 @@ bool runtime::done() const {
 std::shared_ptr<expr> runtime::output() const {
     DEBUG_ASSERT(done());
     DEBUG_ASSERT(norm_out_);
-    return manifest_.detacher.prepare(norm_out_);
+    return norm_out_;
 }
 
 std::size_t runtime::space_usage() const {

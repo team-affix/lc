@@ -1,9 +1,13 @@
 #include <gtest/gtest.h>
 #include <memory>
+#include <variant>
 #include "exprs_eq.hpp"
 #include "infrastructure/expr_factory.hpp"
+#include "infrastructure/interpreter.hpp"
 #include "infrastructure/output_detacher.hpp"
 #include "infrastructure/rc_pool.hpp"
+#include "value_objects/detach_expr_continuation.hpp"
+#include "value_objects/detach_expr_funcall.hpp"
 
 struct OutputDetacherTest : public ::testing::Test {
     rc_pool<expr> nodes;
@@ -11,22 +15,44 @@ struct OutputDetacherTest : public ::testing::Test {
     output_detacher detacher;
 
     OutputDetacherTest() : nodes(), pool(nodes), detacher() {}
+
+    std::shared_ptr<expr> detach_copy(std::shared_ptr<expr> src) {
+        std::shared_ptr<expr> out;
+        using detach_continuation = std::variant<detach_expr_continuation>;
+        using detach_funcall = std::variant<detach_expr_funcall>;
+        interpreter<detach_continuation, detach_funcall, output_detacher,
+                    output_detacher>
+            interp{detacher, detacher, detach_expr_funcall{out, std::move(src)}};
+        while(!interp.done())
+            interp.step();
+        EXPECT_TRUE(interp.done());
+        return out;
+    }
 };
 
-TEST_F(OutputDetacherTest, PrepareCopiesPoolTreeOntoStandaloneSharedPtrs) {
+TEST_F(OutputDetacherTest, DetachCopiesPoolTreeOntoStandaloneSharedPtrs) {
     auto term = pool.make_abs(pool.make_app(pool.make_var(0), pool.make_var(1)));
-    auto prepared = detacher.prepare(term);
+    auto prepared = detach_copy(term);
     EXPECT_NE(prepared.get(), term.get());
     EXPECT_TRUE(exprs_eq(prepared, term));
     term.reset();
-    EXPECT_TRUE(exprs_eq(prepared, detacher.prepare(prepared)));
+    EXPECT_TRUE(exprs_eq(prepared, detach_copy(prepared)));
 }
 
-TEST_F(OutputDetacherTest, PrepareIsRecursiveThroughAbsAndApp) {
+TEST_F(OutputDetacherTest, DetachCopiesThroughAbsAndApp) {
     auto body = std::make_shared<expr>(expr{expr::var{0}});
     auto term = std::make_shared<expr>(expr{expr::abs{body}});
-    auto prepared = detacher.prepare(term);
+    auto prepared = detach_copy(term);
     EXPECT_NE(prepared.get(), term.get());
     EXPECT_NE(std::get<expr::abs>(prepared->content).body.get(), body.get());
+    EXPECT_TRUE(exprs_eq(prepared, term));
+}
+
+TEST_F(OutputDetacherTest, DetachDeepAbsSpine) {
+    std::shared_ptr<expr> term = std::make_shared<expr>(expr{expr::var{0}});
+    for(int i = 0; i < 10000; ++i)
+        term = std::make_shared<expr>(expr{expr::abs{term}});
+    auto prepared = detach_copy(term);
+    EXPECT_NE(prepared.get(), term.get());
     EXPECT_TRUE(exprs_eq(prepared, term));
 }
