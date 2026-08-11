@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_HPP
 #define INTERPRETER_HPP
 
+#include "debug_assert.hpp"
 #include "value_objects/continuation.hpp"
 #include "value_objects/funcall.hpp"
 #include <deque>
@@ -32,8 +33,7 @@ interpreter<Continuation, IProcess, IInitContinuation>::interpreter(
 
 template <typename Continuation, typename IProcess, typename IInitContinuation>
 void interpreter<Continuation, IProcess, IInitContinuation>::step() {
-    if(stack_.empty())
-        return;
+    DEBUG_ASSERT(!stack_.empty());
     std::optional<funcall> child = std::visit(
         [this](auto& c) -> std::optional<funcall> {
             return std::visit(
