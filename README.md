@@ -10,9 +10,9 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 
 **Resumable interpreter:** construct a `runtime` with the term to normalize. Call `step()` while `!done()`, then `output()` for the NF. There is no β-budget — stop calling `step()` to cap compute. Terms are not interned — compare with deep structural equality.
 
-**Pools + RC:** `manifest` owns three `rc_pool`s (`expr` / `val` / `env`). Factories inject alloc capabilities (`IAllocExpr` / `IAllocVal` / `IAllocEnv` → `rc_pool::alloc`). Factory `make_*` returns a `std::shared_ptr` whose deleter enqueues the slot on a pending list. `rc_pool::collect_one()` retires one pending slot (`optional::reset` + freelist). `garbage_collector` is injected with the three `rc_pool`s and fixpoint-drains them via `collect()`. `runtime` (injected `ICollectGarbage`) calls `collect()` every `gc_interval` steps (ctor argument) and again in its destructor after dropping the interpreter and clearing its internal output register. Edges inside `expr` / `val` / `env` are `shared_ptr`s (DAG by construction).
+**Pools + RC:** `manifest` owns three `rc_pool`s (`expr` / `val` / `env`), a `garbage_collector`, and an `output_detacher`. Factories inject alloc capabilities (`IAllocExpr` / `IAllocVal` / `IAllocEnv` → `rc_pool::alloc`). Factory `make_*` returns a `std::shared_ptr` whose deleter enqueues the slot on a pending list. `rc_pool::collect_one()` retires one pending slot (`optional::reset` + freelist). The GC fixpoint-drains the three pools via `collect()`. `runtime` calls `manifest.gc.collect()` every `gc_interval` steps (ctor argument) and again in its destructor after dropping the interpreter and clearing its internal output register. Edges inside `expr` / `val` / `env` are `shared_ptr`s (DAG by construction).
 
-**Inputs / outputs:** caller-owned `std::shared_ptr<expr>` input (any allocator, including `make_shared`) is used directly — no import into the runtime pools. Mid-run nodes still come from `rc_pool`. `runtime` owns an internal NF register; `output()` runs injected `IPrepareOutput` (`output_detacher` by default) to deep-copy that register onto standalone `make_shared` nodes and returns them. Call `output()` only after `done()`.
+**Inputs / outputs:** caller-owned `std::shared_ptr<expr>` input (any allocator, including `make_shared`) is used directly — no import into the runtime pools. Mid-run nodes still come from `rc_pool`. `runtime` owns an internal NF register; `output()` uses `manifest.detacher` to deep-copy that register onto standalone `make_shared` nodes and returns them. Call `output()` only after `done()`.
 
 **Construction monopoly (mid-run):** only `rc_pool::alloc` (via the factories) may place ephemeral `expr` / `val` / `env` into pool storage. `output_detacher` is the deliberate `make_shared` boundary for user-facing results.
 
@@ -30,9 +30,9 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 | `processor` | `init_continuation(funcall)` + forwards `process` to reducer/reifier |
 | `interpreter` | Nested `visit` on continuation/stage; `step` / `done` |
 | `initial_frame_generator` | `make_clo(term, nil)` then returns root `reify_val_funcall` (`IGenerateInitialFrame`) |
-| `output_detacher` | Default `IPrepareOutput`: deep-copy NF onto standalone `make_shared` exprs |
-| `manifest` | VO composition root: owns `rc_pool`s + factories + GC + NbE stack; ctor seeds the interpreter |
-| `runtime` | Façade on `ICollectGarbage` + `IPrepareOutput`; `step` / `done` / `output()`; collect on teardown |
+| `output_detacher` | Deep-copy NF onto standalone `make_shared` exprs (owned by `manifest`) |
+| `manifest` | VO composition root: owns `rc_pool`s + factories + GC + detacher + NbE stack; ctor seeds the interpreter |
+| `runtime` | Public façade over `manifest`; `step` / `done` / `output()`; collect on teardown |
 
 Variables use **de Bruijn indices** (`var(0)` = innermost binder). Function WHNF is a `clo` whose `term` is an `abs`. Fresh binders in reification use de Bruijn levels (`fvar`).
 
@@ -53,10 +53,10 @@ core/
 ```cpp
 // Caller owns the input shared_ptr (any allocator). `output()` is standalone.
 auto id = std::make_shared<expr>(expr{expr::abs{std::make_shared<expr>(expr{expr::var{0}})}});
-nbe_runtime rt(id, 1024);
+runtime rt(id, 1024);
 while (!rt.done())
     rt.step();
-std::shared_ptr<expr> out = rt.output(); // prepared via IPrepareOutput
+std::shared_ptr<expr> out = rt.output(); // standalone via output_detacher
 ```
 
 ## Build & test

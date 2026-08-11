@@ -9,6 +9,7 @@
 #include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/initial_frame_generator.hpp"
+#include "infrastructure/output_detacher.hpp"
 #include "infrastructure/processor.hpp"
 #include "infrastructure/rc_pool.hpp"
 #include "infrastructure/reducer.hpp"
@@ -46,6 +47,7 @@ struct manifest {
     env_factory_t envs;
     val_factory_t vals;
     garbage_collector_t gc;
+    output_detacher detacher;
     env_lookup lookup;
     reducer_t red;
     reifier_t re;

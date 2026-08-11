@@ -14,7 +14,7 @@ struct RuntimePlaygroundTest : public ::testing::Test, public nbe_fixture {
     static constexpr uint64_t k_gc_interval = 1024;
 
     struct drive {
-        nbe_runtime rt;
+        runtime rt;
         uint64_t steps;
         double ms;
         std::shared_ptr<expr> out;
