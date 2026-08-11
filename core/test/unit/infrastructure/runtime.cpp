@@ -2,6 +2,7 @@
 #include "exprs_eq.hpp"
 #include "nbe_fixture.hpp"
 #include <cstdint>
+#include <cstddef>
 #include <gtest/gtest.h>
 #include <memory>
 
@@ -68,6 +69,16 @@ TEST_F(RuntimeTest, DestroyIncompleteRuntimeDoesNotThrow) {
         rt->step();
     EXPECT_FALSE(rt->done());
     EXPECT_NO_THROW(rt.reset());
+}
+
+TEST_F(RuntimeTest, SpaceUsagePositiveAndGrowsOverall) {
+    runtime rt{omega_term(), 16};
+    rt.step();
+    std::size_t early = rt.space_usage();
+    EXPECT_GT(early, 0u);
+    for(uint64_t i = 0; i < 255; ++i)
+        rt.step();
+    EXPECT_GE(rt.space_usage(), early);
 }
 
 TEST_F(RuntimeTest, KIdDiscardsOmega) {

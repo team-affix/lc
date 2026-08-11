@@ -4,6 +4,7 @@
 #include "debug_assert.hpp"
 #include "value_objects/continuation.hpp"
 #include "value_objects/funcall.hpp"
+#include <cstddef>
 #include <deque>
 #include <optional>
 #include <utility>
@@ -15,6 +16,7 @@ struct interpreter {
                 funcall initial);
     void step();
     bool done() const;
+    std::size_t space_usage() const;
 
   private:
     std::deque<Continuation> stack_;
@@ -60,6 +62,12 @@ void interpreter<Continuation, IProcess, IInitContinuation>::step() {
 template <typename Continuation, typename IProcess, typename IInitContinuation>
 bool interpreter<Continuation, IProcess, IInitContinuation>::done() const {
     return stack_.empty();
+}
+
+template <typename Continuation, typename IProcess, typename IInitContinuation>
+std::size_t
+interpreter<Continuation, IProcess, IInitContinuation>::space_usage() const {
+    return stack_.size() * sizeof(Continuation);
 }
 
 #endif

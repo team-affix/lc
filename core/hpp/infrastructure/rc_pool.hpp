@@ -1,6 +1,7 @@
 #ifndef RC_POOL_HPP
 #define RC_POOL_HPP
 
+#include <cstddef>
 #include <deque>
 #include <memory>
 #include <optional>
@@ -12,6 +13,7 @@ template <typename T> struct rc_pool {
     std::shared_ptr<T> alloc(T value);
     void release(std::optional<T>& slot);
     bool collect_one();
+    std::size_t space_usage() const;
 
   private:
     std::optional<T>* take_slot();
@@ -52,6 +54,10 @@ template <typename T> bool rc_pool<T>::collect_one() {
     slot->reset();
     free_.push_back(slot);
     return true;
+}
+
+template <typename T> std::size_t rc_pool<T>::space_usage() const {
+    return storage_.size() * sizeof(std::optional<T>);
 }
 
 template <typename T> std::optional<T>* rc_pool<T>::take_slot() {

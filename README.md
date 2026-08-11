@@ -36,7 +36,8 @@ std::shared_ptr<expr> nf = rt.output();  // standalone copy of the normal form
 
 `step()` / `done()` make the interpreter resumable. `output()` is only valid
 after `done()` and returns a self-contained tree you can keep after `runtime`
-is destroyed.
+is destroyed. `space_usage()` returns an approximate retained-bytes figure
+(pools + control stack) useful as a soft cap between `step()` calls.
 
 ## Garbage collection
 
