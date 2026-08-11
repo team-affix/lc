@@ -20,10 +20,10 @@ struct MockMakeClo {
 using test_normalizer_t = normalizer<MockMakeClo>;
 
 struct NormalizerMockTest : public ::testing::Test {
-    NiceMock<MockMakeClo> make_clo;
-    test_normalizer_t norm{make_clo};
     expr_pool pool;
     val_pool vals;
+    NiceMock<MockMakeClo> make_clo;
+    test_normalizer_t norm{make_clo};
 };
 
 TEST_F(NormalizerMockTest, NormalizeSeedsCloAndReturnsReifyValFunCall) {

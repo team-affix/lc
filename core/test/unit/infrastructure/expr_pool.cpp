@@ -22,3 +22,18 @@ TEST_F(ExprPoolInfraTest, ImportCopiesHandBuiltTree) {
     EXPECT_NE(imported.get(), term.get());
     EXPECT_TRUE(exprs_eq(imported, term));
 }
+
+TEST_F(ExprPoolInfraTest, CollectOneFalseWhenEmpty) {
+    EXPECT_FALSE(pool.collect_one());
+}
+
+TEST_F(ExprPoolInfraTest, ReleaseThenCollectOneRetiresSlot) {
+    {
+        auto a = pool.make_var(0);
+        auto b = pool.make_var(1);
+        (void)b;
+    }
+    EXPECT_TRUE(pool.collect_one());
+    EXPECT_TRUE(pool.collect_one());
+    EXPECT_FALSE(pool.collect_one());
+}

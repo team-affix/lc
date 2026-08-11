@@ -29,3 +29,7 @@ std::shared_ptr<expr> expr_pool::import(const expr* e) {
     const expr::app& ap = std::get<expr::app>(e->content);
     return make_app(import(ap.fun), import(ap.arg));
 }
+
+bool expr_pool::collect_one() {
+    return nodes_.collect_one();
+}

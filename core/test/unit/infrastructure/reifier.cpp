@@ -8,6 +8,7 @@
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/processor.hpp"
 #include "infrastructure/reducer.hpp"
@@ -54,6 +55,8 @@ using test_reifier_t =
             MockMakeClo>;
 
 struct ReifierMockTest : public ::testing::Test {
+    expr_pool pool;
+    val_pool vals;
     NiceMock<MockMakeVar> make_var;
     NiceMock<MockMakeAbs> make_abs;
     NiceMock<MockMakeApp> make_app;
@@ -62,8 +65,6 @@ struct ReifierMockTest : public ::testing::Test {
     NiceMock<MockMakeClo> make_clo;
     test_reifier_t re{make_var, make_abs, make_app, make_fvar, make_env,
                       make_clo};
-    expr_pool pool;
-    val_pool vals;
 };
 
 TEST_F(ReifierMockTest, ProcessValOnFvarAfterWhnfWritesVar) {
@@ -87,6 +88,11 @@ struct ReifierTest : public ::testing::Test {
     reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool> re{
         pool, pool, pool, vals, envs, vals};
     processor<decltype(red), decltype(re)> proc{red, re};
+
+    ~ReifierTest() {
+        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        gc.collect();
+    }
 
     std::shared_ptr<expr> dv(uint32_t i) { return pool.make_var(i); }
     std::shared_ptr<expr> lm(std::shared_ptr<expr> b) {

@@ -5,6 +5,7 @@
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/normalizer.hpp"
 #include "infrastructure/processor.hpp"
@@ -287,10 +288,16 @@ struct nbe_fixture {
         re_t re{pool, pool, pool, vals, envs, vals};
         proc_t proc{red, re};
         normalizer<val_pool> norm{vals};
-        interp_t interp{proc, proc, norm.normalize(out, std::move(term))};
-        for(uint64_t i = 0; i < max_steps && !interp.done(); ++i)
-            interp.step();
-        return interp.done();
+        bool finished;
+        {
+            interp_t interp{proc, proc, norm.normalize(out, std::move(term))};
+            for(uint64_t i = 0; i < max_steps && !interp.done(); ++i)
+                interp.step();
+            finished = interp.done();
+        }
+        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        gc.collect();
+        return finished;
     }
 
     void run_normalize(std::shared_ptr<expr>& out, std::shared_ptr<expr> term) {
@@ -301,10 +308,14 @@ struct nbe_fixture {
         re_t re{pool, pool, pool, vals, envs, vals};
         proc_t proc{red, re};
         normalizer<val_pool> norm{vals};
-        interp_t interp{proc, proc, norm.normalize(out, std::move(term))};
-        while(!interp.done())
-            interp.step();
-        DEBUG_ASSERT(interp.done());
+        {
+            interp_t interp{proc, proc, norm.normalize(out, std::move(term))};
+            while(!interp.done())
+                interp.step();
+            DEBUG_ASSERT(interp.done());
+        }
+        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        gc.collect();
     }
 
     std::shared_ptr<expr> normalize(std::shared_ptr<expr> term) {

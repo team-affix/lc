@@ -2,9 +2,11 @@
 #define MANIFEST_HPP
 
 #include <memory>
+#include <optional>
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/normalizer.hpp"
 #include "infrastructure/processor.hpp"
@@ -22,18 +24,21 @@ struct manifest {
     using normalizer_t = ::normalizer<val_pool>;
     using interpreter_t =
         ::interpreter<continuation, processor_t, processor_t>;
+    using garbage_collector_t =
+        ::garbage_collector<expr_pool, val_pool, env_pool>;
 
     manifest(std::shared_ptr<expr>& out, const expr* term);
 
     expr_pool exprs;
     env_pool envs;
     val_pool vals;
+    garbage_collector_t gc;
     env_lookup lookup;
     reducer_t red;
     reifier_t re;
     processor_t proc;
     normalizer_t norm;
-    interpreter_t interp;
+    std::optional<interpreter_t> interp;
 };
 
 #endif

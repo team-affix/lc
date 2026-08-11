@@ -18,3 +18,7 @@ std::shared_ptr<val> val_pool::make_napp(std::shared_ptr<val> head,
     return nodes_.make(
         val{val::napp{std::move(head), std::move(arg), std::move(arg_env)}});
 }
+
+bool val_pool::collect_one() {
+    return nodes_.collect_one();
+}

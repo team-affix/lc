@@ -5,6 +5,7 @@
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/val_pool.hpp"
 
 struct EnvLookupTest : public ::testing::Test {
@@ -12,6 +13,11 @@ struct EnvLookupTest : public ::testing::Test {
     env_pool envs;
     expr_pool pool;
     val_pool vals;
+
+    ~EnvLookupTest() {
+        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        gc.collect();
+    }
 };
 
 TEST_F(EnvLookupTest, IndexZeroReturnsSameCell) {

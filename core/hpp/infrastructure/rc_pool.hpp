@@ -1,69 +1,67 @@
 #ifndef RC_POOL_HPP
 #define RC_POOL_HPP
 
-#include "debug_assert.hpp"
 #include <deque>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
 template <typename T> struct rc_pool {
     rc_pool();
     std::shared_ptr<T> make(T value);
-    void release(T* p);
+    void release(std::optional<T>& slot);
+    bool collect_one();
 
   private:
-    T* take_slot();
+    std::optional<T>* take_slot();
 
-    std::deque<T> storage_;
-    std::vector<T*> free_;
-    std::vector<T*> to_release_;
-    bool releasing_;
+    std::vector<std::optional<T>*> pending_collection_;
+    std::vector<std::optional<T>*> free_;
+    std::deque<std::optional<T>> storage_;
 };
 
 template <typename T> struct rc_pool_deleter {
-    rc_pool<T>* pool;
+    rc_pool<T>& pool;
+    std::optional<T>& slot;
 
-    void operator()(T* p) const {
-        DEBUG_ASSERT(pool != nullptr);
-        DEBUG_ASSERT(p != nullptr);
-        pool->release(p);
+    void operator()(T*) const {
+        pool.release(slot);
     }
 };
 
 template <typename T>
-rc_pool<T>::rc_pool() : storage_(), free_(), to_release_(), releasing_(false) {
+rc_pool<T>::rc_pool() : pending_collection_(), free_(), storage_() {
 }
 
 template <typename T> std::shared_ptr<T> rc_pool<T>::make(T value) {
-    T* p = take_slot();
-    *p = std::move(value);
-    return std::shared_ptr<T>(p, rc_pool_deleter<T>{this});
+    std::optional<T>* slot = take_slot();
+    slot->emplace(std::move(value));
+    return std::shared_ptr<T>(&slot->value(), rc_pool_deleter<T>{*this, *slot});
 }
 
-template <typename T> void rc_pool<T>::release(T* p) {
-    DEBUG_ASSERT(p != nullptr);
-    to_release_.push_back(p);
-    if(releasing_)
-        return;
-    releasing_ = true;
-    while(!to_release_.empty()) {
-        T* q = to_release_.back();
-        to_release_.pop_back();
-        *q = T{};
-        free_.push_back(q);
-    }
-    releasing_ = false;
+template <typename T> void rc_pool<T>::release(std::optional<T>& slot) {
+    pending_collection_.push_back(&slot);
 }
 
-template <typename T> T* rc_pool<T>::take_slot() {
+template <typename T> bool rc_pool<T>::collect_one() {
+    if(pending_collection_.empty())
+        return false;
+    std::optional<T>* slot = pending_collection_.back();
+    pending_collection_.pop_back();
+    slot->reset();
+    free_.push_back(slot);
+    return true;
+}
+
+template <typename T> std::optional<T>* rc_pool<T>::take_slot() {
     if(free_.empty()) {
-        storage_.push_back(T{});
+        storage_.emplace_back(std::nullopt);
         return &storage_.back();
     }
-    T* p = free_.back();
+    std::optional<T>* slot = free_.back();
     free_.pop_back();
-    return p;
+    return slot;
 }
 
 #endif

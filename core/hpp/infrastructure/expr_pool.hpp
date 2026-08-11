@@ -14,6 +14,7 @@ struct expr_pool {
                                    std::shared_ptr<expr> arg);
     std::shared_ptr<expr> import(const expr* e);
     std::shared_ptr<expr> import(const std::shared_ptr<expr>& e);
+    bool collect_one();
 
   private:
     rc_pool<expr> nodes_;

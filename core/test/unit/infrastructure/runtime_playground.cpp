@@ -14,7 +14,7 @@
 struct RuntimePlaygroundTest : public ::testing::Test, public nbe_fixture {
     struct drive {
         std::shared_ptr<expr> out;
-        runtime rt;
+        nbe_runtime rt;
         uint64_t steps;
         double ms;
 

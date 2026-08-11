@@ -16,6 +16,7 @@ struct val_pool {
     std::shared_ptr<val> make_napp(std::shared_ptr<val> head,
                                    std::shared_ptr<expr> arg,
                                    std::shared_ptr<env> arg_env);
+    bool collect_one();
 
   private:
     rc_pool<val> nodes_;

@@ -8,6 +8,7 @@
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_pool.hpp"
 #include "infrastructure/expr_pool.hpp"
+#include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/processor.hpp"
 #include "infrastructure/reducer.hpp"
@@ -48,13 +49,13 @@ using test_reducer_t =
     reducer<MockMakeClo, MockMakeNapp, MockMakeEnv, MockLookup>;
 
 struct ReducerMockTest : public ::testing::Test {
+    expr_pool pool;
+    val_pool vals;
     NiceMock<MockMakeClo> make_clo;
     NiceMock<MockMakeNapp> make_napp;
     NiceMock<MockMakeEnv> make_env;
     NiceMock<MockLookup> lookup;
     test_reducer_t red{make_clo, make_napp, make_env, lookup};
-    expr_pool pool;
-    val_pool vals;
 };
 
 TEST_F(ReducerMockTest, ProcessWhnfAbsCloFinishes) {
@@ -77,6 +78,11 @@ struct ReducerTest : public ::testing::Test {
     reifier<expr_pool, expr_pool, expr_pool, val_pool, env_pool, val_pool> re{
         pool, pool, pool, vals, envs, vals};
     processor<decltype(red), decltype(re)> proc{red, re};
+
+    ~ReducerTest() {
+        garbage_collector<expr_pool, val_pool, env_pool> gc{pool, vals, envs};
+        gc.collect();
+    }
 
     std::shared_ptr<expr> dv(uint32_t i) { return pool.make_var(i); }
     std::shared_ptr<expr> lm(std::shared_ptr<expr> b) {

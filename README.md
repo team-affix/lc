@@ -10,7 +10,7 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 
 **Resumable interpreter:** construct a `runtime` with an output register and the term to normalize. Call `step()` while `!done()`. The NF is written into `out` as a `std::shared_ptr<expr>` into the runtime’s owned `expr_pool`. There is no β-budget — stop calling `step()` to cap compute. Terms are not interned — compare with deep structural equality.
 
-**Pools + RC:** `expr_pool` / `val_pool` / `env_pool` store nodes in a `deque` (stable addresses) and reuse slots via a freelist. `make_*` returns `std::shared_ptr` with a custom deleter that returns the slot to that pool. Mid-normalize junk is reclaimed when `shared_ptr`s drop. Edges inside `expr` / `val` / `env` are `shared_ptr`s (DAG by construction).
+**Pools + RC:** `expr_pool` / `val_pool` / `env_pool` store nodes in a `deque` of `optional` slots and reuse via a freelist. `make_*` returns `std::shared_ptr` whose deleter only enqueues the slot on a pending list. `collect_one()` retires one pending slot (`optional::reset` + freelist). A `garbage_collector` fixpoint-drains all three pools via `collect()`. `runtime` (injected `ICollectGarbage`) calls `collect()` every 1024 steps and again in its destructor after dropping the interpreter. Edges inside `expr` / `val` / `env` are `shared_ptr`s (DAG by construction). The pool must outlive every external `shared_ptr` it created.
 
 **Construction monopoly (infrastructure):** only the three pools may place `expr` / `val` / `env` into storage or attach freelist deleters. Inside `core/hpp` and `core/cpp`, do not `make_shared` those types or wrap raw pool pointers yourself — copy/move the `shared_ptr`s pools return.
 
@@ -27,15 +27,16 @@ Efficient C++ lambda calculus via **Normalization by Evaluation** (Krivine machi
 | `val` | WHNF values: Krivine `clo(term, environment)` / `fvar` / `napp` (shared edges) |
 | `env` | Linked cells: `bound_value` (`shared_ptr<val>`) + `parent` (`shared_ptr<env>`) |
 | `env_pool` / `val_pool` | Freelist pools for ephemeral env/val nodes |
-| `rc_pool` | Shared deque + freelist + iterative release worklist |
+| `rc_pool` | `optional` deque + pending + freelist; `collect_one` retires one slot |
+| `garbage_collector` | Fixpoint drain across expr/val/env pools |
 | `funcall` | Entry request (args + refs to parent return registers) |
 | `continuation` | Stack item `{frame, stage}`; stage is a variant of distinct stage VOs |
 | `reducer` / `reifier` | Per-stage `process(frame&, stage)` → `optional<pair<next_stage, child_funcall>>` (`nullopt` = pop) |
 | `processor` | `init_continuation(funcall)` + forwards `process` to reducer/reifier |
 | `interpreter` | Nested `visit` on continuation/stage; `step` / `done` |
 | `normalizer` | `make_clo(term, nil)` then returns root `reify_val_funcall` |
-| `manifest` | VO composition root: owns pools + NbE stack; ctor imports input + seeds the interpreter |
-| `runtime` | Façade: owns `manifest`; `step` / `done` forward to `manifest.interp` |
+| `manifest` | VO composition root: owns pools + GC + NbE stack; ctor imports input + seeds the interpreter |
+| `runtime` | Façade templated on `ICollectGarbage`; `step` / `done`; `collect()` every 1024 steps |
 
 Variables use **de Bruijn indices** (`var(0)` = innermost binder). Function WHNF is a `clo` whose `term` is an `abs`. Fresh binders in reification use de Bruijn levels (`fvar`).
 
@@ -46,7 +47,7 @@ Variables use **de Bruijn indices** (`var(0)` = innermost binder). Function WHNF
 ```
 core/
   hpp/value_objects/     expr, val, env, stages, frames, funcalls, continuations, manifest
-  hpp/infrastructure/    rc_pool, pools, reducer, reifier, processor, interpreter, normalizer, runtime
+  hpp/infrastructure/    rc_pool, garbage_collector, pools, reducer, reifier, processor, interpreter, normalizer, runtime
   cpp/                   non-template implementations
   test/unit|integration/ Google Test
 ```
@@ -58,7 +59,7 @@ core/
 auto id = std::make_shared<expr>(expr{expr::abs{std::make_shared<expr>(expr{expr::var{0}})}});
 std::shared_ptr<expr> out;
 {
-    runtime rt(out, id.get());
+    nbe_runtime rt(out, id.get());
     while (!rt.done())
         rt.step();
     // Keep a copy that outlives the runtime:
