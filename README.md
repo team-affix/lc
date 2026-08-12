@@ -18,29 +18,43 @@ variable must be bound.
 
 ## Usage
 
-Build a term as a `std::shared_ptr<expr>` tree (`var` / `abs` / `app`), then drive a `runtime` to normalize it:
+Include headers from `core/hpp`. Build a closed term as a `std::shared_ptr<expr>`
+tree (`var` / `abs` / `app`), own an output pool for the normal form, then drive
+a `runtime`:
 
 ```cpp
 #include "infrastructure/runtime.hpp"
 #include "infrastructure/rc_pool.hpp"
 #include "value_objects/expr.hpp"
 
+// Input term (any shared_ptr tree is fine — make_shared or your own pool).
 auto id = std::make_shared<expr>(
-    expr::abs{std::make_shared<expr>(expr::var{0})});
+    expr{expr::abs{std::make_shared<expr>(expr{expr::var{0}})}});
 
-rc_pool<expr> out_nodes;  // owns the normalized result; must outlive nf
+// Output pool: only the normalized result is allocated here.
+// It must outlive every shared_ptr returned by output().
+rc_pool<expr> out_nodes;
+
 runtime rt(id, out_nodes);
 while (!rt.done())
     rt.step();
 
-std::shared_ptr<expr> nf = rt.output();  // nodes live in out_nodes
+std::shared_ptr<expr> nf = rt.output();
+// Use nf… then drop nf (and/or destroy out_nodes) when finished.
 ```
 
-`step()` / `done()` make the interpreter resumable. `output()` is only valid
-after `done()`. Keep `out_nodes` (and any returned `shared_ptr`s) alive as long
-as you need the normal form; evaluation uses separate internal pools.
+### API
 
-How to cap time and memory:
+| Call | Role |
+|------|------|
+| `runtime(term, out_nodes)` | Start normalizing `term`; NF nodes go into `out_nodes`. |
+| `step()` | Advance one machine step. |
+| `done()` | `true` when normalization finished. |
+| `output()` | Root of the normal form (valid only after `done()`). |
+| `space_usage()` | Approx. bytes of **eval** state (internal pools + stack). |
+
+`step()` / `done()` are resumable, so you can interleave other work or enforce
+limits:
 
 ```cpp
 rc_pool<expr> out_nodes;
@@ -49,20 +63,31 @@ for (uint64_t steps = 0;
      !rt.done() && steps < MAX_STEPS && rt.space_usage() < MAX_BYTES;
      ++steps)
     rt.step();
+
+if (rt.done())
+    auto nf = rt.output();
 ```
 
-`space_usage()` is the approximate number of bytes the lambda calculus program
-currently takes up (internal eval pools and interpreter stack). In the
-worst case, peak space is on the order of the number of steps run so far — it
-grows linearly with the step count.
+`space_usage()` does **not** include `out_nodes`. In the worst case, peak eval
+space grows roughly linearly with the number of steps run so far.
 
-## Memory reclaim
+### Lifetimes
 
-Ephemeral nodes allocated during evaluation live in freelist pools. When the
-last `shared_ptr` to a pooled node drops, that pool eagerly drains pending
-slots (`try_collect_loop`). Destroying an incomplete `runtime` drops eval roots
-and is well-defined. Drop output `shared_ptr`s and destroy `out_nodes` to reclaim
-the normal form.
+- **`out_nodes`** must outlive the `runtime` and any `shared_ptr` from
+  `output()`. Destroying `out_nodes` while those pointers are live is undefined.
+- Destroying an incomplete `runtime` (before `done()`) is fine: eval state is
+  dropped; `out_nodes` is untouched unless detach already wrote into it.
+- Input `term` may be released once the `runtime` has been constructed (the
+  runtime keeps what it needs).
+
+### Memory
+
+Evaluation allocates into internal freelist pools owned by the runtime. When the
+last `shared_ptr` to a pooled node drops, that pool reclaims eagerly.
+
+The normal form is a separate copy in your `out_nodes` pool so deep results can
+be torn down without blowing the stack. Drop the output `shared_ptr`s, then
+destroy `out_nodes`, to reclaim the NF.
 
 ## Build & test
 
