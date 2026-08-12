@@ -22,26 +22,29 @@ Build a term as a `std::shared_ptr<expr>` tree (`var` / `abs` / `app`), then dri
 
 ```cpp
 #include "infrastructure/runtime.hpp"
+#include "infrastructure/rc_pool.hpp"
 #include "value_objects/expr.hpp"
 
 auto id = std::make_shared<expr>(
     expr::abs{std::make_shared<expr>(expr::var{0})});
 
-runtime rt(id);           // optional 2nd arg: garbage collection interval (default 1024 steps)
+rc_pool<expr> out_nodes;  // owns the normalized result; must outlive nf
+runtime rt(id, out_nodes);
 while (!rt.done())
     rt.step();
 
-std::shared_ptr<expr> nf = rt.output();  // standalone copy of the normal form
+std::shared_ptr<expr> nf = rt.output();  // nodes live in out_nodes
 ```
 
 `step()` / `done()` make the interpreter resumable. `output()` is only valid
-after `done()` and returns a self-contained tree you can keep after `runtime`
-is destroyed.
+after `done()`. Keep `out_nodes` (and any returned `shared_ptr`s) alive as long
+as you need the normal form; evaluation uses separate internal pools.
 
 How to cap time and memory:
 
 ```cpp
-runtime rt(term);
+rc_pool<expr> out_nodes;
+runtime rt(term, out_nodes);
 for (uint64_t steps = 0;
      !rt.done() && steps < MAX_STEPS && rt.space_usage() < MAX_BYTES;
      ++steps)
@@ -49,14 +52,17 @@ for (uint64_t steps = 0;
 ```
 
 `space_usage()` is the approximate number of bytes the lambda calculus program
-currently takes up. In the worst case, peak space is on the order of the number
-of steps run so far — it grows linearly with the step count.
+currently takes up (internal eval pools plus the external out pool). In the
+worst case, peak space is on the order of the number of steps run so far — it
+grows linearly with the step count.
 
-## Garbage collection
+## Memory reclaim
 
-Ephemeral nodes allocated during evaluation live in freelist pools. The runtime
-cleans up resources with zero reference count every N steps (`gc_interval`, default 1024) and once
-more on destruction.
+Ephemeral nodes allocated during evaluation live in freelist pools. When the
+last `shared_ptr` to a pooled node drops, that pool eagerly drains pending
+slots (`try_collect_loop`). Destroying an incomplete `runtime` drops eval roots
+and is well-defined. Drop output `shared_ptr`s and destroy `out_nodes` to reclaim
+the normal form.
 
 ## Build & test
 

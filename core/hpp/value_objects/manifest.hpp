@@ -7,7 +7,6 @@
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_factory.hpp"
 #include "infrastructure/expr_factory.hpp"
-#include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/initial_frame_generator.hpp"
 #include "infrastructure/output_detacher.hpp"
@@ -35,16 +34,16 @@ struct manifest {
         ::reification_processor<expr_factory_t, expr_factory_t, expr_factory_t,
                                 val_factory_t, env_factory_t, val_factory_t>;
     using entrypoint_processor_t = ::entrypoint_processor;
+    using output_detacher_t = ::output_detacher<expr_nodes_t>;
     using processor_t =
         ::processor<reduction_processor_t, reification_processor_t,
-                    entrypoint_processor_t, output_detacher>;
+                    entrypoint_processor_t, output_detacher_t>;
     using initial_frame_generator_t = ::initial_frame_generator<val_factory_t>;
     using interpreter_t =
         ::interpreter<continuation, funcall, processor_t, processor_t>;
-    using garbage_collector_t =
-        ::garbage_collector<expr_nodes_t, val_nodes_t, env_nodes_t>;
 
-    manifest(std::shared_ptr<expr>& out, std::shared_ptr<expr> term);
+    manifest(std::shared_ptr<expr>& out, std::shared_ptr<expr> term,
+             expr_nodes_t& out_nodes);
 
     expr_nodes_t expr_nodes;
     val_nodes_t val_nodes;
@@ -52,8 +51,7 @@ struct manifest {
     expr_factory_t exprs;
     env_factory_t envs;
     val_factory_t vals;
-    garbage_collector_t gc;
-    output_detacher detacher;
+    output_detacher_t detacher;
     entrypoint_processor_t entrypoint;
     env_lookup lookup;
     reduction_processor_t red;

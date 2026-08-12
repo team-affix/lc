@@ -1,14 +1,14 @@
 #ifndef RUNTIME_HPP
 #define RUNTIME_HPP
 
-#include <cstdint>
 #include <cstddef>
 #include <memory>
+#include "infrastructure/rc_pool.hpp"
 #include "value_objects/expr.hpp"
 #include "value_objects/manifest.hpp"
 
 struct runtime {
-    runtime(std::shared_ptr<expr> term, uint64_t gc_interval = 1024);
+    runtime(std::shared_ptr<expr> term, rc_pool<expr>& out_nodes);
     ~runtime();
     void step();
     bool done() const;
@@ -17,9 +17,8 @@ struct runtime {
 
   private:
     std::shared_ptr<expr> norm_out_;
+    rc_pool<expr>& out_nodes_;
     manifest manifest_;
-    uint64_t gc_interval_;
-    uint64_t steps_;
 };
 
 #endif

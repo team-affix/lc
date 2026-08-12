@@ -5,7 +5,6 @@
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_factory.hpp"
 #include "infrastructure/expr_factory.hpp"
-#include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/rc_pool.hpp"
 #include "infrastructure/val_factory.hpp"
 
@@ -28,11 +27,6 @@ struct EnvLookupTest : public ::testing::Test {
         , lookup() {
     }
 
-    ~EnvLookupTest() {
-        garbage_collector<rc_pool<expr>, rc_pool<val>, rc_pool<env>> gc{
-            expr_nodes, val_nodes, env_nodes};
-        gc.collect();
-    }
 };
 
 TEST_F(EnvLookupTest, IndexZeroReturnsSameCell) {

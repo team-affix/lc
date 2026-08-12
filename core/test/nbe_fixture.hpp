@@ -2,33 +2,18 @@
 #define NBE_FIXTURE_HPP
 
 #include "debug_assert.hpp"
-#include "infrastructure/entrypoint_processor.hpp"
-#include "infrastructure/env_lookup.hpp"
-#include "infrastructure/env_factory.hpp"
 #include "infrastructure/expr_factory.hpp"
-#include "infrastructure/garbage_collector.hpp"
-#include "infrastructure/interpreter.hpp"
-#include "infrastructure/initial_frame_generator.hpp"
-#include "infrastructure/output_detacher.hpp"
-#include "infrastructure/processor.hpp"
 #include "infrastructure/rc_pool.hpp"
-#include "infrastructure/reduction_processor.hpp"
-#include "infrastructure/reification_processor.hpp"
-#include "infrastructure/val_factory.hpp"
-#include "value_objects/continuation.hpp"
-#include "value_objects/funcall.hpp"
+#include "infrastructure/runtime.hpp"
+#include "value_objects/expr.hpp"
 #include <cstdint>
 #include <memory>
 
 struct nbe_fixture {
     using expr_nodes_t = rc_pool<expr>;
-    using val_nodes_t = rc_pool<val>;
-    using env_nodes_t = rc_pool<env>;
     using expr_factory_t = expr_factory<expr_nodes_t>;
-    using val_factory_t = val_factory<val_nodes_t>;
-    using env_factory_t = env_factory<env_nodes_t>;
 
-    nbe_fixture() : expr_nodes(), pool(expr_nodes) {}
+    nbe_fixture() : expr_nodes(), out_nodes(), pool(expr_nodes) {}
 
     std::shared_ptr<expr> dv(uint32_t index) { return pool.make_var(index); }
     std::shared_ptr<expr> lm(std::shared_ptr<expr> body) {
@@ -283,64 +268,24 @@ struct nbe_fixture {
         return ap(y_comb(), lm(lm(body)));
     }
 
-    using red_t = reduction_processor<val_factory_t, val_factory_t, env_factory_t, env_lookup>;
-    using re_t = reification_processor<expr_factory_t, expr_factory_t, expr_factory_t, val_factory_t,
-                         env_factory_t, val_factory_t>;
-    using proc_t = processor<red_t, re_t, entrypoint_processor, output_detacher>;
-    using interp_t = interpreter<continuation, funcall, proc_t, proc_t>;
-
     bool normalize_with_step_limit(std::shared_ptr<expr>& out,
                                    std::shared_ptr<expr> term,
                                    uint64_t max_steps) {
-        env_nodes_t env_nodes;
-        val_nodes_t val_nodes;
-        env_factory_t envs{env_nodes};
-        val_factory_t vals{val_nodes};
-        env_lookup lookup;
-        red_t red{vals, vals, envs, lookup};
-        re_t re{pool, pool, pool, vals, envs, vals};
-        entrypoint_processor entrypoint;
-        output_detacher detacher;
-        proc_t proc{red, re, entrypoint, detacher};
-        initial_frame_generator<val_factory_t> initial_frame_gen{vals};
-        bool finished;
-        {
-            interp_t interp{proc, proc,
-                            initial_frame_gen.generate_initial_frame(
-                                out, std::move(term))};
-            for(uint64_t i = 0; i < max_steps && !interp.done(); ++i)
-                interp.step();
-            finished = interp.done();
-        }
-        garbage_collector<expr_nodes_t, val_nodes_t, env_nodes_t> gc{
-            expr_nodes, val_nodes, env_nodes};
-        gc.collect();
+        runtime rt{std::move(term), out_nodes};
+        for(uint64_t i = 0; i < max_steps && !rt.done(); ++i)
+            rt.step();
+        bool finished = rt.done();
+        if(finished)
+            out = rt.output();
         return finished;
     }
 
     void run_normalize(std::shared_ptr<expr>& out, std::shared_ptr<expr> term) {
-        env_nodes_t env_nodes;
-        val_nodes_t val_nodes;
-        env_factory_t envs{env_nodes};
-        val_factory_t vals{val_nodes};
-        env_lookup lookup;
-        red_t red{vals, vals, envs, lookup};
-        re_t re{pool, pool, pool, vals, envs, vals};
-        entrypoint_processor entrypoint;
-        output_detacher detacher;
-        proc_t proc{red, re, entrypoint, detacher};
-        initial_frame_generator<val_factory_t> initial_frame_gen{vals};
-        {
-            interp_t interp{proc, proc,
-                            initial_frame_gen.generate_initial_frame(
-                                out, std::move(term))};
-            while(!interp.done())
-                interp.step();
-            DEBUG_ASSERT(interp.done());
-        }
-        garbage_collector<expr_nodes_t, val_nodes_t, env_nodes_t> gc{
-            expr_nodes, val_nodes, env_nodes};
-        gc.collect();
+        runtime rt{std::move(term), out_nodes};
+        while(!rt.done())
+            rt.step();
+        DEBUG_ASSERT(rt.done());
+        out = rt.output();
     }
 
     std::shared_ptr<expr> normalize(std::shared_ptr<expr> term) {
@@ -350,6 +295,7 @@ struct nbe_fixture {
     }
 
     expr_nodes_t expr_nodes;
+    expr_nodes_t out_nodes;
     expr_factory_t pool;
 };
 

@@ -1,14 +1,14 @@
 #include "value_objects/manifest.hpp"
 
-manifest::manifest(std::shared_ptr<expr>& out, std::shared_ptr<expr> term)
+manifest::manifest(std::shared_ptr<expr>& out, std::shared_ptr<expr> term,
+                   expr_nodes_t& out_nodes)
     : expr_nodes()
     , val_nodes()
     , env_nodes()
     , exprs(expr_nodes)
     , envs(env_nodes)
     , vals(val_nodes)
-    , gc(expr_nodes, val_nodes, env_nodes)
-    , detacher()
+    , detacher(out_nodes)
     , entrypoint()
     , lookup()
     , red(vals, vals, envs, lookup)

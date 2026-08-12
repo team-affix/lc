@@ -8,7 +8,6 @@
 #include "infrastructure/env_lookup.hpp"
 #include "infrastructure/env_factory.hpp"
 #include "infrastructure/expr_factory.hpp"
-#include "infrastructure/garbage_collector.hpp"
 #include "infrastructure/interpreter.hpp"
 #include "infrastructure/entrypoint_processor.hpp"
 #include "infrastructure/output_detacher.hpp"
@@ -103,9 +102,10 @@ struct ReifierTest : public ::testing::Test {
             env_factory<rc_pool<env>>, val_factory<rc_pool<val>>>
         re;
     entrypoint_processor entrypoint;
-    output_detacher detacher;
+    rc_pool<expr> out_nodes;
+    output_detacher<rc_pool<expr>> detacher;
     processor<decltype(red), decltype(re), entrypoint_processor,
-              output_detacher>
+              output_detacher<rc_pool<expr>>>
         proc;
 
     ReifierTest()
@@ -119,15 +119,11 @@ struct ReifierTest : public ::testing::Test {
         , red(vals, vals, envs, lookup)
         , re(pool, pool, pool, vals, envs, vals)
         , entrypoint()
-        , detacher()
+        , out_nodes()
+        , detacher(out_nodes)
         , proc(red, re, entrypoint, detacher) {
     }
 
-    ~ReifierTest() {
-        garbage_collector<rc_pool<expr>, rc_pool<val>, rc_pool<env>> gc{
-            expr_nodes, val_nodes, env_nodes};
-        gc.collect();
-    }
 
     std::shared_ptr<expr> dv(uint32_t i) { return pool.make_var(i); }
     std::shared_ptr<expr> lm(std::shared_ptr<expr> b) {

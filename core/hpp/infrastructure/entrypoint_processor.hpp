@@ -14,7 +14,6 @@
 #include "value_objects/main_reify_stage.hpp"
 #include "value_objects/main_stage.hpp"
 #include "value_objects/reify_val_funcall.hpp"
-#include "infrastructure/expr_release.hpp"
 
 struct entrypoint_processor {
     main_continuation init_continuation(main_funcall fc);
@@ -48,7 +47,6 @@ entrypoint_processor::process(main_frame& f, main_detach_stage) {
 
 inline std::optional<std::pair<main_stage, funcall>>
 entrypoint_processor::process(main_frame& f, main_after_detach_stage) {
-    f.detached_out = adopt_expr_tree(std::move(f.detached_out));
     f.pool_out.reset();
     return std::nullopt;
 }

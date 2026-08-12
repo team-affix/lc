@@ -12,15 +12,16 @@ template <typename T> struct rc_pool {
     rc_pool();
     std::shared_ptr<T> alloc(T value);
     void release(std::optional<T>& slot);
-    bool collect_one();
     std::size_t space_usage() const;
 
   private:
+    void try_collect_loop();
     std::optional<T>* take_slot();
 
     std::vector<std::optional<T>*> pending_collection_;
     std::vector<std::optional<T>*> free_;
     std::deque<std::optional<T>> storage_;
+    bool collecting_;
 };
 
 template <typename T> struct rc_pool_deleter {
@@ -33,7 +34,8 @@ template <typename T> struct rc_pool_deleter {
 };
 
 template <typename T>
-rc_pool<T>::rc_pool() : pending_collection_(), free_(), storage_() {
+rc_pool<T>::rc_pool()
+    : pending_collection_(), free_(), storage_(), collecting_(false) {
 }
 
 template <typename T> std::shared_ptr<T> rc_pool<T>::alloc(T value) {
@@ -44,16 +46,20 @@ template <typename T> std::shared_ptr<T> rc_pool<T>::alloc(T value) {
 
 template <typename T> void rc_pool<T>::release(std::optional<T>& slot) {
     pending_collection_.push_back(&slot);
+    try_collect_loop();
 }
 
-template <typename T> bool rc_pool<T>::collect_one() {
-    if(pending_collection_.empty())
-        return false;
-    std::optional<T>* slot = pending_collection_.back();
-    pending_collection_.pop_back();
-    slot->reset();
-    free_.push_back(slot);
-    return true;
+template <typename T> void rc_pool<T>::try_collect_loop() {
+    if(collecting_)
+        return;
+    collecting_ = true;
+    while(!pending_collection_.empty()) {
+        std::optional<T>* slot = pending_collection_.back();
+        pending_collection_.pop_back();
+        slot->reset();
+        free_.push_back(slot);
+    }
+    collecting_ = false;
 }
 
 template <typename T> std::size_t rc_pool<T>::space_usage() const {

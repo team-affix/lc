@@ -6,14 +6,12 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-struct RuntimeTest : public ::testing::Test, public nbe_fixture {
-    static constexpr uint64_t k_gc_interval = 1024;
-};
+struct RuntimeTest : public ::testing::Test, public nbe_fixture {};
 
 TEST_F(RuntimeTest, IdentityNormalizesToItself) {
     std::shared_ptr<expr> out;
     {
-        runtime rt{id_term(), k_gc_interval};
+        runtime rt{id_term(), out_nodes};
         while(!rt.done())
             rt.step();
         EXPECT_TRUE(rt.done());
@@ -26,7 +24,7 @@ TEST_F(RuntimeTest, IdentityNormalizesToItself) {
 TEST_F(RuntimeTest, IdentityAppNormalizesToIdentity) {
     std::shared_ptr<expr> out;
     {
-        runtime rt{ap(id_term(), id_term()), k_gc_interval};
+        runtime rt{ap(id_term(), id_term()), out_nodes};
         while(!rt.done())
             rt.step();
         EXPECT_TRUE(rt.done());
@@ -37,7 +35,7 @@ TEST_F(RuntimeTest, IdentityAppNormalizesToIdentity) {
 }
 
 TEST_F(RuntimeTest, ZeroStepsLeavesIncomplete) {
-    runtime rt{ap(id_term(), id_term()), k_gc_interval};
+    runtime rt{ap(id_term(), id_term()), out_nodes};
     EXPECT_FALSE(rt.done());
 }
 
@@ -46,7 +44,7 @@ TEST_F(RuntimeTest, MakeSharedAbsNormalizes) {
     auto term = std::make_shared<expr>(expr{expr::abs{body}});
     std::shared_ptr<expr> out;
     {
-        runtime rt{term, k_gc_interval};
+        runtime rt{term, out_nodes};
         while(!rt.done())
             rt.step();
         EXPECT_TRUE(rt.done());
@@ -57,14 +55,14 @@ TEST_F(RuntimeTest, MakeSharedAbsNormalizes) {
 }
 
 TEST_F(RuntimeTest, LimitedStepsOnOmegaLeavesIncomplete) {
-    runtime rt{omega_term(), k_gc_interval};
+    runtime rt{omega_term(), out_nodes};
     for(uint64_t i = 0; i < 64 && !rt.done(); ++i)
         rt.step();
     EXPECT_FALSE(rt.done());
 }
 
 TEST_F(RuntimeTest, DestroyIncompleteRuntimeDoesNotThrow) {
-    auto rt = std::make_unique<runtime>(omega_term(), 16);
+    auto rt = std::make_unique<runtime>(omega_term(), out_nodes);
     for(uint64_t i = 0; i < 256; ++i)
         rt->step();
     EXPECT_FALSE(rt->done());
@@ -72,7 +70,7 @@ TEST_F(RuntimeTest, DestroyIncompleteRuntimeDoesNotThrow) {
 }
 
 TEST_F(RuntimeTest, SpaceUsageClimbsOnOmega) {
-    runtime rt{omega_term(), 1};
+    runtime rt{omega_term(), out_nodes};
     std::size_t prev = rt.space_usage();
     EXPECT_GT(prev, 0u);
     for(uint64_t i = 0; i < 10; ++i) {
@@ -88,7 +86,7 @@ TEST_F(RuntimeTest, KIdDiscardsOmega) {
     std::shared_ptr<expr> out;
     auto term = ap(ap(k_term(), id_term()), omega_term());
     {
-        runtime rt{term, k_gc_interval};
+        runtime rt{term, out_nodes};
         while(!rt.done())
             rt.step();
         EXPECT_TRUE(rt.done());
@@ -101,7 +99,7 @@ TEST_F(RuntimeTest, KIdDiscardsOmega) {
 TEST_F(RuntimeTest, ChurchSuccZeroIsOne) {
     std::shared_ptr<expr> out;
     {
-        runtime rt{ap(succ_comb(), church(0)), k_gc_interval};
+        runtime rt{ap(succ_comb(), church(0)), out_nodes};
         while(!rt.done())
             rt.step();
         EXPECT_TRUE(rt.done());

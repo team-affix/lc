@@ -19,17 +19,19 @@ TEST_F(ExprFactoryInfraTest, NestedAbsAppStructuralEquality) {
     EXPECT_TRUE(exprs_eq(app_a, app_b));
 }
 
-TEST_F(ExprFactoryInfraTest, CollectOneFalseWhenEmpty) {
-    EXPECT_FALSE(nodes.collect_one());
-}
-
-TEST_F(ExprFactoryInfraTest, ReleaseThenCollectOneRetiresSlot) {
+TEST_F(ExprFactoryInfraTest, DropReclaimsWithoutGrowingStorage) {
+    std::size_t baseline = nodes.space_usage();
     {
         auto a = pool.make_var(0);
         auto b = pool.make_var(1);
+        (void)a;
         (void)b;
+        EXPECT_GT(nodes.space_usage(), baseline);
     }
-    EXPECT_TRUE(nodes.collect_one());
-    EXPECT_TRUE(nodes.collect_one());
-    EXPECT_FALSE(nodes.collect_one());
+    EXPECT_EQ(nodes.space_usage(), baseline + 2 * sizeof(std::optional<expr>));
+    auto reused_a = pool.make_var(2);
+    auto reused_b = pool.make_var(3);
+    EXPECT_EQ(nodes.space_usage(), baseline + 2 * sizeof(std::optional<expr>));
+    (void)reused_a;
+    (void)reused_b;
 }
