@@ -17,7 +17,6 @@ struct runtime {
 
   private:
     std::shared_ptr<expr> norm_out_;
-    rc_pool<expr>& out_nodes_;
     manifest manifest_;
 };
 

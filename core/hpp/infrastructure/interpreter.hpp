@@ -15,7 +15,7 @@ struct interpreter {
                 Funcall initial);
     void step();
     bool done() const;
-    std::size_t space_usage() const;
+    std::size_t frame_count() const;
 
   private:
     std::deque<Continuation> stack_;
@@ -70,8 +70,8 @@ bool interpreter<Continuation, Funcall, IProcess,
 template <typename Continuation, typename Funcall, typename IProcess,
           typename IInitContinuation>
 std::size_t interpreter<Continuation, Funcall, IProcess,
-                        IInitContinuation>::space_usage() const {
-    return stack_.size() * sizeof(Continuation);
+                        IInitContinuation>::frame_count() const {
+    return stack_.size();
 }
 
 #endif

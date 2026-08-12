@@ -52,7 +52,7 @@ for (uint64_t steps = 0;
 ```
 
 `space_usage()` is the approximate number of bytes the lambda calculus program
-currently takes up (internal eval pools plus the external out pool). In the
+currently takes up (internal eval pools and interpreter stack). In the
 worst case, peak space is on the order of the number of steps run so far — it
 grows linearly with the step count.
 

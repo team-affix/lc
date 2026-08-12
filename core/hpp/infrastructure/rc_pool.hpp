@@ -8,13 +8,17 @@
 #include <utility>
 #include <vector>
 
+template <typename T> struct rc_pool_deleter;
+
 template <typename T> struct rc_pool {
     rc_pool();
     std::shared_ptr<T> alloc(T value);
-    void release(std::optional<T>& slot);
-    std::size_t space_usage() const;
+    std::size_t size() const;
 
   private:
+    friend struct rc_pool_deleter<T>;
+
+    void release(std::optional<T>& slot);
     void try_collect_loop();
     std::optional<T>* take_slot();
 
@@ -33,9 +37,7 @@ template <typename T> struct rc_pool_deleter {
     }
 };
 
-template <typename T>
-rc_pool<T>::rc_pool()
-    : pending_collection_(), free_(), storage_(), collecting_(false) {
+template <typename T> rc_pool<T>::rc_pool() : collecting_(false) {
 }
 
 template <typename T> std::shared_ptr<T> rc_pool<T>::alloc(T value) {
@@ -62,8 +64,8 @@ template <typename T> void rc_pool<T>::try_collect_loop() {
     collecting_ = false;
 }
 
-template <typename T> std::size_t rc_pool<T>::space_usage() const {
-    return storage_.size() * sizeof(std::optional<T>);
+template <typename T> std::size_t rc_pool<T>::size() const {
+    return storage_.size();
 }
 
 template <typename T> std::optional<T>* rc_pool<T>::take_slot() {

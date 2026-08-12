@@ -16,5 +16,6 @@ manifest::manifest(std::shared_ptr<expr>& out, std::shared_ptr<expr> term,
     , proc(red, re, entrypoint, detacher)
     , initial_frame_gen(vals)
     , interp(std::in_place, proc, proc,
-             initial_frame_gen.generate_initial_frame(out, std::move(term))) {
+             initial_frame_gen.generate_initial_frame(out, std::move(term)))
+    , space_usage_calculator(expr_nodes, val_nodes, env_nodes, *interp) {
 }

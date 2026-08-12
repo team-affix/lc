@@ -14,6 +14,7 @@
 #include "infrastructure/rc_pool.hpp"
 #include "infrastructure/reduction_processor.hpp"
 #include "infrastructure/reification_processor.hpp"
+#include "infrastructure/space_usage_calculator.hpp"
 #include "infrastructure/val_factory.hpp"
 #include "value_objects/continuation.hpp"
 #include "value_objects/expr.hpp"
@@ -41,6 +42,9 @@ struct manifest {
     using initial_frame_generator_t = ::initial_frame_generator<val_factory_t>;
     using interpreter_t =
         ::interpreter<continuation, funcall, processor_t, processor_t>;
+    using space_usage_calculator_t =
+        ::space_usage_calculator<expr_nodes_t, val_nodes_t, env_nodes_t,
+                                 interpreter_t>;
 
     manifest(std::shared_ptr<expr>& out, std::shared_ptr<expr> term,
              expr_nodes_t& out_nodes);
@@ -59,6 +63,7 @@ struct manifest {
     processor_t proc;
     initial_frame_generator_t initial_frame_gen;
     std::optional<interpreter_t> interp;
+    space_usage_calculator_t space_usage_calculator;
 };
 
 #endif
